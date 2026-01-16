@@ -6,11 +6,17 @@ function BMSOverview({ messages }) {
   // Extract cell voltage data from CAN messages
   const cellData = useMemo(() => {
     const modules = Array(6).fill(null).map(() => Array(18).fill(null));
-    let stackVoltage = null;
+    // Track BMS1 and BMS2 stack voltages per module (6 modules x 2 chips)
+    const bmsStackVoltages = Array(6).fill(null).map(() => ({ bms1: null, bms2: null }));
     
     messages.forEach(msg => {
       if (msg.decoded && msg.decoded.signals) {
         const signals = msg.decoded.signals;
+        const msgName = msg.decoded.message_name || '';
+        
+        // Extract module ID from message name (e.g., "BQ76952_Stack_Voltage_0" -> module 0)
+        const moduleMatch = msgName.match(/_(\d)$/);
+        const moduleId = moduleMatch ? parseInt(moduleMatch[1]) : null;
         
         Object.entries(signals).forEach(([key, signalData]) => {
           const value = typeof signalData === 'object' && signalData !== null 
@@ -20,23 +26,45 @@ function BMSOverview({ messages }) {
           const cellMatch = key.match(/Cell_(\d+)_Voltage/);
           if (cellMatch) {
             const cellNum = parseInt(cellMatch[1]) - 1;
-            const moduleId = Math.floor(cellNum / 18);
+            const cellModuleId = Math.floor(cellNum / 18);
             const cellIdx = cellNum % 18;
             
-            if (moduleId >= 0 && moduleId < 6 && cellIdx >= 0 && cellIdx < 18 && typeof value === 'number') {
+            if (cellModuleId >= 0 && cellModuleId < 6 && cellIdx >= 0 && cellIdx < 18 && typeof value === 'number') {
               const voltage = value > 100 ? value / 1000 : value;
-              modules[moduleId][cellIdx] = voltage;
+              modules[cellModuleId][cellIdx] = voltage;
             }
           }
           
-          if (key.toLowerCase().includes('stack') && key.toLowerCase().includes('voltage') && typeof value === 'number') {
-            stackVoltage = value > 1000 ? value / 1000 : value;
+          // Match BMS1_Stack_Voltage or BMS2_Stack_Voltage
+          if (key === 'BMS1_Stack_Voltage' && typeof value === 'number' && moduleId !== null && moduleId < 6) {
+            bmsStackVoltages[moduleId].bms1 = value > 1000 ? value / 1000 : value;
+          }
+          if (key === 'BMS2_Stack_Voltage' && typeof value === 'number' && moduleId !== null && moduleId < 6) {
+            bmsStackVoltages[moduleId].bms2 = value > 1000 ? value / 1000 : value;
           }
         });
       }
     });
     
-    return { modules, stackVoltage };
+    // Calculate total stack voltage as sum of all BMS1 + BMS2 voltages across all modules
+    let totalStackVoltage = 0;
+    let hasAnyStackVoltage = false;
+    bmsStackVoltages.forEach(module => {
+      if (module.bms1 !== null) {
+        totalStackVoltage += module.bms1;
+        hasAnyStackVoltage = true;
+      }
+      if (module.bms2 !== null) {
+        totalStackVoltage += module.bms2;
+        hasAnyStackVoltage = true;
+      }
+    });
+    
+    return { 
+      modules, 
+      stackVoltage: hasAnyStackVoltage ? totalStackVoltage : null,
+      bmsStackVoltages 
+    };
   }, [messages]);
 
   // Extract thermistor data from CAN messages
@@ -113,7 +141,7 @@ function BMSOverview({ messages }) {
     };
   }, [thermistorData]);
 
-  // Voltage color gradient
+  // Voltage color gradient (darker rainbow)
   const getVoltageColor = (voltage) => {
     if (voltage === null) return '#2d3748';
     
@@ -122,13 +150,14 @@ function BMSOverview({ messages }) {
     const clampedV = Math.max(minV, Math.min(maxV, voltage));
     const t = (clampedV - minV) / (maxV - minV);
     
+    // Darker rainbow gradient
     const colors = [
-      { pos: 0,    r: 239, g: 68,  b: 68  },
-      { pos: 0.27, r: 249, g: 115, b: 22  },
-      { pos: 0.43, r: 250, g: 204, b: 21  },
-      { pos: 0.65, r: 34,  g: 197, b: 94  },
-      { pos: 0.92, r: 59,  g: 130, b: 246 },
-      { pos: 1,    r: 168, g: 85,  b: 247 }
+      { pos: 0,    r: 180, g: 50,  b: 50  },  // Dark red - critical
+      { pos: 0.27, r: 180, g: 85,  b: 16  },  // Dark orange - very low
+      { pos: 0.43, r: 190, g: 155, b: 16  },  // Dark yellow - low
+      { pos: 0.65, r: 25,  g: 145, b: 70  },  // Dark green - ideal
+      { pos: 0.92, r: 45,  g: 100, b: 185 },  // Dark blue - high
+      { pos: 1,    r: 125, g: 65,  b: 185 }   // Dark purple - very high
     ];
     
     let lower = colors[0];
@@ -256,9 +285,9 @@ function BMSOverview({ messages }) {
         </div>
 
         <div className="overview-grid-container">
-          <div className="overview-grid">
+          <div className="overview-grid" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap' }}>
             {cellData.modules.map((module, moduleId) => (
-              <div key={moduleId} className="module-column">
+              <div key={moduleId} className="module-column" style={{ flex: '0 0 auto' }}>
                 <div className="module-header">Module {moduleId}</div>
                 <div className="cell-groups-list">
                   {module.map((voltage, cellIdx) => {

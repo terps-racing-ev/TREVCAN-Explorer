@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { Battery, TrendingUp, TrendingDown, Zap } from 'lucide-react';
-import './CellVoltageMonitor.css';
+import './BMSCellMatrix.css';
 
-function CellVoltageMonitor({ messages }) {
+function BMSCellMatrix({ messages }) {
+
   // Extract cell voltage data from CAN messages
   const cellData = useMemo(() => {
     const modules = Array(6).fill(null).map(() => Array(18).fill(null));
@@ -18,22 +19,18 @@ function CellVoltageMonitor({ messages }) {
         const moduleMatch = msgName.match(/_(\d)$/);
         const moduleId = moduleMatch ? parseInt(moduleMatch[1]) : null;
         
-        // Look for Cell_X_Voltage signals
         Object.entries(signals).forEach(([key, signalData]) => {
-          // Extract numeric value from signal metadata object
           const value = typeof signalData === 'object' && signalData !== null 
             ? signalData.value 
             : signalData;
           
-          // Match Cell_X_Voltage pattern
           const cellMatch = key.match(/Cell_(\d+)_Voltage/);
           if (cellMatch) {
-            const cellNum = parseInt(cellMatch[1]) - 1; // 0-indexed
+            const cellNum = parseInt(cellMatch[1]) - 1;
             const cellModuleId = Math.floor(cellNum / 18);
             const cellIdx = cellNum % 18;
             
             if (cellModuleId >= 0 && cellModuleId < 6 && cellIdx >= 0 && cellIdx < 18 && typeof value === 'number') {
-              // Convert to volts if needed (assume mV if > 100)
               const voltage = value > 100 ? value / 1000 : value;
               modules[cellModuleId][cellIdx] = voltage;
             }
@@ -71,8 +68,8 @@ function CellVoltageMonitor({ messages }) {
     };
   }, [messages]);
 
-  // Calculate statistics
-  const stats = useMemo(() => {
+  // Calculate voltage statistics
+  const voltageStats = useMemo(() => {
     const allVoltages = cellData.modules.flat().filter(v => v !== null);
     
     if (allVoltages.length === 0) {
@@ -89,7 +86,7 @@ function CellVoltageMonitor({ messages }) {
 
   // Voltage color gradient (darker rainbow)
   const getVoltageColor = (voltage) => {
-    if (voltage === null) return '#2d3748';
+    if (voltage === null) return '#1a1a1a';
     
     const minV = 2.5;
     const maxV = 4.35;
@@ -117,7 +114,6 @@ function CellVoltageMonitor({ messages }) {
       }
     }
     
-    // Interpolate between the two colors
     const range = upper.pos - lower.pos;
     const localT = range > 0 ? (t - lower.pos) / range : 0;
     
@@ -128,80 +124,86 @@ function CellVoltageMonitor({ messages }) {
     return `rgb(${r}, ${g}, ${b})`;
   };
 
-  const getCellStatus = (voltage) => {
-    if (voltage === null) return 'No Data';
-    if (voltage < 2.5) return 'Critical';
-    if (voltage < 3.0) return 'Very Low';
-    if (voltage < 3.3) return 'Low';
-    if (voltage < 4.2) return 'Normal';
-    if (voltage < 4.3) return 'High';
-    return 'Very High';
-  };
-
   return (
-    <div className="cell-voltage-monitor">
-      <div className="card">
-        <div className="stats-bar">
-          <div className="stat-item">
-            <span className="stat-label">Active:</span>
-            <span className="stat-value">{stats.active}/108</span>
+    <div className="bms-cell-matrix">
+      {/* Stats Bar */}
+      <div className="matrix-stats-bar">
+        <div className="stats-left">
+          <div className="stat-group">
+            <Battery size={12} />
+            <span className="stat-label">Cells:</span>
+            <span className="stat-value">{voltageStats.active}/108</span>
+            {cellData.stackVoltage !== null && (
+              <span className="stat-highlight">
+                <Zap size={10} />
+                {cellData.stackVoltage.toFixed(1)}V
+              </span>
+            )}
+            {voltageStats.min !== null && (
+              <>
+                <TrendingDown size={10} />
+                <span className="stat-value">{voltageStats.min.toFixed(3)}V</span>
+                <TrendingUp size={10} />
+                <span className="stat-value">{voltageStats.max.toFixed(3)}V</span>
+                <span className="stat-label">Δ</span>
+                <span className="stat-value">{voltageStats.delta.toFixed(3)}V</span>
+              </>
+            )}
           </div>
-          {cellData.stackVoltage !== null && (
-            <div className="stat-item highlight">
-              <Zap size={16} />
-              <span className="stat-label">Stack:</span>
-              <span className="stat-value">{cellData.stackVoltage.toFixed(2)} V</span>
+        </div>
+        <div className="stats-right">
+        </div>
+      </div>
+
+      {/* Matrix Grid */}
+      <div className="matrix-container">
+        <div className="matrix-grid">
+          {/* Header Row */}
+          <div className="matrix-header-row">
+            <div className="matrix-corner"></div>
+            {Array.from({ length: 18 }, (_, i) => (
+              <div key={i} className="matrix-col-header">C{i}</div>
+            ))}
+          </div>
+
+          {/* Module Rows */}
+          {cellData.modules.map((module, moduleId) => (
+            <div key={moduleId} className="matrix-module-row">
+              <div className="matrix-row-header">M{moduleId}</div>
+              {module.map((voltage, cellIdx) => {
+                const globalCellNum = moduleId * 18 + cellIdx + 1;
+                
+                return (
+                  <div 
+                    key={cellIdx} 
+                    className="matrix-cell voltage"
+                    title={`Cell ${globalCellNum} (M${moduleId}C${cellIdx})\nVoltage: ${voltage !== null ? voltage.toFixed(4) + 'V' : 'N/A'}`}
+                  >
+                    <div 
+                      className="cell-voltage"
+                      style={{ backgroundColor: getVoltageColor(voltage) }}
+                    >
+                      {voltage !== null ? voltage.toFixed(3) : '--'}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
-          {stats.min !== null && (
-            <>
-              <div className="stat-item">
-                <TrendingDown size={16} />
-                <span className="stat-label">Min:</span>
-                <span className="stat-value">{stats.min.toFixed(3)} V</span>
-              </div>
-              <div className="stat-item">
-                <TrendingUp size={16} />
-                <span className="stat-label">Max:</span>
-                <span className="stat-value">{stats.max.toFixed(3)} V</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-label">Avg:</span>
-                <span className="stat-value">{stats.avg.toFixed(3)} V</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-label">Δ:</span>
-                <span className="stat-value">{stats.delta.toFixed(3)} V</span>
-              </div>
-            </>
-          )}
+          ))}
         </div>
 
-        <div className="voltage-grid-container">
-          <div className="voltage-grid">
-            {cellData.modules.map((module, moduleId) => (
-              <div key={moduleId} className="module-column">
-                <div className="module-header">Module {moduleId}</div>
-                <div className="cell-rows">
-                  {module.map((voltage, cellIdx) => (
-                    <div
-                      key={cellIdx}
-                      className="voltage-row"
-                      style={{ borderLeftColor: getVoltageColor(voltage) }}
-                    >
-                      <span className="cell-label">C{cellIdx}</span>
-                      <span
-                        className="voltage-chip"
-                        style={{ backgroundColor: getVoltageColor(voltage) }}
-                        title={`Module ${moduleId}, Cell ${cellIdx}: ${voltage !== null ? voltage.toFixed(4) + ' V - ' + getCellStatus(voltage) : 'No data'}`}
-                      >
-                        {voltage !== null ? voltage.toFixed(3) : '--'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+        {/* Color Legend */}
+        <div className="matrix-legend">
+          <div className="legend-section">
+            <span className="legend-title">Voltage</span>
+            <div className="legend-gradient voltage-gradient"></div>
+            <div className="legend-labels">
+              <span>2.5V</span>
+              <span>3.0V</span>
+              <span>3.5V</span>
+              <span>4.0V</span>
+              <span>4.35V</span>
+            </div>
           </div>
         </div>
       </div>
@@ -209,4 +211,4 @@ function CellVoltageMonitor({ messages }) {
   );
 }
 
-export default CellVoltageMonitor;
+export default BMSCellMatrix;
