@@ -65,24 +65,23 @@
   padding: 10px;
   min-height: 0;
   display: flex;
-  flex-direction: row;
 }
 
 .overview-grid {
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: nowrap !important;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, 1fr);
+  grid-template-rows: 1fr;
   gap: 10px;
+  width: 100%;
   height: 100%;
-  min-width: max-content;
   align-items: stretch;
 }
 
 .bms-overview .module-column {
-  flex: 0 0 auto;
-  min-width: 180px;
-  width: 200px;
-  max-width: 280px;
+  min-width: 0;
+  width: auto;
+  max-width: none;
   background: #141414;
   border-radius: 6px;
   overflow: hidden;
@@ -95,10 +94,10 @@
 .bms-overview .module-header {
   background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
   color: white;
-  padding: 8px 12px;
+  padding: clamp(6px, 0.8vh, 12px) clamp(8px, 1vw, 16px);
   text-align: center;
   font-weight: 600;
-  font-size: 15px;
+  font-size: clamp(12px, 1vw, 16px);
   border-bottom: 2px solid #dc2626;
   flex-shrink: 0;
 }
@@ -106,22 +105,22 @@
 .bms-overview .cell-groups-list {
   display: flex;
   flex-direction: column;
-  padding: 6px;
+  padding: clamp(6px, 0.8vh, 12px);
   background: #0a0a0a;
   flex: 1;
   justify-content: space-evenly;
   overflow-y: auto;
   min-height: 0;
-  gap: 3px;
+  gap: clamp(3px, 0.5vh, 8px);
 }
 
 .bms-overview .cell-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: clamp(6px, 0.8vw, 12px);
   background: #1a1a1a;
   border-radius: 4px;
-  padding: 5px 10px;
+  padding: clamp(5px, 0.7vh, 10px) clamp(8px, 1.1vw, 16px);
   border-left: 2px solid #2d3748;
   transition: all 0.15s ease;
   flex-shrink: 0;
@@ -131,17 +130,38 @@
   background: #252525;
 }
 
+/* Balancing indicator */
+.bms-overview .cell-row.balancing {
+  background: rgba(239, 68, 68, 0.15);
+  border-left-color: #ef4444 !important;
+  box-shadow: inset 0 0 8px rgba(239, 68, 68, 0.3);
+  animation: balancing-pulse 1.5s ease-in-out infinite;
+}
+
+.bms-overview .cell-row.balancing:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+@keyframes balancing-pulse {
+  0%, 100% {
+    box-shadow: inset 0 0 8px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.5);
+  }
+}
+
 .bms-overview .cell-label {
-  font-size: 12px;
+  font-size: clamp(11px, 0.9vw, 14px);
   font-weight: 600;
   color: #888;
   min-width: 24px;
 }
 
 .bms-overview .voltage-chip {
-  padding: 4px 8px;
+  padding: clamp(4px, 0.6vh, 8px) clamp(6px, 0.9vw, 12px);
   border-radius: 4px;
-  font-size: 14px;
+  font-size: clamp(12px, 1vw, 16px);
   font-weight: 700;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   text-align: center;
@@ -149,7 +169,7 @@
   transition: all 0.15s ease;
   border: 1px solid rgba(255, 255, 255, 0.2);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-  min-width: 56px;
+  min-width: clamp(52px, 6vw, 72px);
 }
 
 .bms-overview .voltage-chip:hover {
@@ -164,9 +184,9 @@
 }
 
 .bms-overview .temp-chip {
-  padding: 4px 4px;
+  padding: clamp(3px, 0.5vh, 6px) clamp(3px, 0.6vw, 6px);
   border-radius: 3px;
-  font-size: 12px;
+  font-size: clamp(10px, 0.9vw, 14px);
   font-weight: 700;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   text-align: center;
@@ -175,7 +195,7 @@
   border: 1px solid rgba(0, 0, 0, 0.3);
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  min-width: 32px;
+  min-width: clamp(30px, 4.5vw, 44px);
 }
 
 .bms-overview .temp-chip:hover {
@@ -184,10 +204,3 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
-.bms-overview .temp-avg {
-  font-size: 11px;
-  font-weight: 700;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  min-width: 28px;
-  text-align: right;
-}

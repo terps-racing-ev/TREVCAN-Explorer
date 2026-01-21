@@ -67,6 +67,50 @@ function BMSOverview({ messages }) {
     };
   }, [messages]);
 
+  // Extract balancing state from CAN messages
+  const balancingData = useMemo(() => {
+    // 6 modules x 18 cells each
+    const modules = Array(6).fill(null).map(() => Array(18).fill(false));
+    
+    messages.forEach(msg => {
+      if (msg.decoded && msg.decoded.signals) {
+        const signals = msg.decoded.signals;
+        const msgName = msg.decoded.message_name || '';
+        
+        // Match BMS1_Balance_Detail_X or BMS2_Balance_Detail_X for modules 0-5
+        const balanceMatch = msgName.match(/BMS([12])_Balance_Detail_([0-5])$/);
+        if (balanceMatch) {
+          const moduleId = parseInt(balanceMatch[2]);
+          
+          Object.entries(signals).forEach(([key, signalData]) => {
+            // Match BMS1_Cell0_Bal through BMS1_Cell8_Bal or BMS2_Cell9_Bal through BMS2_Cell17_Bal
+            const cellBalMatch = key.match(/BMS[12]_Cell(\d+)_Bal/);
+            if (cellBalMatch) {
+              const cellNum = parseInt(cellBalMatch[1]);
+              const value = typeof signalData === 'object' && signalData !== null 
+                ? signalData.value 
+                : signalData;
+              
+              // Cell numbers 0-8 are from BMS1, 9-17 are from BMS2
+              // Map directly to cell index 0-17 within the module
+              if (cellNum >= 0 && cellNum < 18) {
+                // value can be: 1, 1.0, "1", "Balancing (1)", or object with value property
+                // Check for numeric 1 or string containing "Balancing"
+                const isBalancing = Number(value) === 1 || 
+                                    (typeof value === 'string' && value.toLowerCase().includes('balancing'));
+                if (isBalancing) {
+                  modules[moduleId][cellNum] = true;
+                }
+              }
+            }
+          });
+        }
+      }
+    });
+    
+    return modules;
+  }, [messages]);
+
   // Extract thermistor data from CAN messages
   const thermistorData = useMemo(() => {
     const modules = Array(6).fill(null).map(() => Array(56).fill(null));
@@ -275,29 +319,24 @@ function BMSOverview({ messages }) {
                   <TrendingUp size={14} />
                   <span className="stat-value">{tempStats.max.toFixed(1)}°</span>
                 </div>
-                <div className="stat-item">
-                  <span className="stat-label">Avg:</span>
-                  <span className="stat-value">{tempStats.avg.toFixed(1)}°</span>
-                </div>
               </>
             )}
           </div>
         </div>
 
         <div className="overview-grid-container">
-          <div className="overview-grid" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap' }}>
+          <div className="overview-grid">
             {cellData.modules.map((module, moduleId) => (
-              <div key={moduleId} className="module-column" style={{ flex: '0 0 auto' }}>
+              <div key={moduleId} className="module-column">
                 <div className="module-header">Module {moduleId}</div>
                 <div className="cell-groups-list">
                   {module.map((voltage, cellIdx) => {
                     const temps = organizedTempData[moduleId]?.[cellIdx]?.temps || [null, null, null];
-                    const avgTemp = getGroupAvgTemp(temps);
-                    
+                    const isBalancing = balancingData[moduleId]?.[cellIdx] || false;
                     return (
                       <div
                         key={cellIdx}
-                        className="cell-row"
+                        className={`cell-row ${isBalancing ? 'balancing' : ''}`}
                         style={{ borderLeftColor: getVoltageColor(voltage) }}
                       >
                         <span className="cell-label">C{cellIdx}</span>
@@ -320,9 +359,6 @@ function BMSOverview({ messages }) {
                             </span>
                           ))}
                         </div>
-                        <span className="temp-avg" style={{ color: getTempColor(avgTemp) }}>
-                          {avgTemp !== null ? avgTemp.toFixed(0) : '--'}
-                        </span>
                       </div>
                     );
                   })}
