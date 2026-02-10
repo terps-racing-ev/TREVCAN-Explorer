@@ -194,6 +194,7 @@ class TransmitListItem(BaseModel):
     message_name: Optional[str] = None  # DBC message name if from DBC
     signals: Optional[Dict[str, Union[int, float, str]]] = None  # Signal values if from DBC
     description: Optional[str] = None
+    cycle_time: Optional[int] = None  # Cycle time in ms for cyclic sending
 
 
 class TransmitListResponse(BaseModel):

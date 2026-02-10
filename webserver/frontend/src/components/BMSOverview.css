@@ -5,7 +5,7 @@
   background: #0a0a0a;
   border: 1px solid #1a1a1a;
   border-radius: 8px;
-  overflow: auto;
+  overflow: hidden;
   min-height: 0;
 }
 
@@ -13,15 +13,17 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
 }
 
 .bms-overview .stats-bar {
   display: flex;
   gap: 20px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: #000000;
   border-bottom: 1px solid #1a1a1a;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .bms-overview .stat-group {
@@ -35,7 +37,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .bms-overview .stat-label {
@@ -58,37 +60,44 @@
 
 .overview-grid-container {
   flex: 1;
-  overflow: hidden;
-  padding: clamp(6px, 0.5vh, 12px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 10px;
   min-height: 0;
   display: flex;
 }
 
 .overview-grid {
-  display: flex;
-  gap: clamp(4px, 0.4vw, 8px);
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, 1fr);
+  grid-template-rows: 1fr;
+  gap: 10px;
   width: 100%;
   height: 100%;
+  align-items: stretch;
 }
 
 .bms-overview .module-column {
-  flex: 1;
   min-width: 0;
+  width: auto;
+  max-width: none;
   background: #141414;
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid #2a2a2a;
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .bms-overview .module-header {
   background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
   color: white;
-  padding: clamp(3px, 0.4vh, 8px) clamp(4px, 0.5vw, 10px);
+  padding: clamp(6px, 0.8vh, 12px) clamp(8px, 1vw, 16px);
   text-align: center;
   font-weight: 600;
-  font-size: clamp(10px, 0.9vw, 16px);
+  font-size: clamp(12px, 1vw, 16px);
   border-bottom: 2px solid #dc2626;
   flex-shrink: 0;
 }
@@ -96,21 +105,22 @@
 .bms-overview .cell-groups-list {
   display: flex;
   flex-direction: column;
-  padding: clamp(3px, 0.4vh, 8px);
+  padding: clamp(6px, 0.8vh, 12px);
   background: #0a0a0a;
   flex: 1;
   justify-content: space-evenly;
-  overflow: hidden;
+  overflow-y: auto;
   min-height: 0;
+  gap: clamp(3px, 0.5vh, 8px);
 }
 
 .bms-overview .cell-row {
   display: flex;
   align-items: center;
-  gap: clamp(3px, 0.3vw, 6px);
+  gap: clamp(6px, 0.8vw, 12px);
   background: #1a1a1a;
-  border-radius: clamp(3px, 0.3vw, 5px);
-  padding: clamp(2px, 0.3vh, 6px) clamp(4px, 0.5vw, 10px);
+  border-radius: 4px;
+  padding: clamp(5px, 0.7vh, 10px) clamp(8px, 1.1vw, 16px);
   border-left: 2px solid #2d3748;
   transition: all 0.15s ease;
   flex-shrink: 0;
@@ -120,26 +130,46 @@
   background: #252525;
 }
 
+/* Balancing indicator */
+.bms-overview .cell-row.balancing {
+  background: rgba(239, 68, 68, 0.15);
+  border-left-color: #ef4444 !important;
+  box-shadow: inset 0 0 8px rgba(239, 68, 68, 0.3);
+  animation: balancing-pulse 1.5s ease-in-out infinite;
+}
+
+.bms-overview .cell-row.balancing:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+@keyframes balancing-pulse {
+  0%, 100% {
+    box-shadow: inset 0 0 8px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.5);
+  }
+}
+
 .bms-overview .cell-label {
-  font-size: clamp(8px, 0.7vw, 12px);
+  font-size: clamp(11px, 0.9vw, 14px);
   font-weight: 600;
   color: #888;
-  min-width: clamp(16px, 1.8vw, 26px);
+  min-width: 24px;
 }
 
 .bms-overview .voltage-chip {
-  padding: clamp(2px, 0.3vh, 6px) clamp(3px, 0.4vw, 8px);
-  border-radius: clamp(3px, 0.3vw, 5px);
-  font-size: clamp(9px, 0.9vw, 16px);
+  padding: clamp(4px, 0.6vh, 8px) clamp(6px, 0.9vw, 12px);
+  border-radius: 4px;
+  font-size: clamp(12px, 1vw, 16px);
   font-weight: 700;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   text-align: center;
   cursor: pointer;
   transition: all 0.15s ease;
-  border: 1px solid rgba(0, 0, 0, 0.3);
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  min-width: clamp(36px, 3.5vw, 52px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  min-width: clamp(52px, 6vw, 72px);
 }
 
 .bms-overview .voltage-chip:hover {
@@ -150,13 +180,13 @@
 
 .bms-overview .temp-chips {
   display: flex;
-  gap: clamp(2px, 0.2vw, 4px);
+  gap: 3px;
 }
 
 .bms-overview .temp-chip {
-  padding: clamp(2px, 0.3vh, 6px) clamp(2px, 0.2vw, 4px);
+  padding: clamp(3px, 0.5vh, 6px) clamp(3px, 0.6vw, 6px);
   border-radius: 3px;
-  font-size: clamp(8px, 0.8vw, 14px);
+  font-size: clamp(10px, 0.9vw, 14px);
   font-weight: 700;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   text-align: center;
@@ -165,7 +195,7 @@
   border: 1px solid rgba(0, 0, 0, 0.3);
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  min-width: clamp(24px, 2.4vw, 38px);
+  min-width: clamp(30px, 4.5vw, 44px);
 }
 
 .bms-overview .temp-chip:hover {
@@ -174,10 +204,3 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
-.bms-overview .temp-avg {
-  font-size: clamp(8px, 0.7vw, 12px);
-  font-weight: 700;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  min-width: clamp(20px, 2vw, 32px);
-  text-align: right;
-}

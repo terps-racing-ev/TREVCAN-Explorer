@@ -199,7 +199,9 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
       temperatures: [],
       voltages: [],
       totalErrors: 0,
-      activeModules: 0
+      activeModules: 0,
+      totalStackVoltage: 0,
+      hasStackVoltage: false
     };
 
     Object.values(moduleData).forEach(module => {
@@ -211,6 +213,17 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
         combined.activeModules++;
         const faultCount = getSignalValue(module.heartbeat.Fault_Count);
         combined.totalErrors += faultCount;
+      }
+      // Sum BMS1 and BMS2 stack voltages
+      const bms1Voltage = getSignalValue(module.bms1Status?.BMS1_Stack_Voltage, null);
+      const bms2Voltage = getSignalValue(module.bms2Status?.BMS2_Stack_Voltage, null);
+      if (bms1Voltage !== null) {
+        combined.totalStackVoltage += bms1Voltage;
+        combined.hasStackVoltage = true;
+      }
+      if (bms2Voltage !== null) {
+        combined.totalStackVoltage += bms2Voltage;
+        combined.hasStackVoltage = true;
       }
     });
 
@@ -620,6 +633,11 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
                     <span>Total Errors:</span>
                     <span className="stat-value">{combinedData.totalErrors}</span>
                   </div>
+                  <div className="stat-row highlight">
+                    <Zap size={16} className="stat-icon" />
+                    <span>Stack Voltage:</span>
+                    <span className="stat-value">{combinedData.hasStackVoltage ? `${(combinedData.totalStackVoltage / 1000).toFixed(2)} V` : '--'}</span>
+                  </div>
                   <div className="stat-row">
                     <span>Total Cells:</span>
                     <span className="stat-value">{displayVolts.length}</span>
@@ -663,6 +681,20 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
                 <h3>Cell Voltage</h3>
               </div>
               <div className="card-content">
+                {!isAllModulesView && (bms1Status || bms2Status) && (
+                  <div className="stat-row highlight">
+                    <Zap size={16} className="stat-icon" />
+                    <span>Module Stack:</span>
+                    <span className="stat-value">
+                      {(() => {
+                        const bms1V = getSignalValue(bms1Status?.BMS1_Stack_Voltage, null);
+                        const bms2V = getSignalValue(bms2Status?.BMS2_Stack_Voltage, null);
+                        const totalV = (bms1V || 0) + (bms2V || 0);
+                        return (bms1V !== null || bms2V !== null) ? `${(totalV / 1000).toFixed(2)} V` : '--';
+                      })()}
+                    </span>
+                  </div>
+                )}
                 <div className="stat-row">
                   <TrendingDown size={16} className="stat-icon" />
                   <span>Min:</span>

@@ -2,27 +2,6 @@
   "dbc_file": "BMS-Firmware-RTOS-Complete.dbc",
   "items": [
     {
-      "id": "1766967903658-0.6818864454360686",
-      "can_id": 149950208,
-      "data": [
-        1,
-        5,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "is_extended": true,
-      "message_name": "BMS_Config_Command_0",
-      "signals": {
-        "Command": 1,
-        "Value": 5
-      },
-      "description": "DBC: BMS_Config_Command_0"
-    },
-    {
       "id": "1766967948991-0.025740042284808085",
       "can_id": 149950210,
       "data": [
@@ -33,36 +12,42 @@
       "signals": {
         "Reset_Magic": 0
       },
-      "description": "DBC: BMS_Reset_Command_0"
+      "description": "DBC: BMS_Reset_Command_0",
+      "cycle_time": null
     },
     {
-      "id": "1767241735129-0.8934487940686663",
-      "can_id": 149950208,
+      "id": "1768535855554-0.9147758982170433",
+      "can_id": 149950211,
       "data": [
-        2,
-        18,
-        0,
-        0,
-        0,
-        0,
-        0,
         0
       ],
       "is_extended": true,
-      "message_name": "BMS_Config_Command_0",
+      "message_name": "BMS_Chip_Reset_Command_0",
+      "signals": null,
+      "description": "DBC: BMS_Chip_Reset_Command_0",
+      "cycle_time": null
+    },
+    {
+      "id": "1768537751522-0.20579470556429047",
+      "can_id": 149950213,
+      "data": [
+        1
+      ],
+      "is_extended": true,
+      "message_name": "BMS_Balance_Command_0",
       "signals": {
-        "Command": 2,
-        "Value": 18
+        "Balance_Enable": 1
       },
-      "description": "DBC: BMS_Config_Command_0"
+      "description": "DBC: BMS_Balance_Command_0",
+      "cycle_time": 4500
     },
     {
-      "id": "1767241856271-0.4077556995507242",
-      "can_id": 149950208,
+      "id": "1768539495749-0.10060522951760942",
+      "can_id": 149950215,
       "data": [
-        2,
-        48,
-        0,
+        172,
+        13,
+        5,
         0,
         0,
         0,
@@ -70,6 +55,7 @@
         0
       ],
       "is_extended": true,
+<<<<<<< HEAD
       "message_name": "BMS_Config_Command_0",
       "signals": null,
       "description": "DBC: BMS_Config_Command_0"
@@ -102,6 +88,15 @@
       "message_name": "BMS_Chip_Reset_Command_0",
       "signals": null,
       "description": "DBC: BMS_Chip_Reset_Command_0"
+=======
+      "message_name": "BMS_Balance_Config_0",
+      "signals": {
+        "Target_Voltage_mV": 3500,
+        "Max_Cells_Per_Chip": 5
+      },
+      "description": "DBC: BMS_Balance_Config_0",
+      "cycle_time": 4500
+>>>>>>> dbfabda6349778b44ebdae70af46ad1a5dadf3e4
     }
   ]
 }

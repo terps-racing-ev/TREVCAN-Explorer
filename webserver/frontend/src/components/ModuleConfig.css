@@ -407,6 +407,42 @@
   font-size: 10px;
 }
 
+/* Sleep Mode Toggle */
+.sleep-mode-row .sleep-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.sleep-mode-row .toggle-btn {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  border: 1px solid #333;
+  border-radius: 3px;
+  background: #1a1a1a;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sleep-mode-row .toggle-btn:hover:not(:disabled) {
+  background: #252525;
+  border-color: #444;
+  color: #ccc;
+}
+
+.sleep-mode-row .toggle-btn.active {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border-color: #22c55e;
+  color: white;
+}
+
+.sleep-mode-row .toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Responsive adjustments */
 @media (max-width: 900px) {
   .modules-container {
