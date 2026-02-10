@@ -97,11 +97,19 @@ BO_ 577 CLUTCH_GEAR: 8 ECU
  SG_ CC_ACTIVE : 55|1@1+ (1,0) [0|1] "" Vector__XXX
  SG_ CC_SET_SPEED : 56|8@1+ (1,0) [0|200] "km/h" Vector__XXX
 
+BO_ 1601 FOB_CONTROL: 8 ECU
+ SG_ FOB_COUNTER_HIGH : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ FOB_COUNTER_LOW : 8|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ FOB_MAGIC : 16|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ FOB_COMMAND : 24|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ FOB_STATE : 32|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ FOB_BUTTON : 40|8@1+ (1,0) [0|255] "" Vector__XXX
+
 BO_ 722 HVAC: 8 ECU
- SG_ HVAC_BLOWER_SPEED : 32|8@1+ (0.03125,0) [0|7] "" Vector__XXX
+ SG_ HVAC_BLOWER_SPEED : 32|8@1+ (1,0) [0|224] "" Vector__XXX
 
 BO_ 801 ACC_SETTINGS: 8 ECU
- SG_ ACC_SET_DISTANCE : 24|8@1+ (0.0625,0) [0|4] "" Vector__XXX
+ SG_ ACC_SET_DISTANCE : 24|8@1+ (1,0) [0|64] "" Vector__XXX
  SG_ CC_CONVENTIONAL : 32|1@1+ (1,0) [0|1] "" Vector__XXX
  SG_ CC_ON_NOT_ACTIVE : 35|1@1+ (1,0) [0|1] "" Vector__XXX
  SG_ CC_SET_SPEED_2 : 40|8@1+ (1,0) [0|200] "km/h" Vector__XXX
@@ -183,11 +191,6 @@ BO_ 1600 KEY_STATUS: 8 ECU
  SG_ KEY_OUT_CAR_ON_2 : 16|8@1+ (1,0) [0|255] "" Vector__XXX
  SG_ IGNITION_OFF : 42|1@1+ (1,0) [0|1] "" Vector__XXX
 
-BO_ 1601 DOOR_LOCKS: 8 ECU
- SG_ LOCK_VIA_HANDLE : 24|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ UNLOCK_VIA_HANDLE : 25|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ UNLOCK_VIA_KEYFOB : 26|1@1+ (1,0) [0|1] "" Vector__XXX
-
 BO_ 1617 LIGHTS_STALK: 8 ECU
  SG_ STALK_PULL : 24|1@1+ (1,0) [0|1] "" Vector__XXX
  SG_ STALK_AUTO : 25|1@1+ (1,0) [0|1] "" Vector__XXX
@@ -236,6 +239,14 @@ BO_ 1762 TPMS: 8 ECU
 BO_ 1802 OIL_PRESSURE: 8 ECU
  SG_ OIL_PRESSURE_PSI : 24|8@1+ (1,0) [0|255] "psi" Vector__XXX
 
+BO_ 1872 WINDOW_UDS: 8 ECU
+ SG_ WINDOW_TARGET_ADDR : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ WINDOW_UDS_LENGTH : 8|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ WINDOW_UDS_SERVICE : 16|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ WINDOW_UDS_SUBFUNCTION : 24|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ WINDOW_ROUTINE_ID_HIGH : 32|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ WINDOW_ROUTINE_ID_LOW : 40|8@1+ (1,0) [0|255] "" Vector__XXX
+
 CM_ BU_ ECU "Vehicle ECU";
 
 CM_ BO_ 64 "Engine status and accelerator position - 100Hz";
@@ -251,6 +262,7 @@ CM_ BO_ 326 "Throttle and cruise control stalk - 50Hz";
 CM_ BO_ 552 "Transmission status, reverse, BSD/RCTA - 16.7Hz";
 CM_ BO_ 554 "EyeSight stereo camera data - 20Hz";
 CM_ BO_ 577 "Clutch position, gear, cruise control - 20Hz";
+CM_ BO_ 1601 "Key fob control TX - Lock/Unlock/Trunk commands (car off only) - TX only";
 CM_ BO_ 722 "HVAC blower motor speed - 33.3Hz";
 CM_ BO_ 801 "Adaptive cruise control settings - 10Hz";
 CM_ BO_ 802 "PCB, LDW and lane selection - 10Hz";
@@ -265,7 +277,6 @@ CM_ BO_ 935 "PCB/LDW/BSD/RCTA toggle states - 10Hz";
 CM_ BO_ 940 "Vehicle status (doors, lights, etc.) - 10Hz";
 CM_ BO_ 942 "Turn signals (2025 MY only) - 10Hz";
 CM_ BO_ 1600 "Key status - 0.8Hz";
-CM_ BO_ 1601 "Door lock events - 20Hz";
 CM_ BO_ 1617 "Lights stalk position, high beam assist, windows - 0.8Hz";
 CM_ BO_ 1618 "Door lock and open status - 0.8Hz";
 CM_ BO_ 1632 "Time elapsed since ignition - 2Hz";
@@ -274,6 +285,7 @@ CM_ BO_ 1677 "Odometer and SRH - 0.8Hz";
 CM_ BO_ 1713 "Current clock time - 0.8Hz";
 CM_ BO_ 1762 "TPMS tire pressures and warnings - 1Hz";
 CM_ BO_ 1802 "Oil pressure (GJP gauge) - 20Hz";
+CM_ BO_ 1872 "Window UDS control TX - Driver(0x90)/Passenger(0x91) window up/down - TX only";
 
 CM_ SG_ 64 ENGINE_RPM "Engine RPM from 14-bit value";
 CM_ SG_ 64 NEUTRAL_GEAR "1 when transmission is in neutral (MT cars)";
@@ -352,12 +364,80 @@ CM_ SG_ 1713 MINUTE "Current minute (0-59)";
 CM_ SG_ 1713 SECOND "Current second (0-59)";
 CM_ SG_ 1617 DRIVER_WINDOW "Driver window: 10=closed, 11=partial, 01=fully open";
 CM_ SG_ 1617 PASSENGER_WINDOW "Passenger window: 10=closed, 11=partial, 01=fully open";
+CM_ SG_ 1601 FOB_COUNTER_HIGH "Rolling counter high nibble (cycles B7-C6)";
+CM_ SG_ 1601 FOB_COUNTER_LOW "Rolling counter low nibble (0x0-0xF)";
+CM_ SG_ 1601 FOB_MAGIC "Magic byte - always 0x55";
+CM_ SG_ 1601 FOB_COMMAND "Command: 0x02=Lock, 0x04=Unlock, 0x08=Trunk";
+CM_ SG_ 1601 FOB_STATE "State byte - changes during burst";
+CM_ SG_ 1601 FOB_BUTTON "Button ID: 0x19=Lock, 0x11=Unlock/Trunk";
+CM_ SG_ 1872 WINDOW_TARGET_ADDR "Target address: 0x90=Driver, 0x91=Passenger";
+CM_ SG_ 1872 WINDOW_UDS_LENGTH "UDS PCI length byte";
+CM_ SG_ 1872 WINDOW_UDS_SERVICE "UDS Service: 0x3E=TesterPresent, 0x10=DiagSession, 0x31=RoutineControl";
+CM_ SG_ 1872 WINDOW_UDS_SUBFUNCTION "Subfunction: 0x01=Start, 0x02=Stop, 0x03=RequestResults";
+CM_ SG_ 1872 WINDOW_ROUTINE_ID_HIGH "Routine ID high byte: 0x40";
+CM_ SG_ 1872 WINDOW_ROUTINE_ID_LOW "Routine ID low byte: 0x01=WindowUp, 0x02=WindowDown";
 
 VAL_ 577 CURRENT_GEAR 0 "Neutral" 1 "First" 2 "Second" 3 "Third" 4 "Fourth" 5 "Fifth" 6 "Sixth" ;
 VAL_ 816 IGNITION_STATE 0 "Off" 16 "Accessory" 32 "Ignition_On" 48 "Engine_On" ;
-VAL_ 722 HVAC_BLOWER_SPEED 0 "Off" 1 "Level_1" 2 "Level_2" 3 "Level_3" 4 "Level_4" 5 "Level_5" 6 "Level_6" 7 "Level_7" ;
-VAL_ 801 ACC_SET_DISTANCE 0 "Off_or_Conv" 1 "Closest" 2 "Distance_2" 3 "Distance_3" 4 "Farthest" ;
+VAL_ 722 HVAC_BLOWER_SPEED 0 "Off" 32 "Level_1" 64 "Level_2" 96 "Level_3" 128 "Level_4" 160 "Level_5" 192 "Level_6" 224 "Level_7" ;
+VAL_ 801 ACC_SET_DISTANCE 0 "Off_or_Conventional" 16 "Closest" 32 "Distance_2" 48 "Distance_3" 64 "Farthest" ;
 VAL_ 802 CC_ACCEL_LEVEL 0 "Eco" 1 "Comfort" 2 "Standard" 3 "Dynamic" ;
 VAL_ 915 CC_ACCEL_LEVEL_2 0 "Eco" 1 "Comfort" 2 "Standard" 3 "Dynamic" ;
 VAL_ 1762 TPMS_UNIT 0 "kPa" 4 "PSI" 8 "Bar" ;
+VAL_ 912 REGION_CONFIG 23 "USA" 31 "Canada" 55 "GCC" 79 "Australia" 47 "GCC_Alt" ;
+VAL_ 1617 DRIVER_WINDOW 2 "Closed" 3 "Partially_Open" 1 "Fully_Open" ;
+VAL_ 1617 PASSENGER_WINDOW 2 "Closed" 3 "Partially_Open" 1 "Fully_Open" ;
+VAL_ 64 NEUTRAL_GEAR 0 "In_Gear" 1 "Neutral" ;
+VAL_ 65 AC_FAN_CLUTCH 0 "Disengaged" 1 "Engaged" ;
+VAL_ 313 BRAKE_LIGHTS 0 "Off" 1 "On" ;
+VAL_ 552 REVERSE_GEAR 0 "Not_Reverse" 1 "Reverse" ;
+VAL_ 552 BSD_RCTA_ENABLED 0 "Disabled" 1 "Enabled" ;
+VAL_ 552 BSD_RIGHT_DELAYED 0 "Clear" 1 "Car_Detected" ;
+VAL_ 552 BSD_LEFT_DELAYED 0 "Clear" 1 "Car_Detected" ;
+VAL_ 552 BSD_RIGHT_BRIEF 0 "Clear" 1 "Car_Detected" ;
+VAL_ 552 BSD_LEFT_BRIEF 0 "Clear" 1 "Car_Detected" ;
+VAL_ 552 RCTA_WARNING 0 "Clear" 1 "Warning" ;
+VAL_ 577 CLUTCH_PRESSED 0 "Released" 1 "Pressed" ;
+VAL_ 577 CC_SWITCH_ON 0 "Off" 1 "On" ;
+VAL_ 577 CC_ACTIVE 0 "Inactive" 1 "Active" ;
+VAL_ 801 CC_CONVENTIONAL 0 "Adaptive" 1 "Conventional" ;
+VAL_ 801 ACC_FOLLOWING_CAR 0 "No_Car" 1 "Following_Car" ;
+VAL_ 808 TRACK_MODE 0 "Normal" 1 "Track" ;
+VAL_ 808 VSC_OFF 0 "VSC_On" 1 "VSC_Off" ;
+VAL_ 808 TRC_OFF 0 "TRC_On" 1 "TRC_Off" ;
+VAL_ 811 CAR_MOVING 0 "Stationary" 1 "Moving" ;
+VAL_ 912 DRIVER_SEATBELT_UNBUCKLED 0 "Buckled" 1 "Unbuckled" ;
+VAL_ 912 LEFT_TURN_SIGNAL 0 "Off" 1 "On" ;
+VAL_ 912 RIGHT_TURN_SIGNAL 0 "Off" 1 "On" ;
+VAL_ 935 PCB_ENABLED 0 "Disabled" 1 "Enabled" ;
+VAL_ 935 LDW_ENABLED 0 "Disabled" 1 "Enabled" ;
+VAL_ 935 BSD_RCTA_ENABLED_2 0 "Disabled" 1 "Enabled" ;
+VAL_ 940 DRIVER_DOOR_OPEN 0 "Closed" 1 "Open" ;
+VAL_ 940 PASSENGER_DOOR_OPEN 0 "Closed" 1 "Open" ;
+VAL_ 940 TRUNK_OPEN 0 "Closed" 1 "Open" ;
+VAL_ 940 HANDBRAKE_ENGAGED 0 "Released" 1 "Engaged" ;
+VAL_ 940 BRAKE_LIGHTS_ON 0 "Off" 1 "On" ;
+VAL_ 940 REVERSE_LIGHTS_ON 0 "Off" 1 "On" ;
+VAL_ 940 PARKING_LIGHTS_ON 0 "Off" 1 "On" ;
+VAL_ 940 HEADLIGHTS_ON 0 "Off" 1 "On" ;
+VAL_ 940 HIGH_BEAM_ON 0 "Off" 1 "On" ;
+VAL_ 940 WIPERS_MOVING 0 "Off" 1 "On" ;
+VAL_ 1618 DRIVER_DOOR_UNLOCKED 0 "Locked" 1 "Unlocked" ;
+VAL_ 1618 PASSENGER_DOOR_UNLOCKED 0 "Locked" 1 "Unlocked" ;
+VAL_ 1618 DRIVER_DOOR_OPEN_2 0 "Closed" 1 "Open" ;
+VAL_ 1618 PASSENGER_DOOR_OPEN_2 0 "Closed" 1 "Open" ;
+VAL_ 1618 TRUNK_OPEN_2 0 "Closed" 1 "Open" ;
+VAL_ 1635 SRH_ENABLED 0 "Disabled" 1 "Enabled" ;
+VAL_ 1635 SRH_DISABLED 0 "Enabled" 1 "Disabled" ;
+VAL_ 1762 TPMS_LIGHT_ON 0 "Off" 1 "On" ;
+VAL_ 1762 LOW_PRESSURE_FL 0 "Normal" 1 "Low" ;
+VAL_ 1762 LOW_PRESSURE_FR 0 "Normal" 1 "Low" ;
+VAL_ 1762 LOW_PRESSURE_RL 0 "Normal" 1 "Low" ;
+VAL_ 1762 LOW_PRESSURE_RR 0 "Normal" 1 "Low" ;
+VAL_ 1601 FOB_COMMAND 2 "Lock" 4 "Unlock" 8 "Trunk" ;
+VAL_ 1601 FOB_BUTTON 25 "Lock_Button" 17 "Unlock_Trunk_Button" ;
+VAL_ 1872 WINDOW_TARGET_ADDR 144 "Driver" 145 "Passenger" ;
+VAL_ 1872 WINDOW_UDS_SERVICE 62 "TesterPresent" 16 "DiagSessionControl" 49 "RoutineControl" ;
+VAL_ 1872 WINDOW_UDS_SUBFUNCTION 1 "StartRoutine" 2 "StopRoutine" 3 "RequestResults" ;
+VAL_ 1872 WINDOW_ROUTINE_ID_LOW 1 "Window_Up" 2 "Window_Down" ;
 

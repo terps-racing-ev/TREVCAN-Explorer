@@ -91,6 +91,17 @@
       "message_name": "BMS_Config_Command_0",
       "signals": null,
       "description": "DBC: BMS_Config_Command_0"
+    },
+    {
+      "id": "1768374067291-0.6138518742500246",
+      "can_id": 149950211,
+      "data": [
+        0
+      ],
+      "is_extended": true,
+      "message_name": "BMS_Chip_Reset_Command_0",
+      "signals": null,
+      "description": "DBC: BMS_Chip_Reset_Command_0"
     }
   ]
 }
