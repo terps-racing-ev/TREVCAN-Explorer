@@ -16,6 +16,8 @@ from datetime import datetime
 import asyncio
 import json
 from enum import Enum
+import atexit
+import signal
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,6 +62,14 @@ except ImportError:
     NETWORK_CAN_AVAILABLE = False
     print("Warning: NetworkCAN_Driver not available")
 
+try:
+    from drivers.Bluetooth_Driver import BluetoothCANDriver, BLUETOOTH_AVAILABLE, CANMessage as BluetoothCANMessage, get_paired_bluetooth_devices
+    BLUETOOTH_CAN_AVAILABLE = BLUETOOTH_AVAILABLE
+except ImportError:
+    BLUETOOTH_CAN_AVAILABLE = False
+    get_paired_bluetooth_devices = lambda: []
+    print("Warning: Bluetooth_Driver not available")
+
 # Import firmware flasher
 try:
     from drivers.Firmware_Flasher import FirmwareFlasher
@@ -86,6 +96,7 @@ class DeviceType(str, Enum):
     PCAN = "pcan"
     CANABLE = "canable"
     NETWORK = "network"
+    BLUETOOTH = "bluetooth"
 
 
 class ConnectionRequest(BaseModel):
@@ -183,6 +194,7 @@ class TransmitListItem(BaseModel):
     message_name: Optional[str] = None  # DBC message name if from DBC
     signals: Optional[Dict[str, Union[int, float, str]]] = None  # Signal values if from DBC
     description: Optional[str] = None
+    cycle_time: Optional[int] = None  # Cycle time in ms for cyclic sending
 
 
 class TransmitListResponse(BaseModel):
@@ -294,6 +306,29 @@ class CANBackend:
                 available=True
             ))
         
+        # Bluetooth CAN devices (Windows only - scan for paired Bluetooth devices)
+        if BLUETOOTH_CAN_AVAILABLE:
+            try:
+                paired_devices = get_paired_bluetooth_devices()
+                for idx, device in enumerate(paired_devices):
+                    devices.append(DeviceInfo(
+                        device_type="bluetooth",
+                        index=idx,
+                        name=device['address'],
+                        description=f"{device['name']} ({device['address']})",
+                        available=True
+                    ))
+                # Always add a manual entry option
+                devices.append(DeviceInfo(
+                    device_type="bluetooth",
+                    index=len(paired_devices),
+                    name="Bluetooth CAN Server",
+                    description="Connect via Bluetooth address (XX:XX:XX:XX:XX:XX)",
+                    available=True
+                ))
+            except Exception as e:
+                print(f"Error scanning Bluetooth devices: {e}")
+        
         return devices
     
     def connect(self, device_type: DeviceType, channel: Union[str, int], baudrate: str) -> bool:
@@ -361,6 +396,31 @@ class CANBackend:
                 if not self.driver.connect(baudrate=network_baudrate, auto_connect_server=True):
                     return False
             
+            elif device_type == DeviceType.BLUETOOTH:
+                if not BLUETOOTH_CAN_AVAILABLE:
+                    raise Exception("Bluetooth CAN driver not available (requires Windows 10/11 + Python 3.9+)")
+                
+                # Channel format: "XX:XX:XX:XX:XX:XX" or "XX:XX:XX:XX:XX:XX:1" (address:channel)
+                # Default RFCOMM channel is 1
+                bt_address = str(channel).strip()
+                rfcomm_channel = 1
+                
+                # Check if channel is specified at the end (e.g., "XX:XX:XX:XX:XX:XX:1")
+                if bt_address.count(':') == 6:
+                    # Has 6 colons, meaning address:channel format
+                    parts = bt_address.rsplit(':', 1)
+                    bt_address = parts[0]
+                    try:
+                        rfcomm_channel = int(parts[1])
+                    except ValueError:
+                        rfcomm_channel = 1
+                
+                self.driver = BluetoothCANDriver()
+                
+                # Connect to the Bluetooth server
+                if not self.driver.connect(address=bt_address, channel=rfcomm_channel):
+                    return False
+            
             else:
                 raise Exception(f"Unknown device type: {device_type}")
             
@@ -372,8 +432,8 @@ class CANBackend:
             self.start_time = datetime.now()
             self.message_count = 0
             
-            # For Network driver, upload DBC to server if already loaded locally
-            if device_type == DeviceType.NETWORK and self.dbc_file_path:
+            # For Network/Bluetooth drivers, upload DBC to server if already loaded locally
+            if device_type in (DeviceType.NETWORK, DeviceType.BLUETOOTH) and self.dbc_file_path:
                 try:
                     if hasattr(self.driver, 'upload_dbc'):
                         if self.driver.upload_dbc(self.dbc_file_path):
@@ -394,15 +454,36 @@ class CANBackend:
         if not self.is_connected or not self.driver:
             return False
         
+        device_name = self.device_type.value if self.device_type else "unknown"
+        print(f"[Disconnect] Disconnecting from {device_name}...")
+        
         try:
-            self.driver.stop_receive_thread()
-            self.driver.disconnect()
+            # Stop receive thread first if available
+            if hasattr(self.driver, 'stop_receive_thread'):
+                try:
+                    self.driver.stop_receive_thread()
+                    print("[Disconnect] Receive thread stopped")
+                except Exception as e:
+                    print(f"[Disconnect] Warning stopping receive thread: {e}")
+            
+            # Disconnect from device
+            try:
+                self.driver.disconnect()
+                print("[Disconnect] Driver disconnected")
+            except Exception as e:
+                print(f"[Disconnect] Warning during driver disconnect: {e}")
+            
             self.driver = None
             self.is_connected = False
             self.device_type = None
+            print("[Disconnect] Cleanup complete")
             return True
         except Exception as e:
-            print(f"Disconnection error: {e}")
+            print(f"[Disconnect] Error: {e}")
+            # Force cleanup even on error
+            self.driver = None
+            self.is_connected = False
+            self.device_type = None
             return False
     
     def send_message(self, can_id: int, data: List[int], 
@@ -441,8 +522,8 @@ class CANBackend:
             self.dbc_database = cantools.database.load_file(file_path, strict=False)
             self.dbc_file_path = file_path
             
-            # For Network driver, also upload DBC to remote server for server-side decoding
-            if self.device_type == DeviceType.NETWORK and self.driver:
+            # For Network/Bluetooth driver, also upload DBC to remote server for server-side decoding
+            if self.device_type in (DeviceType.NETWORK, DeviceType.BLUETOOTH) and self.driver:
                 try:
                     if hasattr(self.driver, 'upload_dbc'):
                         if self.driver.upload_dbc(file_path):
@@ -706,6 +787,38 @@ app.add_middleware(
 
 # Global backend instance
 backend = CANBackend()
+
+
+def cleanup_on_exit():
+    """Cleanup handler called on program exit."""
+    print("\n[Cleanup] Performing cleanup on exit...")
+    if backend.is_connected:
+        try:
+            if backend.driver and hasattr(backend.driver, 'stop_receive_thread'):
+                backend.driver.stop_receive_thread()
+            backend.disconnect()
+            print("[Cleanup] Disconnected successfully")
+        except Exception as e:
+            print(f"[Cleanup] Error during disconnect: {e}")
+
+
+# Register cleanup handler
+atexit.register(cleanup_on_exit)
+
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals (Ctrl+C, etc.)."""
+    print(f"\n[Signal] Received signal {signum}, shutting down...")
+    cleanup_on_exit()
+    sys.exit(0)
+
+
+# Register signal handlers for graceful shutdown
+try:
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+except:
+    pass  # Signal handling might not work in all contexts
 
 
 # ============================================================================
@@ -1208,11 +1321,37 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Shutdown event handler"""
-    print("\nShutting down...")
+    """Shutdown event handler - ensures clean disconnection"""
+    print("\n" + "=" * 60)
+    print("SHUTTING DOWN SERVER")
+    print("=" * 60)
+    
     if backend.is_connected:
-        backend.disconnect()
-    print("Backend stopped")
+        print(f"[Shutdown] Disconnecting from {backend.device_type.value if backend.device_type else 'device'}...")
+        try:
+            # Stop receive thread first
+            if backend.driver and hasattr(backend.driver, 'stop_receive_thread'):
+                try:
+                    backend.driver.stop_receive_thread()
+                except Exception as e:
+                    print(f"[Shutdown] Warning stopping receive thread: {e}")
+            
+            # Then disconnect
+            backend.disconnect()
+            print("[Shutdown] Disconnected successfully")
+        except Exception as e:
+            print(f"[Shutdown] Error during disconnect: {e}")
+    
+    # Close all WebSocket connections
+    for ws in list(websocket_clients):
+        try:
+            await ws.close()
+        except:
+            pass
+    websocket_clients.clear()
+    
+    print("[Shutdown] Backend stopped")
+    print("=" * 60)
 
 
 # ============================================================================

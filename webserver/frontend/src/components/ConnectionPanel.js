@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, WifiOff, RefreshCw, Zap, Globe } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, Zap, Globe, Bluetooth } from 'lucide-react';
 import './ConnectionPanel.css';
 
 function ConnectionPanel({ connected, devices, onConnect, onDisconnect, onRefreshDevices }) {
@@ -40,6 +40,27 @@ function ConnectionPanel({ connected, devices, onConnect, onDisconnect, onRefres
   const pcanDevices = devices.filter(d => d.device_type === 'pcan');
   const canableDevices = devices.filter(d => d.device_type === 'canable');
   const networkDevices = devices.filter(d => d.device_type === 'network');
+  // Filter bluetooth devices - exclude the manual entry placeholder
+  const bluetoothDevices = devices.filter(d => d.device_type === 'bluetooth' && d.name !== 'Bluetooth CAN Server');
+
+  // Bluetooth specific state - address and RFCOMM channel
+  const [bluetoothAddress, setBluetoothAddress] = useState(() => {
+    const saved = localStorage.getItem('bluetoothAddress');
+    return saved || '';
+  });
+  const [bluetoothChannel, setBluetoothChannel] = useState(() => {
+    const saved = localStorage.getItem('bluetoothChannel');
+    return saved || '1';
+  });
+
+  // Save bluetooth settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('bluetoothAddress', bluetoothAddress);
+  }, [bluetoothAddress]);
+
+  useEffect(() => {
+    localStorage.setItem('bluetoothChannel', bluetoothChannel);
+  }, [bluetoothChannel]);
 
   // Update channel when devices are loaded or device type changes
   useEffect(() => {
@@ -82,6 +103,12 @@ function ConnectionPanel({ connected, devices, onConnect, onDisconnect, onRefres
       channelToSend = `${networkHost}:${networkPort}`;
       console.log('[ConnectionPanel] Network channel:', channelToSend);
     }
+    // Handle Bluetooth device - combine address and channel
+    else if (deviceType === 'bluetooth') {
+      // Format: address:channel (e.g., "XX:XX:XX:XX:XX:XX:1")
+      channelToSend = `${bluetoothAddress}:${bluetoothChannel}`;
+      console.log('[ConnectionPanel] Bluetooth channel:', channelToSend);
+    }
     // For CANable, extract the device index from "Device X: Description" format
     else if (deviceType === 'canable') {
       if (typeof channel === 'string' && channel.startsWith('Device ')) {
@@ -99,7 +126,7 @@ function ConnectionPanel({ connected, devices, onConnect, onDisconnect, onRefres
         // If channel doesn't match expected format, try to use it as-is
         console.warn('[ConnectionPanel] Channel does not match expected format:', channel);
         // Assume it's just a number
-        channelToSend = channel.replace(/\D/g, ''); // Extract only digits
+        channelToSend = channel.replace(/\\D/g, ''); // Extract only digits
         if (!channelToSend) {
           alert('Invalid channel. Please select a CANable device.');
           setConnecting(false);
@@ -126,9 +153,10 @@ function ConnectionPanel({ connected, devices, onConnect, onDisconnect, onRefres
     <div className="connection-panel">
       <div className="connection-content">
         <div className="connection-controls">
-          <div className="form-group">
+          <div className="form-group device-type-group">
             <label>Device Type</label>
             <select
+              className="device-type-select"
               value={deviceType}
               onChange={(e) => {
                 const newDeviceType = e.target.value;
@@ -150,6 +178,13 @@ function ConnectionPanel({ connected, devices, onConnect, onDisconnect, onRefres
                   } else {
                     setChannel('Device 0');
                   }
+                } else if (newDeviceType === 'bluetooth') {
+                  // Check for paired Bluetooth devices - use first one if available
+                  const btDevices = devices.filter(d => d.device_type === 'bluetooth' && d.name !== 'Bluetooth CAN Server');
+                  if (btDevices.length > 0 && btDevices[0].name.includes(':')) {
+                    // It's a MAC address
+                    setBluetoothAddress(btDevices[0].name);
+                  }
                 }
                 // Network device uses host:port fields, no channel needed
               }}
@@ -158,6 +193,7 @@ function ConnectionPanel({ connected, devices, onConnect, onDisconnect, onRefres
               <option value="pcan">PCAN</option>
               <option value="canable">CANable</option>
               <option value="network">Network</option>
+              <option value="bluetooth">Bluetooth (Experimental)</option>
             </select>
           </div>
 
@@ -183,6 +219,52 @@ function ConnectionPanel({ connected, devices, onConnect, onDisconnect, onRefres
                   disabled={connected}
                 />
               </div>
+            </div>
+          ) : deviceType === 'bluetooth' ? (
+            <div className="form-group bluetooth-inputs">
+              <label>Bluetooth Address</label>
+              <div className="bluetooth-address-group">
+                {bluetoothDevices.length > 0 ? (
+                  <select
+                    className="bluetooth-device-select"
+                    value={bluetoothAddress}
+                    onChange={(e) => setBluetoothAddress(e.target.value)}
+                    disabled={connected}
+                  >
+                    <option value="">-- Select paired device --</option>
+                    {bluetoothDevices.map(device => (
+                      <option key={device.name} value={device.name}>
+                        {device.description}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    className="bluetooth-address-input"
+                    value={bluetoothAddress}
+                    onChange={(e) => setBluetoothAddress(e.target.value.toUpperCase())}
+                    placeholder="XX:XX:XX:XX:XX:XX"
+                    disabled={connected}
+                  />
+                )}
+                <span className="bluetooth-separator">Ch:</span>
+                <input
+                  type="number"
+                  className="bluetooth-channel-input"
+                  value={bluetoothChannel}
+                  onChange={(e) => setBluetoothChannel(e.target.value)}
+                  min="1"
+                  max="30"
+                  placeholder="1"
+                  disabled={connected}
+                />
+              </div>
+              <small className="bluetooth-hint">
+                {bluetoothDevices.length > 0 
+                  ? 'Select a paired device or enter address manually' 
+                  : 'Pair device in Windows first, then enter MAC address'}
+              </small>
             </div>
           ) : (
             <div className="form-group">

@@ -1,23 +1,4 @@
 {
   "dbc_file": "brz_gr86_gen2_asc.dbc",
-  "items": [
-    {
-      "id": "1767750611768-0.6531614395312442",
-      "can_id": 1874,
-      "data": [
-        2,
-        16,
-        3,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "is_extended": false,
-      "message_name": null,
-      "signals": null,
-      "description": "Custom message 0x752"
-    }
-  ]
+  "items": []
 }

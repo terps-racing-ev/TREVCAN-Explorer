@@ -373,31 +373,52 @@ function AddTransmitDialog({ dbcMessages, onAdd, onUpdate, onCancel, editingItem
 
   const selectedDbcMessage = dbcMessages.find(m => m.name === selectedMessage);
 
+  // Track if we've already initialized for editing
+  const hasInitializedEdit = useRef(false);
+  
+  // Sync cycleTime when editingItem changes (e.g., after page refresh)
+  useEffect(() => {
+    if (editingItem) {
+      setCycleTime(editingItem.cycle_time || 0);
+    }
+  }, [editingItem]);
+  
   // Update dbcData when a DBC message is selected (but not during initial edit load)
-  const initialLoadRef = useRef(true);
   useEffect(() => {
     if (selectedDbcMessage) {
-      // If editing and this is the initial load, use the existing values
-      if (isEditing && initialLoadRef.current && editingItem?.message_name === selectedMessage) {
-        initialLoadRef.current = false;
+      // If editing and this is the initial load, use the existing values from editingItem
+      if (isEditing && !hasInitializedEdit.current && editingItem?.message_name === selectedMessage) {
+        hasInitializedEdit.current = true;
+        // Restore saved signal values and data from editingItem
+        if (editingItem.signals && Object.keys(editingItem.signals).length > 0) {
+          setSignalValues(editingItem.signals);
+        }
+        // Keep the existing dbcData that was set in initial state
         return;
       }
-      initialLoadRef.current = false;
       
-      const length = selectedDbcMessage.length || 8;
-      const zeros = Array(length).fill(0).map(b => '00').join(' ');
-      setDbcData(zeros);
-      
-      // Initialize signal values to 0
-      const initialSignals = {};
-      if (selectedDbcMessage.signals) {
-        selectedDbcMessage.signals.forEach(sig => {
-          initialSignals[sig.name] = 0;
-        });
+      // Only reset values if this is a NEW message selection (not the initial edit load)
+      if (!isEditing || hasInitializedEdit.current) {
+        // Don't reset if we're just re-rendering with the same message
+        if (isEditing && editingItem?.message_name === selectedMessage) {
+          return;
+        }
+        
+        const length = selectedDbcMessage.length || 8;
+        const zeros = Array(length).fill(0).map(b => '00').join(' ');
+        setDbcData(zeros);
+        
+        // Initialize signal values to 0
+        const initialSignals = {};
+        if (selectedDbcMessage.signals) {
+          selectedDbcMessage.signals.forEach(sig => {
+            initialSignals[sig.name] = 0;
+          });
+        }
+        setSignalValues(initialSignals);
       }
-      setSignalValues(initialSignals);
     }
-  }, [selectedDbcMessage]);
+  }, [selectedDbcMessage, selectedMessage]);
 
   // Encode signal values to data bytes
   const encodeSignals = async () => {

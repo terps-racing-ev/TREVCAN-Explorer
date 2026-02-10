@@ -3,6 +3,9 @@
   border-bottom: 2px solid rgba(102, 126, 234, 0.2);
   padding: 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 100;
+  overflow: visible;
 }
 
 .connection-content {
@@ -12,6 +15,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 20px;
+  overflow: visible;
 }
 
 .connection-controls {
@@ -20,12 +24,14 @@
   align-items: flex-end;
   flex-wrap: wrap;
   flex: 1;
+  overflow: visible;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   min-width: 150px;
+  overflow: visible;
 }
 
 .form-group label {
@@ -46,6 +52,35 @@
   font-size: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
+  position: relative;
+  z-index: 101;
+  -webkit-appearance: menulist;
+  -moz-appearance: menulist;
+  appearance: menulist;
+}
+
+/* Device Type dropdown - ensure all 4 options are visible */
+.device-type-group {
+  min-width: 200px;
+  overflow: visible !important;
+}
+
+.device-type-select {
+  min-width: 190px;
+  overflow: visible !important;
+}
+
+/* Force native dropdown appearance and ensure options show */
+.device-type-select option {
+  padding: 10px;
+  background: #1a1a1a;
+  color: #e0e0e0;
+}
+
+.form-group select option {
+  background: #1e2538;
+  color: #e0e0e0;
+  padding: 8px;
 }
 
 .form-group select:hover:not(:disabled) {
@@ -197,6 +232,83 @@
 .network-port-input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Bluetooth device input styles */
+.bluetooth-inputs {
+  min-width: 280px;
+}
+
+.bluetooth-address-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bluetooth-device-select,
+.bluetooth-address-input {
+  flex: 1;
+  padding: 10px 12px;
+  background: rgba(30, 37, 56, 0.8);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  min-width: 180px;
+}
+
+.bluetooth-channel-input {
+  width: 55px;
+  padding: 10px 8px;
+  background: rgba(30, 37, 56, 0.8);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.bluetooth-separator {
+  color: #a0aec0;
+  font-weight: bold;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.bluetooth-device-select:hover:not(:disabled),
+.bluetooth-address-input:hover:not(:disabled),
+.bluetooth-channel-input:hover:not(:disabled) {
+  border-color: #667eea;
+}
+
+.bluetooth-device-select:focus,
+.bluetooth-address-input:focus,
+.bluetooth-channel-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.bluetooth-device-select:disabled,
+.bluetooth-address-input:disabled,
+.bluetooth-channel-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bluetooth-hint {
+  font-size: 10px;
+  color: #718096;
+  margin-top: 4px;
+  line-height: 1.3;
+  display: block;
+}
+
+.bluetooth-device-select option {
+  background: #1e2538;
+  color: #e0e0e0;
 }
 
 .network-separator {

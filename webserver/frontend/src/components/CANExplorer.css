@@ -322,6 +322,43 @@
   font-size: 16px;
 }
 
+/* Bluetooth device input */
+.bluetooth-device-select,
+.bluetooth-address {
+  width: 100%;
+  padding: 10px 14px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  color: #f5f5f5;
+  font-size: 14px;
+}
+
+.bluetooth-channel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.bluetooth-channel-row label {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.bluetooth-channel {
+  width: 60px;
+  padding: 8px 10px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  color: #f5f5f5;
+  font-size: 14px;
+  text-align: center;
+}
+
 .checkbox-label {
   display: flex;
   align-items: center;

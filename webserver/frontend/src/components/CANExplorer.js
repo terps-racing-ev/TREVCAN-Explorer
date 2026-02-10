@@ -58,6 +58,14 @@ function CANExplorer({
     return localStorage.getItem('networkDevicePort') || '8080';
   });
 
+  // Bluetooth device specific state - load from localStorage for persistence
+  const [bluetoothAddress, setBluetoothAddress] = useState(() => {
+    return localStorage.getItem('bluetoothAddress') || '';
+  });
+  const [bluetoothChannel, setBluetoothChannel] = useState(() => {
+    return localStorage.getItem('bluetoothChannel') || '1';
+  });
+
   // Save network settings to localStorage when they change
   useEffect(() => {
     localStorage.setItem('networkDeviceHost', networkHost);
@@ -66,6 +74,15 @@ function CANExplorer({
   useEffect(() => {
     localStorage.setItem('networkDevicePort', networkPort);
   }, [networkPort]);
+
+  // Save bluetooth settings to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('bluetoothAddress', bluetoothAddress);
+  }, [bluetoothAddress]);
+
+  useEffect(() => {
+    localStorage.setItem('bluetoothChannel', bluetoothChannel);
+  }, [bluetoothChannel]);
 
   // Register raw message callback for isolation feature
   useEffect(() => {
@@ -560,6 +577,10 @@ function CANExplorer({
           // Network device - combine host and port
           channelToSend = `${networkHost}:${networkPort}`;
           console.log('[CANExplorer] Network channel:', channelToSend);
+        } else if (deviceType === 'bluetooth') {
+          // Bluetooth device - combine address and RFCOMM channel
+          channelToSend = `${bluetoothAddress}:${bluetoothChannel}`;
+          console.log('[CANExplorer] Bluetooth channel:', channelToSend);
         } else if (deviceType === 'canable') {
           // For CANable, extract device index from "Device X: Description" format
           if (typeof channel === 'string' && channel.startsWith('Device ')) {
@@ -689,14 +710,21 @@ function CANExplorer({
                     } else {
                       setChannel('Device 0');
                     }
+                  } else if (newDeviceType === 'bluetooth') {
+                    // Check for paired Bluetooth devices - use first one if available
+                    const btDevices = devices.filter(d => d.device_type === 'bluetooth' && d.name !== 'Bluetooth CAN Server');
+                    if (btDevices.length > 0 && btDevices[0].name.includes(':')) {
+                      setBluetoothAddress(btDevices[0].name);
+                    }
                   }
-                  // Network device uses host:port fields, no channel needed
+                  // Network/Bluetooth devices use their own input fields, no channel needed
                 }}
                 disabled={connected}
               >
                 <option value="pcan">PCAN-USB</option>
                 <option value="canable">CANable</option>
                 <option value="network">Network</option>
+                <option value="bluetooth">Bluetooth</option>
               </select>
             </div>
 
@@ -719,6 +747,50 @@ function CANExplorer({
                     value={networkPort}
                     onChange={(e) => setNetworkPort(e.target.value)}
                     placeholder="Port"
+                    disabled={connected}
+                  />
+                </div>
+              </div>
+            ) : deviceType === 'bluetooth' ? (
+              <div className="form-group">
+                <label>Bluetooth Device</label>
+                {(() => {
+                  const btDevices = devices.filter(d => d.device_type === 'bluetooth' && d.name !== 'Bluetooth CAN Server');
+                  return btDevices.length > 0 ? (
+                    <select
+                      className="bluetooth-device-select"
+                      value={bluetoothAddress}
+                      onChange={(e) => setBluetoothAddress(e.target.value)}
+                      disabled={connected}
+                    >
+                      <option value="">-- Select device --</option>
+                      {btDevices.map(device => (
+                        <option key={device.name} value={device.name}>
+                          {device.description}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      className="bluetooth-address"
+                      value={bluetoothAddress}
+                      onChange={(e) => setBluetoothAddress(e.target.value.toUpperCase())}
+                      placeholder="XX:XX:XX:XX:XX:XX"
+                      disabled={connected}
+                    />
+                  );
+                })()}
+                <div className="bluetooth-channel-row">
+                  <label>RFCOMM Channel</label>
+                  <input
+                    type="number"
+                    className="bluetooth-channel"
+                    value={bluetoothChannel}
+                    onChange={(e) => setBluetoothChannel(e.target.value)}
+                    min="1"
+                    max="30"
+                    placeholder="1"
                     disabled={connected}
                   />
                 </div>

@@ -127,12 +127,38 @@ def detect_can_devices():
 
 def check_node_installed():
     """Check if Node.js is installed"""
+    # First try using PATH
     try:
         result = subprocess.run(['node', '--version'], 
                               capture_output=True, text=True, shell=True)
-        return result.returncode == 0, result.stdout.strip() if result.returncode == 0 else None
+        if result.returncode == 0:
+            return True, result.stdout.strip()
     except FileNotFoundError:
-        return False, None
+        pass
+    
+    # Check common installation paths on Windows
+    if sys.platform == 'win32':
+        common_paths = [
+            Path(os.environ.get('PROGRAMFILES', '')) / 'nodejs' / 'node.exe',
+            Path(os.environ.get('PROGRAMFILES(X86)', '')) / 'nodejs' / 'node.exe',
+            Path(os.environ.get('LOCALAPPDATA', '')) / 'Programs' / 'node' / 'node.exe',
+            Path(os.environ.get('APPDATA', '')) / 'nvm' / 'current' / 'node.exe',  # nvm-windows
+        ]
+        
+        for node_path in common_paths:
+            if node_path.exists():
+                # Add to PATH for this session
+                node_dir = str(node_path.parent)
+                os.environ['PATH'] = node_dir + os.pathsep + os.environ.get('PATH', '')
+                try:
+                    result = subprocess.run([str(node_path), '--version'], 
+                                          capture_output=True, text=True)
+                    if result.returncode == 0:
+                        return True, result.stdout.strip()
+                except Exception:
+                    pass
+    
+    return False, None
 
 def check_npm_installed():
     """Check if npm is installed"""
@@ -163,14 +189,14 @@ def start_backend():
     global processes
     backend_dir = Path(__file__).parent / "webserver" / "backend"
     
-    # Start backend - redirect output to devnull
+    # Start backend - use DEVNULL but avoid CREATE_NO_WINDOW which can break asyncio
     if sys.platform == 'win32':
         backend_process = subprocess.Popen(
             [sys.executable, '-u', 'api.py'],
             cwd=str(backend_dir),
-            stdout=open(os.devnull, 'w'),
-            stderr=open(os.devnull, 'w'),
-            creationflags=subprocess.CREATE_NO_WINDOW
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
         )
     else:
         backend_process = subprocess.Popen(
@@ -192,15 +218,15 @@ def start_frontend():
     env['PORT'] = '3001'
     env['BROWSER'] = 'none'
     
-    # Start frontend - redirect output to devnull
+    # Start frontend - use DEVNULL
     if sys.platform == 'win32':
         frontend_process = subprocess.Popen(
             ['npm.cmd', 'start'],
             cwd=str(frontend_dir),
             env=env,
-            stdout=open(os.devnull, 'w'),
-            stderr=open(os.devnull, 'w'),
-            creationflags=subprocess.CREATE_NO_WINDOW
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
         )
     else:
         frontend_process = subprocess.Popen(
