@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { Send, Trash2, FileText, Filter, Upload, ChevronDown, ChevronRight, ChevronLeft, Activity, Wifi, WifiOff, RefreshCw, List, PanelLeftClose, PanelLeft, Download, X, Eye, EyeOff, Flag } from 'lucide-react';
+import { Send, Trash2, FileText, Filter, Upload, ChevronDown, ChevronRight, ChevronLeft, Activity, Wifi, WifiOff, RefreshCw, List, PanelLeftClose, PanelLeft, Download, X, Eye, EyeOff, Flag, Circle, Square } from 'lucide-react';
 import TransmitList from './TransmitList';
 import './CANExplorer.css';
 
@@ -44,6 +44,11 @@ function CANExplorer({
   const isolationContentRef = useRef(null);
   const MAX_ISOLATED_MESSAGES = 1000; // Limit to prevent memory issues
   const DUPLICATE_TIME_THRESHOLD_MS = 1; // Messages within 1ms with same data are duplicates
+  
+  // Trace Recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const recordedMessagesRef = useRef([]);
+  const recordingStartTimeRef = useRef(null);
   
   // Connection form state
   const [deviceType, setDeviceType] = useState('canable');
@@ -109,6 +114,23 @@ function CANExplorer({
     const unregister = onRegisterRawCallback(handleRawMessage);
     return () => unregister();
   }, [onRegisterRawCallback, isolatedIds]);
+
+  // Register raw message callback for trace recording
+  useEffect(() => {
+    if (!onRegisterRawCallback || !isRecording) return;
+    
+    const handleRecordMessage = (message) => {
+      const relativeTime = Date.now() - recordingStartTimeRef.current;
+      recordedMessagesRef.current.push({
+        ...message,
+        relativeTimeMs: relativeTime,
+        capturedAt: Date.now()
+      });
+    };
+    
+    const unregister = onRegisterRawCallback(handleRecordMessage);
+    return () => unregister();
+  }, [onRegisterRawCallback, isRecording]);
   
   // Update isolated messages state periodically for UI rendering
   useEffect(() => {
@@ -278,6 +300,100 @@ function CANExplorer({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  // Trace Recording functions
+  const startRecording = () => {
+    recordedMessagesRef.current = [];
+    recordingStartTimeRef.current = Date.now();
+    setIsRecording(true);
+  };
+
+  const stopRecording = () => {
+    setIsRecording(false);
+    
+    const recordedMessages = recordedMessagesRef.current;
+    if (recordedMessages.length === 0) {
+      alert('No messages were recorded');
+      return;
+    }
+
+    // Build CSV content with both raw and decoded data
+    const headers = [
+      'Relative Time (ms)',
+      'Timestamp',
+      'ID (Hex)',
+      'ID (Dec)',
+      'Extended',
+      'DLC',
+      'Data (Hex)',
+      'Data (Raw Bytes)',
+      'Message Name',
+      'Signals'
+    ];
+
+    const rows = recordedMessages.map(msg => {
+      const idHex = msg.is_extended 
+        ? `0x${msg.id.toString(16).padStart(8, '0').toUpperCase()}`
+        : `0x${msg.id.toString(16).padStart(3, '0').toUpperCase()}`;
+      const dataHex = msg.data.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+      const dataRaw = msg.data.join(',');
+      const timestamp = msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : '';
+      const messageName = msg.decoded?.message_name || '';
+      
+      // Format signals as "name=value unit; name2=value2 unit2"
+      const signalsStr = msg.decoded?.signals 
+        ? Object.entries(msg.decoded.signals)
+            .map(([name, info]) => {
+              const isObject = typeof info === 'object' && info !== null && !Array.isArray(info);
+              const value = isObject ? info.value : info;
+              const unit = isObject && info.unit ? ` ${info.unit}` : '';
+              return `${name}=${value}${unit}`;
+            })
+            .join('; ')
+        : '';
+
+      return [
+        msg.relativeTimeMs,
+        timestamp,
+        idHex,
+        msg.id,
+        msg.is_extended ? 'Yes' : 'No',
+        msg.dlc || msg.data.length,
+        dataHex,
+        dataRaw,
+        messageName,
+        signalsStr
+      ];
+    });
+
+    // Create CSV string
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => {
+        const str = String(cell);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      }).join(','))
+    ].join('\n');
+
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const startTime = new Date(recordingStartTimeRef.current).toISOString().slice(0, 19).replace(/[:-]/g, '');
+    link.download = `can_trace_${startTime}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    // Clear the recorded messages
+    recordedMessagesRef.current = [];
+    recordingStartTimeRef.current = null;
   };
 
   const handleLoadDBC = async (event) => {
@@ -974,6 +1090,23 @@ function CANExplorer({
                     >
                       <Download size={16} />
                       Save CSV
+                    </button>
+                    <button 
+                      className={`btn btn-sm ${isRecording ? 'btn-recording' : 'btn-record'}`}
+                      onClick={(e) => { e.stopPropagation(); isRecording ? stopRecording() : startRecording(); }}
+                      title={isRecording ? 'Stop recording and download trace' : 'Start recording CAN trace'}
+                    >
+                      {isRecording ? (
+                        <>
+                          <Square size={16} fill="currentColor" />
+                          Stop
+                        </>
+                      ) : (
+                        <>
+                          <Circle size={16} fill="currentColor" />
+                          Record
+                        </>
+                      )}
                     </button>
                     <button 
                       className="btn btn-danger btn-sm" 
