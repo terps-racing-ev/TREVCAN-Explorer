@@ -272,101 +272,43 @@ function App() {
   return (
     <div className="App">
       <div className="tab-content">
-        {activeTab === 'explorer' && (
-          <CANExplorer
-            connected={connected}
-            messages={messages}
-            onClearMessages={handleClearMessages}
-            onSendMessage={handleSendMessage}
-            onLoadDBC={handleLoadDBC}
-            dbcLoaded={dbcLoaded}
-            dbcFile={dbcFile}
-            devices={devices}
-            onConnect={handleConnect}
-            onDisconnect={handleDisconnect}
-            onRefreshDevices={fetchDevices}
-            connectionStatus={connectionStatus}
-            stats={stats}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            onRegisterRawCallback={registerRawMessageCallback}
-          />
-        )}
-        {activeTab === 'bms-status' && (
-          <CANExplorer
-            connected={connected}
-            messages={messages}
-            onClearMessages={handleClearMessages}
-            onSendMessage={handleSendMessage}
-            onLoadDBC={handleLoadDBC}
-            dbcLoaded={dbcLoaded}
-            dbcFile={dbcFile}
-            devices={devices}
-            onConnect={handleConnect}
-            onDisconnect={handleDisconnect}
-            onRefreshDevices={fetchDevices}
-            connectionStatus={connectionStatus}
-            stats={stats}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            onRegisterRawCallback={registerRawMessageCallback}
-          >
+        <CANExplorer
+          connected={connected}
+          messages={messages}
+          onClearMessages={handleClearMessages}
+          onSendMessage={handleSendMessage}
+          onLoadDBC={handleLoadDBC}
+          dbcLoaded={dbcLoaded}
+          dbcFile={dbcFile}
+          devices={devices}
+          onConnect={handleConnect}
+          onDisconnect={handleDisconnect}
+          onRefreshDevices={fetchDevices}
+          connectionStatus={connectionStatus}
+          stats={stats}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onRegisterRawCallback={registerRawMessageCallback}
+        >
+          {activeTab === 'bms-status' && (
             <BMSStatus 
               messages={messages} 
               onSendMessage={handleSendMessage}
               dbcFile={dbcFile}
             />
-          </CANExplorer>
-        )}
-        {activeTab === 'bms-overview' && (
-          <CANExplorer
-            connected={connected}
-            messages={messages}
-            onClearMessages={handleClearMessages}
-            onSendMessage={handleSendMessage}
-            onLoadDBC={handleLoadDBC}
-            dbcLoaded={dbcLoaded}
-            dbcFile={dbcFile}
-            devices={devices}
-            onConnect={handleConnect}
-            onDisconnect={handleDisconnect}
-            onRefreshDevices={fetchDevices}
-            connectionStatus={connectionStatus}
-            stats={stats}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            onRegisterRawCallback={registerRawMessageCallback}
-          >
+          )}
+          {activeTab === 'bms-overview' && (
             <BMSOverview messages={messages} />
-          </CANExplorer>
-        )}
-        {activeTab === 'module-config' && (
-          <CANExplorer
-            connected={connected}
-            messages={messages}
-            onClearMessages={handleClearMessages}
-            onSendMessage={handleSendMessage}
-            onLoadDBC={handleLoadDBC}
-            dbcLoaded={dbcLoaded}
-            dbcFile={dbcFile}
-            devices={devices}
-            onConnect={handleConnect}
-            onDisconnect={handleDisconnect}
-            onRefreshDevices={fetchDevices}
-            connectionStatus={connectionStatus}
-            stats={stats}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            onRegisterRawCallback={registerRawMessageCallback}
-          >
+          )}
+          {activeTab === 'module-config' && (
             <ModuleConfig 
               messages={messages} 
               onSendMessage={handleSendMessage}
               connected={connected}
               onRegisterRawCallback={registerRawMessageCallback}
             />
-          </CANExplorer>
-        )}
+          )}
+        </CANExplorer>
       </div>
     </div>
   );

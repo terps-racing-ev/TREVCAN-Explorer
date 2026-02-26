@@ -736,8 +736,11 @@ function CANExplorer({
     return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const isOverviewTab = activeTab === 'bms-overview';
+  const isExplorerTab = activeTab === 'explorer';
+
   return (
-    <div className="can-explorer-layout">
+    <div className={`can-explorer-layout ${isOverviewTab ? 'overview-layout' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       {/* Sidebar Toggle Button */}
       <button 
         className="sidebar-toggle"
@@ -1052,11 +1055,8 @@ function CANExplorer({
 
       {/* Main content area - Message table or custom content */}
       <div className="can-main-content">
-        {children ? (
-          // Render custom content (like ThermistorMonitor or CellVoltageMonitor)
-          children
-        ) : (
-          // Default: Render collapsible sections for Received Messages and Transmit List
+        <div style={{ display: isExplorerTab ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+          {/* Default: Render collapsible sections for Received Messages and Transmit List */}
           <>
             {/* Received Messages Section */}
             <div className="collapsible-section">
@@ -1256,22 +1256,23 @@ function CANExplorer({
                 </div>
               </div>
 
-              {expandedTransmitList && (
-                <div className="collapsible-content transmit-list-container">
-                  <TransmitList 
-                    dbcFile={dbcFile}
-                    onSendMessage={onSendMessage}
-                  />
-                </div>
-              )}
+              <div className="collapsible-content transmit-list-container" style={{ display: expandedTransmitList ? 'block' : 'none' }}>
+                <TransmitList 
+                  dbcFile={dbcFile}
+                  onSendMessage={onSendMessage}
+                />
+              </div>
             </div>
           </>
-        )}
+        </div>
+
+        <div style={{ display: isExplorerTab ? 'none' : 'block', flex: 1, minHeight: 0, width: '100%', height: '100%' }}>
+          {children}
+        </div>
       </div>
 
-      {/* Context Menu for Message Isolation */}
       {contextMenu.show && (
-        <div 
+        <div
           className="context-menu"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >

@@ -189,11 +189,11 @@ function CellVoltageMonitor({ messages }) {
                       className="voltage-row"
                       style={{ borderLeftColor: getVoltageColor(voltage) }}
                     >
-                      <span className="cell-label">C{cellIdx}</span>
+                      <span className="cell-label">C{cellIdx + 1}</span>
                       <span
                         className="voltage-chip"
                         style={{ backgroundColor: getVoltageColor(voltage) }}
-                        title={`Module ${moduleId}, Cell ${cellIdx}: ${voltage !== null ? voltage.toFixed(4) + ' V - ' + getCellStatus(voltage) : 'No data'}`}
+                        title={`Module ${moduleId}, Cell ${cellIdx + 1}: ${voltage !== null ? voltage.toFixed(4) + ' V - ' + getCellStatus(voltage) : 'No data'}`}
                       >
                         {voltage !== null ? voltage.toFixed(3) : '--'}
                       </span>

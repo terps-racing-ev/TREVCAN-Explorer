@@ -162,7 +162,7 @@ function BMSCellMatrix({ messages }) {
           <div className="matrix-header-row">
             <div className="matrix-corner"></div>
             {Array.from({ length: 18 }, (_, i) => (
-              <div key={i} className="matrix-col-header">C{i}</div>
+              <div key={i} className="matrix-col-header">C{i + 1}</div>
             ))}
           </div>
 
@@ -177,7 +177,7 @@ function BMSCellMatrix({ messages }) {
                   <div 
                     key={cellIdx} 
                     className="matrix-cell voltage"
-                    title={`Cell ${globalCellNum} (M${moduleId}C${cellIdx})\nVoltage: ${voltage !== null ? voltage.toFixed(4) + 'V' : 'N/A'}`}
+                    title={`Cell ${globalCellNum} (M${moduleId}C${cellIdx + 1})\nVoltage: ${voltage !== null ? voltage.toFixed(4) + 'V' : 'N/A'}`}
                   >
                     <div 
                       className="cell-voltage"

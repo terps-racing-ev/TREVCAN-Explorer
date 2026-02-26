@@ -9,6 +9,20 @@
   position: relative;
 }
 
+.can-explorer-layout.sidebar-collapsed {
+  gap: 0;
+}
+
+.can-explorer-layout.overview-layout {
+  gap: 6px;
+  padding: 6px;
+}
+
+.can-explorer-layout.overview-layout.sidebar-collapsed {
+  gap: 2px;
+  padding: 2px;
+}
+
 /* Sidebar Toggle Button */
 .sidebar-toggle {
   position: fixed;
@@ -59,6 +73,10 @@
   overflow: hidden;
   opacity: 0;
   border: none;
+}
+
+.can-explorer-layout.overview-layout.sidebar-collapsed .can-sidebar.collapsed {
+  margin-right: 0;
 }
 
 .sidebar-section {
@@ -401,6 +419,14 @@
   overflow: hidden;
   padding: 0;
   gap: 0;
+}
+
+.can-explorer-layout.overview-layout .can-main-content {
+  border-radius: 2px;
+}
+
+.can-explorer-layout.overview-layout.sidebar-collapsed .can-main-content {
+  border-radius: 0;
 }
 
 .messages-header {

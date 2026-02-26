@@ -39,6 +39,8 @@ const getSignalUnit = (signal, defaultUnit = '') => {
   return defaultUnit;
 };
 
+const isValidThermistorTemp = (value) => value !== null && value !== undefined && value >= -30;
+
 function BMSStatus({ messages, onSendMessage, dbcFile }) {
   const [moduleData, setModuleData] = useState({});
   const [selectedModule, setSelectedModule] = useState('all'); // 'all' or 0-5
@@ -89,6 +91,7 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
           canStats: null,
           bms1Status: null,
           bms2Status: null,
+          tempSummary: null,
           temperatures: {},  // Changed to object for deduplication
           voltages: {},      // Changed to object for deduplication
           i2cDiag: null,
@@ -161,7 +164,9 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
         newModuleData[moduleId].bms1Status = msg.decoded.signals;
       } else if (msgName.startsWith('BMS2_Chip_Status_')) {
         newModuleData[moduleId].bms2Status = msg.decoded.signals;
-      } else if (msgName.startsWith('Cell_Temp_')) {
+      } else if (msgName.startsWith('Cell_Temp_Summary_')) {
+        newModuleData[moduleId].tempSummary = msg.decoded.signals;
+      } else if (/^Cell_Temp_\d+_/.test(msgName)) {
         // Extract temperature values - use object to deduplicate by signal name
         Object.entries(msg.decoded.signals).forEach(([name, signal]) => {
           if (name.startsWith('Temp_')) {
@@ -487,6 +492,7 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
     canStats, 
     bms1Status, 
     bms2Status, 
+    tempSummary,
     temperatures = {}, 
     voltages = {}, 
     i2cDiag, 
@@ -500,9 +506,10 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
 
   // Calculate min/max temps and voltages
   const tempValues = displayTemps.map(t => t.value).filter(v => v != null);
-  const minTemp = tempValues.length > 0 ? Math.min(...tempValues) : null;
-  const maxTemp = tempValues.length > 0 ? Math.max(...tempValues) : null;
-  const avgTemp = tempValues.length > 0 ? (tempValues.reduce((a, b) => a + b, 0) / tempValues.length).toFixed(1) : null;
+  const validTempValues = tempValues.filter(v => isValidThermistorTemp(v));
+  const minTemp = validTempValues.length > 0 ? Math.min(...validTempValues) : null;
+  const maxTemp = validTempValues.length > 0 ? Math.max(...validTempValues) : null;
+  const avgTemp = validTempValues.length > 0 ? (validTempValues.reduce((a, b) => a + b, 0) / validTempValues.length).toFixed(1) : null;
 
   const voltValues = displayVolts.map(v => v.value).filter(v => v != null);
   const minVolt = voltValues.length > 0 ? Math.min(...voltValues) : null;
@@ -732,7 +739,7 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
                   </div>
                   <div className="stat-row">
                     <span>Temperature:</span>
-                    <span className="stat-value">{getSignalValue(bms1Status.BMS1_TS2_Temperature) ? getSignalValue(bms1Status.BMS1_TS2_Temperature).toFixed(1) : '--'}°C</span>
+                    <span className="stat-value">{isValidThermistorTemp(getSignalValue(tempSummary?.BMS1_IC_Temp, null)) ? `${getSignalValue(tempSummary?.BMS1_IC_Temp, null).toFixed(1)}°C` : '--'}</span>
                   </div>
                   <div className="stat-row">
                     <span>Alarm Status:</span>
@@ -756,7 +763,7 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
                   </div>
                   <div className="stat-row">
                     <span>Temperature:</span>
-                    <span className="stat-value">{getSignalValue(bms2Status.BMS2_TS2_Temperature) ? getSignalValue(bms2Status.BMS2_TS2_Temperature).toFixed(1) : '--'}°C</span>
+                    <span className="stat-value">{isValidThermistorTemp(getSignalValue(tempSummary?.BMS2_IC_Temp, null)) ? `${getSignalValue(tempSummary?.BMS2_IC_Temp, null).toFixed(1)}°C` : '--'}</span>
                   </div>
                   <div className="stat-row">
                     <span>Alarm Status:</span>
@@ -857,9 +864,10 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
 
                   // Calculate module-specific stats
                   const modTempValues = Object.values(modData?.temperatures || {}).map(t => t.value).filter(v => v != null);
-                  const modMinTemp = modTempValues.length > 0 ? Math.min(...modTempValues) : null;
-                  const modMaxTemp = modTempValues.length > 0 ? Math.max(...modTempValues) : null;
-                  const modAvgTemp = modTempValues.length > 0 ? modTempValues.reduce((a, b) => a + b, 0) / modTempValues.length : null;
+                  const modValidTempValues = modTempValues.filter(v => isValidThermistorTemp(v));
+                  const modMinTemp = modValidTempValues.length > 0 ? Math.min(...modValidTempValues) : null;
+                  const modMaxTemp = modValidTempValues.length > 0 ? Math.max(...modValidTempValues) : null;
+                  const modAvgTemp = modValidTempValues.length > 0 ? modValidTempValues.reduce((a, b) => a + b, 0) / modValidTempValues.length : null;
 
                   const modVoltValues = Object.values(modData?.voltages || {}).map(v => v.value).filter(v => v != null);
                   const modMinVolt = modVoltValues.length > 0 ? Math.min(...modVoltValues) : null;
@@ -869,8 +877,8 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
                   // BMS chip stats
                   const bms1Voltage = getSignalValue(modData?.bms1Status?.BMS1_Stack_Voltage, null);
                   const bms2Voltage = getSignalValue(modData?.bms2Status?.BMS2_Stack_Voltage, null);
-                  const bms1Temp = getSignalValue(modData?.bms1Status?.BMS1_TS2_Temperature, null);
-                  const bms2Temp = getSignalValue(modData?.bms2Status?.BMS2_TS2_Temperature, null);
+                  const bms1Temp = getSignalValue(modData?.tempSummary?.BMS1_IC_Temp, null);
+                  const bms2Temp = getSignalValue(modData?.tempSummary?.BMS2_IC_Temp, null);
 
                   // CAN stats
                   const canRx = getSignalValue(modData?.canStats?.RX_Message_Count, null);
@@ -969,12 +977,12 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
                                   <div className="chip-stat">
                                     <span className="chip-label">BMS1</span>
                                     <span className="chip-value">{bms1Voltage ? `${(bms1Voltage/1000).toFixed(2)}V` : '--'}</span>
-                                    <span className="chip-temp">{bms1Temp ? `${bms1Temp.toFixed(1)}°` : ''}</span>
+                                    <span className="chip-temp">{isValidThermistorTemp(bms1Temp) ? `${bms1Temp.toFixed(1)}°` : ''}</span>
                                   </div>
                                   <div className="chip-stat">
                                     <span className="chip-label">BMS2</span>
                                     <span className="chip-value">{bms2Voltage ? `${(bms2Voltage/1000).toFixed(2)}V` : '--'}</span>
-                                    <span className="chip-temp">{bms2Temp ? `${bms2Temp.toFixed(1)}°` : ''}</span>
+                                    <span className="chip-temp">{isValidThermistorTemp(bms2Temp) ? `${bms2Temp.toFixed(1)}°` : ''}</span>
                                   </div>
                                 </div>
                               </div>

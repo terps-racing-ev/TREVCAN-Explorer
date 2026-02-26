@@ -3,6 +3,8 @@ import { Battery, Thermometer, TrendingUp, TrendingDown, Zap } from 'lucide-reac
 import './BMSOverview.css';
 
 function BMSOverview({ messages }) {
+  const isDisplayableTemp = (temp) => temp !== null && temp >= -30;
+
   // Extract cell voltage data from CAN messages
   const cellData = useMemo(() => {
     const modules = Array(6).fill(null).map(() => Array(18).fill(null));
@@ -153,6 +155,59 @@ function BMSOverview({ messages }) {
     });
   }, [thermistorData]);
 
+  // Track hottest and coldest displayable thermistor per module (cell thermistors only)
+  const moduleTempExtremes = useMemo(() => {
+    return thermistorData.map(module => {
+      const validTemps = module.slice(0, 54).filter(temp => temp !== null && temp >= -30);
+      if (validTemps.length === 0) {
+        return { min: null, max: null };
+      }
+
+      return {
+        min: Math.min(...validTemps),
+        max: Math.max(...validTemps)
+      };
+    });
+  }, [thermistorData]);
+
+  // Extract module BMS state from heartbeat messages
+  const moduleStates = useMemo(() => {
+    const states = Array(6).fill('OFFLINE');
+
+    messages.forEach(msg => {
+      if (!msg.decoded || !msg.decoded.signals) return;
+
+      const msgName = msg.decoded.message_name || '';
+      const heartbeatMatch = msgName.match(/^BMS_Heartbeat_(\d)$/);
+      if (!heartbeatMatch) return;
+
+      const moduleId = parseInt(heartbeatMatch[1], 10);
+      if (moduleId < 0 || moduleId > 5) return;
+
+      const stateSignal = msg.decoded.signals.BMS_State;
+      if (stateSignal === undefined || stateSignal === null) {
+        states[moduleId] = 'UNKNOWN';
+        return;
+      }
+
+      if (typeof stateSignal === 'object') {
+        if (typeof stateSignal.value === 'string') {
+          states[moduleId] = stateSignal.value;
+        } else if (stateSignal.value !== undefined && stateSignal.value !== null) {
+          states[moduleId] = String(stateSignal.value);
+        } else if (stateSignal.raw !== undefined && stateSignal.raw !== null) {
+          states[moduleId] = String(stateSignal.raw);
+        } else {
+          states[moduleId] = 'UNKNOWN';
+        }
+      } else {
+        states[moduleId] = String(stateSignal);
+      }
+    });
+
+    return states;
+  }, [messages]);
+
   // Calculate voltage statistics
   const voltageStats = useMemo(() => {
     const allVoltages = cellData.modules.flat().filter(v => v !== null);
@@ -172,6 +227,7 @@ function BMSOverview({ messages }) {
   // Calculate temperature statistics (cell temps only, excluding ambient)
   const tempStats = useMemo(() => {
     const cellTemps = thermistorData.flatMap(module => module.slice(0, 54)).filter(t => t !== null);
+    const validMinMaxTemps = cellTemps.filter(t => t >= -30);
     
     if (cellTemps.length === 0) {
       return { active: 0, min: null, max: null, avg: null };
@@ -179,8 +235,8 @@ function BMSOverview({ messages }) {
     
     return {
       active: cellTemps.length,
-      min: Math.min(...cellTemps),
-      max: Math.max(...cellTemps),
+      min: validMinMaxTemps.length > 0 ? Math.min(...validMinMaxTemps) : null,
+      max: validMinMaxTemps.length > 0 ? Math.max(...validMinMaxTemps) : null,
       avg: cellTemps.reduce((a, b) => a + b, 0) / cellTemps.length
     };
   }, [thermistorData]);
@@ -313,11 +369,11 @@ function BMSOverview({ messages }) {
               <>
                 <div className="stat-item">
                   <TrendingDown size={14} />
-                  <span className="stat-value">{tempStats.min.toFixed(1)}°</span>
+                  <span className="stat-value">{tempStats.min.toFixed(1)}°C</span>
                 </div>
                 <div className="stat-item">
                   <TrendingUp size={14} />
-                  <span className="stat-value">{tempStats.max.toFixed(1)}°</span>
+                  <span className="stat-value">{tempStats.max.toFixed(1)}°C</span>
                 </div>
               </>
             )}
@@ -328,36 +384,51 @@ function BMSOverview({ messages }) {
           <div className="overview-grid">
             {cellData.modules.map((module, moduleId) => (
               <div key={moduleId} className="module-column">
-                <div className="module-header">Module {moduleId}</div>
+                <div className="module-header">
+                  <div className="module-title">Module {moduleId} <span className="module-state">{moduleStates[moduleId]}</span></div>
+                  <div className="module-ambient">
+                    Amb (MPlug Side) {isDisplayableTemp(thermistorData[moduleId]?.[54]) ? `${thermistorData[moduleId][54].toFixed(1)}°C` : '--'} / (STM Side) {isDisplayableTemp(thermistorData[moduleId]?.[55]) ? `${thermistorData[moduleId][55].toFixed(1)}°C` : '--'}
+                  </div>
+                </div>
                 <div className="cell-groups-list">
                   {module.map((voltage, cellIdx) => {
                     const temps = organizedTempData[moduleId]?.[cellIdx]?.temps || [null, null, null];
                     const isBalancing = balancingData[moduleId]?.[cellIdx] || false;
+                    const getDisplayTempColor = (temp) => (isDisplayableTemp(temp) ? getTempColor(temp) : '#000000');
+                    const tempGradient = `linear-gradient(90deg, ${getDisplayTempColor(temps[0])} 0%, ${getDisplayTempColor(temps[0])} 33.33%, ${getDisplayTempColor(temps[1])} 33.33%, ${getDisplayTempColor(temps[1])} 66.66%, ${getDisplayTempColor(temps[2])} 66.66%, ${getDisplayTempColor(temps[2])} 100%)`;
                     return (
                       <div
                         key={cellIdx}
                         className={`cell-row ${isBalancing ? 'balancing' : ''}`}
                         style={{ borderLeftColor: getVoltageColor(voltage) }}
                       >
-                        <span className="cell-label">C{cellIdx}</span>
+                        <span className="cell-label">C{cellIdx + 1}</span>
                         <span
                           className="voltage-chip"
                           style={{ backgroundColor: getVoltageColor(voltage) }}
-                          title={`Module ${moduleId}, Cell ${cellIdx}: ${voltage !== null ? voltage.toFixed(4) + ' V' : 'No data'}`}
+                          title={`Module ${moduleId}, Cell ${cellIdx + 1}: ${voltage !== null ? voltage.toFixed(4) + ' V' : 'No data'}`}
                         >
-                          {voltage !== null ? voltage.toFixed(3) : '--'}
+                          {voltage !== null ? `${voltage.toFixed(3)}V` : '--'}
                         </span>
-                        <div className="temp-chips">
-                          {temps.map((temp, tempIdx) => (
-                            <span
-                              key={tempIdx}
-                              className="temp-chip"
-                              style={{ backgroundColor: getTempColor(temp) }}
-                              title={`Thermistor ${cellIdx * 3 + tempIdx}: ${temp !== null ? temp.toFixed(1) + '°C' : 'No data'}`}
-                            >
-                              {temp !== null ? temp.toFixed(1) : '--'}
-                            </span>
-                          ))}
+                        <div className="temp-chips" style={{ background: tempGradient }}>
+                          {temps.map((temp, tempIdx) => {
+                            const displayable = isDisplayableTemp(temp);
+                            const moduleMin = moduleTempExtremes[moduleId]?.min;
+                            const moduleMax = moduleTempExtremes[moduleId]?.max;
+                            const isColdest = displayable && moduleMin !== null && temp === moduleMin;
+                            const isHottest = displayable && moduleMax !== null && temp === moduleMax;
+
+                            return (
+                              <span
+                                key={tempIdx}
+                                className={`temp-chip ${isHottest ? 'hottest' : ''} ${isColdest ? 'coldest' : ''}`.trim()}
+                                style={{ backgroundColor: getTempColor(temp) }}
+                                title={`Thermistor ${cellIdx * 3 + tempIdx}: ${displayable ? temp.toFixed(1) + '°C' : 'No data'}`}
+                              >
+                                {displayable ? `${temp.toFixed(1)}°C` : '--'}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     );
