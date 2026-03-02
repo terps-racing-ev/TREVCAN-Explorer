@@ -75,7 +75,7 @@
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
-.overview-grid-container {
+.bms-overview .overview-grid-container {
   flex: 1;
   overflow: hidden;
   padding: 4px;
@@ -83,7 +83,7 @@
   display: flex;
 }
 
-.overview-grid {
+.bms-overview .overview-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-template-rows: 1fr;
@@ -278,11 +278,11 @@
     font-size: 14px;
   }
 
-  .overview-grid-container {
+  .bms-overview .overview-grid-container {
     padding: 4px;
   }
 
-  .overview-grid {
+  .bms-overview .overview-grid {
     gap: 3px;
   }
 
@@ -321,4 +321,89 @@
     padding: 1px 2px;
   }
 }
+
+@media (max-width: 1100px) {
+  .bms-overview .stats-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .bms-overview .stat-group {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .bms-overview .overview-grid-container {
+    overflow: auto;
+    padding: 6px;
+  }
+
+  .bms-overview .overview-grid {
+    min-width: 100%;
+    height: auto;
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+    grid-template-rows: auto;
+    align-items: start;
+  }
+
+  .bms-overview .module-column {
+    min-height: 560px;
+  }
+}
+
+@media (max-width: 768px) {
+  .bms-overview .overview-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .bms-overview .module-column {
+    min-height: 520px;
+  }
+
+  .bms-overview .overview-grid-container {
+    padding: 8px;
+  }
+
+  .bms-overview .module-header {
+    padding: 5px 6px;
+  }
+
+  .bms-overview .module-title {
+    font-size: 13px;
+  }
+
+  .bms-overview .module-ambient {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bms-overview .stats-bar {
+    padding: 6px;
+  }
+
+  .bms-overview .stat-item {
+    font-size: 10px;
+  }
+
+  .bms-overview .stat-value {
+    font-size: 13px;
+  }
+
+  .bms-overview .cell-label {
+    min-width: 14px;
+  }
+
+  .bms-overview .voltage-chip {
+    min-width: 50px;
+    font-size: 12px;
+  }
+
+  .bms-overview .temp-chip {
+    font-size: 11px;
+  }
+}
+
 
