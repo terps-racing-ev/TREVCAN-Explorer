@@ -15,7 +15,7 @@ Python FastAPI backend for CAN device communication with real-time WebSocket sup
 ### 1. Install Python Dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -r ../../requirements.txt
 ```
 
 ### 2. Windows: Install libusb for CANable Support

@@ -89,7 +89,7 @@ The web frontend will be built separately and communicate with this backend via:
 
 2. **Install dependencies**
    ```bash
-   pip install -r requirements.txt
+   pip install -r ../requirements.txt
    ```
 
 3. **Windows: Install libusb for CANable**
@@ -223,19 +223,6 @@ LOG_LEVEL=info
 
 ---
 
-## 🐳 Docker Deployment (Optional)
-
-A Dockerfile is provided for containerized deployment:
-
-```bash
-docker build -t can-backend .
-docker run -p 8000:8000 --privileged can-backend
-```
-
-Note: `--privileged` flag is needed for USB device access.
-
----
-
 ## 📁 Project Structure
 
 ```
@@ -243,7 +230,7 @@ webserver/
 ├── backend/
 │   ├── api.py                 # Main FastAPI application
 │   ├── utils.py               # Utility functions
-│   ├── requirements.txt       # Python dependencies
+│   ├── (uses ../requirements.txt)  # Python dependencies
 │   ├── README.md              # Backend documentation
 │   ├── start.bat              # Windows startup script
 │   ├── start.sh               # Linux/Mac startup script
@@ -289,7 +276,7 @@ Create a simple `index.html` with WebSocket and fetch API
 
 ### Backend won't start
 - Check Python version: `python --version` (need 3.8+)
-- Verify dependencies: `pip install -r requirements.txt`
+- Verify dependencies: `pip install -r ../requirements.txt`
 - Check port 8000 is available
 
 ### Can't connect to PCAN
@@ -324,7 +311,6 @@ Create a simple `index.html` with WebSocket and fetch API
 - [ ] Advanced filtering and search
 - [ ] Export to CSV/Excel
 - [ ] Multi-user support
-- [ ] Docker deployment guide
 
 ---
 

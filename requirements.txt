@@ -1,23 +1,17 @@
-# PCAN and CANable Driver Requirements
-# Python dependencies for PCAN-USB and CANable adapter communication
+# TREVCAN-Explorer Python dependencies
 
-# Core CAN bus library with PCAN and gs_usb (Candle API) support
-python-can>=4.0.0
+# Backend API
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+websockets>=13.0
+pydantic>=2.9.0
+python-multipart>=0.0.12
 
-# USB communication for CANable devices (Candle API / gs_usb)
+# CAN communication
+python-can>=4.4.0
+cantools>=39.4.0
 pyusb>=1.2.1
-
-# HTTP client for NetworkCAN driver (remote CAN server communication)
 requests>=2.28.0
 
-# Serial communication for CANable devices (legacy SLCAN - not used with Candle API)
-# pyserial>=3.5
-
-# GUI library for PCAN Explorer application
+# Desktop GUI
 dearpygui>=1.10.0
-
-# DBC file parsing for CAN message decoding
-cantools>=39.0.0
-
-# Optional: Additional CAN tools and protocols
-# cantools>=39.0.0  # For DBC file parsing and CAN message encoding/decoding

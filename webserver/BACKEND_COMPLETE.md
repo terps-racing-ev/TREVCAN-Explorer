@@ -55,7 +55,7 @@ A **complete, production-ready Python backend** for CAN device communication wit
    - Message buffering
    - Data formatting helpers
 
-3. **`webserver/backend/requirements.txt`**
+3. **`requirements.txt` (project root)**
    - FastAPI and uvicorn
    - WebSocket support
    - python-can and cantools

@@ -225,31 +225,6 @@ Open browser console (F12) to see:
    - **AWS S3**: Upload to S3 bucket with static hosting
    - **Nginx/Apache**: Copy to web server directory
 
-### Docker
-
-Create a Dockerfile:
-
-```dockerfile
-FROM node:18-alpine as build
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-
-FROM nginx:alpine
-COPY --from=build /app/build /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-Build and run:
-
-```bash
-docker build -t can-explorer-frontend .
-docker run -p 80:80 can-explorer-frontend
-```
-
 ### Environment Variables
 
 For production, set:

@@ -264,7 +264,7 @@ Already set up! Just run start scripts.
 #### Backend
 ```bash
 cd webserver/backend
-pip install -r requirements.txt
+pip install -r ../../requirements.txt
 uvicorn api:app --host 0.0.0.0 --port 8000
 ```
 

@@ -18,7 +18,7 @@ chmod +x start.sh
 ### Manual Start
 ```bash
 cd webserver/backend
-pip install -r requirements.txt
+pip install -r ../../requirements.txt
 python api.py
 ```
 
@@ -96,7 +96,7 @@ ws.onmessage = (event) => {
 webserver/backend/
 ├── api.py              # Main backend
 ├── utils.py            # Helpers
-├── requirements.txt    # Dependencies
+├── (uses ../../requirements.txt)    # Dependencies
 ├── test_api.py         # REST tests
 ├── test_websocket.py   # WS tests
 ├── start.bat/sh        # Startup scripts
@@ -136,7 +136,7 @@ uvicorn api:app --port 8001
 
 **Import errors:**
 ```bash
-pip install -r requirements.txt
+pip install -r ../../requirements.txt
 ```
 
 **CANable not found:**
