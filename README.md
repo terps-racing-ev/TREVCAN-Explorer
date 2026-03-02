@@ -3,6 +3,9 @@ TREVCAN-Explorer
 
 Simple CAN explorer with a FastAPI backend and React frontend.
 
+It can be used as a general purpose replacement for PCAN-Explorer in addition
+to a TREV specific menus and pages. 
+
 Quick start
 -----------
 1. Install Python deps:
