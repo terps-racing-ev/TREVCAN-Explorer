@@ -621,15 +621,11 @@ function CANExplorer({
   };
 
   return (
-    <div className="can-explorer-layout">
-      {/* Sidebar Toggle Button */}
-      <button 
-        className="sidebar-toggle"
-        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-        title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-      >
-        {sidebarCollapsed ? <PanelLeft size={20} /> : <PanelLeftClose size={20} />}
-      </button>
+    <div className={`can-explorer-layout ${sidebarCollapsed ? 'sidebar-is-collapsed' : ''}`}>
+      {/* Sidebar overlay backdrop for narrow screens */}
+      {!sidebarCollapsed && (
+        <div className="sidebar-overlay" onClick={() => setSidebarCollapsed(true)} />
+      )}
 
       {/* Sidebar for ALL controls */}
       <div className={`can-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
@@ -933,6 +929,15 @@ function CANExplorer({
           />}
         </div>
       </div>
+
+      {/* Sidebar Toggle Button */}
+      <button
+        className="sidebar-toggle"
+        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+      >
+        {sidebarCollapsed ? <PanelLeft size={20} /> : <PanelLeftClose size={20} />}
+      </button>
 
       {/* Main content area - Message table or custom content */}
       <div className="can-main-content">

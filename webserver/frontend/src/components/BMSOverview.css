@@ -14,65 +14,80 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.bms-overview .card:hover {
+  border: none;
+  box-shadow: none;
 }
 
 .bms-overview .stats-bar {
   display: flex;
-  gap: 20px;
-  padding: 10px 14px;
+  gap: 10px;
+  padding: 5px 8px;
   background: #000000;
   border-bottom: 1px solid #1a1a1a;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .bms-overview .stat-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   color: #888;
+  min-width: 0;
 }
 
 .bms-overview .stat-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 13px;
+  gap: 3px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .bms-overview .stat-label {
-  color: #666;
+  color: #8f8f8f;
   font-weight: 500;
 }
 
 .bms-overview .stat-value {
-  color: #f5f5f5;
-  font-weight: 600;
+  color: #ffffff;
+  font-weight: 800;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 15px;
+  letter-spacing: 0.2px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 1);
 }
 
 .bms-overview .stat-item.highlight {
   background: rgba(220, 38, 38, 0.15);
-  padding: 2px 6px;
+  padding: 1px 4px;
   border-radius: 4px;
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .overview-grid-container {
   flex: 1;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 10px;
+  overflow: hidden;
+  padding: 4px;
   min-height: 0;
   display: flex;
 }
 
 .overview-grid {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(240px, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-template-rows: 1fr;
-  gap: 10px;
+  gap: 4px;
   width: 100%;
   height: 100%;
   align-items: stretch;
@@ -83,7 +98,7 @@
   width: auto;
   max-width: none;
   background: #141414;
-  border-radius: 6px;
+  border-radius: 4px;
   overflow: hidden;
   border: 1px solid #2a2a2a;
   display: flex;
@@ -94,113 +109,216 @@
 .bms-overview .module-header {
   background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
   color: white;
-  padding: clamp(6px, 0.8vh, 12px) clamp(8px, 1vw, 16px);
-  text-align: center;
-  font-weight: 600;
-  font-size: clamp(12px, 1vw, 16px);
-  border-bottom: 2px solid #dc2626;
+  padding: 3px 6px;
+  font-size: 12px;
+  border-bottom: 1px solid #dc2626;
   flex-shrink: 0;
+  line-height: 1.1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.bms-overview .module-title {
+  font-weight: 700;
+}
+
+.bms-overview .module-state {
+  margin-left: 6px;
+  font-size: 0.9em;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  text-transform: uppercase;
+}
+
+.bms-overview .module-ambient {
+  font-size: clamp(9px, 0.55vw, 11px);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .bms-overview .cell-groups-list {
-  display: flex;
-  flex-direction: column;
-  padding: clamp(6px, 0.8vh, 12px);
+  display: grid;
+  grid-template-rows: repeat(18, minmax(0, 1fr));
+  align-items: stretch;
+  padding: 4px;
   background: #0a0a0a;
   flex: 1;
-  justify-content: space-evenly;
-  overflow-y: auto;
+  overflow: hidden;
   min-height: 0;
-  gap: clamp(3px, 0.5vh, 8px);
+  gap: 2px;
 }
 
 .bms-overview .cell-row {
   display: flex;
-  align-items: center;
-  gap: clamp(6px, 0.8vw, 12px);
-  background: #1a1a1a;
-  border-radius: 4px;
-  padding: clamp(5px, 0.7vh, 10px) clamp(8px, 1.1vw, 16px);
+  align-items: stretch;
+  gap: 3px;
+  background: #101010;
+  border-radius: 3px;
+  padding: 1px 2px;
   border-left: 2px solid #2d3748;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .bms-overview .cell-row:hover {
-  background: #252525;
+  background: #1f1f1f;
 }
 
 /* Balancing indicator */
 .bms-overview .cell-row.balancing {
   background: rgba(239, 68, 68, 0.15);
   border-left-color: #ef4444 !important;
-  box-shadow: inset 0 0 8px rgba(239, 68, 68, 0.3);
-  animation: balancing-pulse 1.5s ease-in-out infinite;
+  box-shadow: inset 0 0 4px rgba(239, 68, 68, 0.25);
 }
 
 .bms-overview .cell-row.balancing:hover {
   background: rgba(239, 68, 68, 0.25);
 }
 
-@keyframes balancing-pulse {
-  0%, 100% {
-    box-shadow: inset 0 0 8px rgba(239, 68, 68, 0.3);
-  }
-  50% {
-    box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.5);
-  }
-}
-
 .bms-overview .cell-label {
-  font-size: clamp(11px, 0.9vw, 14px);
+  font-size: clamp(10px, 0.55vw, 12px);
   font-weight: 600;
-  color: #888;
-  min-width: 24px;
+  color: #b5b5b5;
+  min-width: clamp(16px, 1vw, 20px);
+  line-height: 1;
+  align-self: center;
 }
 
 .bms-overview .voltage-chip {
-  padding: clamp(4px, 0.6vh, 8px) clamp(6px, 0.9vw, 12px);
-  border-radius: 4px;
-  font-size: clamp(12px, 1vw, 16px);
-  font-weight: 700;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: clamp(13px, 0.8vw, 16px);
+  font-weight: 800;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   text-align: center;
   cursor: pointer;
-  transition: all 0.15s ease;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-  min-width: clamp(52px, 6vw, 72px);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95);
+  box-shadow: inset 0 0 0 9999px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.25);
+  min-width: clamp(54px, 4.2vw, 70px);
+  line-height: 1.15;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
 }
 
 .bms-overview .voltage-chip:hover {
-  transform: scale(1.05);
-  z-index: 10;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .bms-overview .temp-chips {
   display: flex;
-  gap: 3px;
+  gap: 0;
+  min-width: 0;
+  flex: 1;
+  align-self: stretch;
+  border-radius: 3px;
+  overflow: hidden;
 }
 
 .bms-overview .temp-chip {
-  padding: clamp(3px, 0.5vh, 6px) clamp(3px, 0.6vw, 6px);
-  border-radius: 3px;
-  font-size: clamp(10px, 0.9vw, 14px);
-  font-weight: 700;
+  padding: 2px 2px;
+  border-radius: 0;
+  font-size: clamp(12px, 0.72vw, 15px);
+  font-weight: 800;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   text-align: center;
   cursor: pointer;
-  transition: all 0.15s ease;
-  border: 1px solid rgba(0, 0, 0, 0.3);
+  border: none;
+  background: transparent !important;
   color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  min-width: clamp(30px, 4.5vw, 44px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.15px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  box-shadow: none;
+  min-width: 0;
+  flex: 1 1 0;
+  line-height: 1.15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  overflow: hidden;
+  text-overflow: clip;
 }
 
 .bms-overview .temp-chip:hover {
-  transform: scale(1.1);
-  z-index: 10;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.bms-overview .temp-chip.hottest {
+  box-shadow: inset 0 0 0 1px rgba(255, 64, 64, 0.8);
+}
+
+.bms-overview .temp-chip.coldest {
+  box-shadow: inset 0 0 0 1px rgba(80, 145, 255, 0.8);
+}
+
+@media (max-width: 1500px) {
+  .bms-overview .stats-bar {
+    padding: 4px 6px;
+    gap: 6px;
+  }
+
+  .bms-overview .stat-item {
+    font-size: 10px;
+  }
+
+  .bms-overview .stat-value {
+    font-size: 14px;
+  }
+
+  .overview-grid-container {
+    padding: 4px;
+  }
+
+  .overview-grid {
+    gap: 3px;
+  }
+
+  .bms-overview .module-header {
+    padding: 3px 4px;
+    font-size: 11px;
+  }
+
+  .bms-overview .module-ambient {
+    font-size: 9px;
+  }
+
+  .bms-overview .cell-groups-list {
+    padding: 3px;
+    gap: 1px;
+  }
+
+  .bms-overview .cell-row {
+    gap: 2px;
+    padding: 1px 2px;
+  }
+
+  .bms-overview .cell-label {
+    font-size: 10px;
+    min-width: 15px;
+  }
+
+  .bms-overview .voltage-chip {
+    min-width: 52px;
+    font-size: 13px;
+    padding: 2px 3px;
+  }
+
+  .bms-overview .temp-chip {
+    font-size: 12px;
+    padding: 1px 2px;
+  }
 }
 
