@@ -122,11 +122,13 @@ class PCANDriver:
         self._bus: Optional[Bus] = None
         self._channel: Optional[PCANChannel] = None
         self._baudrate: Optional[PCANBaudRate] = None
+        self._fd_mode: bool = False
         self._is_connected: bool = False
         self._receive_thread: Optional[threading.Thread] = None
         self._receive_callback: Optional[Callable[[CANMessage], None]] = None
         self._stop_receive: bool = False
         self._pcan_basic = PCANBasic()
+        self._hardware_lost: bool = False
         
     def get_available_devices(self) -> List[dict]:
         """
@@ -222,7 +224,9 @@ class PCANDriver:
             
             self._channel = channel
             self._baudrate = baudrate
+            self._fd_mode = fd_mode
             self._is_connected = True
+            self._hardware_lost = False
             
             print(f"✓ Connected to {channel.name} at {bitrate} bps")
             return True
@@ -263,6 +267,7 @@ class PCANDriver:
             
             self._channel = None
             self._baudrate = None
+            self._fd_mode = False
             
             print("✓ Disconnected from PCAN device")
             return True
@@ -272,6 +277,7 @@ class PCANDriver:
             # Even if there's an error, try to clean up
             self._is_connected = False
             self._bus = None
+            self._fd_mode = False
             return False
     
     def send_message(self, can_id: int, data: bytes, 
@@ -306,6 +312,7 @@ class PCANDriver:
             
         except Exception as e:
             print(f"✗ Failed to send message: {str(e)}")
+            self._hardware_lost = True
             return False
     
     def read_message(self, timeout: float = 1.0) -> Optional[CANMessage]:
@@ -341,6 +348,7 @@ class PCANDriver:
             
         except Exception as e:
             print(f"✗ Failed to read message: {str(e)}")
+            self._hardware_lost = True
             return None
     
     def start_receive_thread(self, callback: Callable[[CANMessage], None]) -> bool:
@@ -419,6 +427,45 @@ class PCANDriver:
             except Exception as e:
                 if not self._stop_receive:
                     print(f"Error in receive loop: {str(e)}")
+                    self._hardware_lost = True
+
+    def health_check(self) -> bool:
+        """Check whether the PCAN connection is still healthy."""
+        if not self._is_connected or self._bus is None or self._channel is None:
+            return False
+
+        if self._hardware_lost:
+            return False
+
+        try:
+            result = self._pcan_basic.GetStatus(self._channel.value)
+            unhealthy_states = {PCAN_ERROR_BUSOFF, PCAN_ERROR_ILLNET, PCAN_ERROR_ILLHW}
+            if result in unhealthy_states:
+                self._hardware_lost = True
+                return False
+            return True
+        except Exception as e:
+            print(f"[PCAN] Health check failed: {e}")
+            self._hardware_lost = True
+            return False
+
+    def reconnect(self) -> bool:
+        """Reconnect using the last known channel/baudrate settings."""
+        if self._channel is None or self._baudrate is None:
+            print("[PCAN] Cannot reconnect: missing connection parameters")
+            return False
+
+        channel = self._channel
+        baudrate = self._baudrate
+        fd_mode = self._fd_mode
+
+        try:
+            self.disconnect()
+        except Exception:
+            pass
+
+        time.sleep(0.2)
+        return self.connect(channel, baudrate, fd_mode=fd_mode)
     
     def reset_device(self) -> bool:
         """

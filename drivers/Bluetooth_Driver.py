@@ -247,7 +247,9 @@ class BluetoothCANDriver:
         self._response_event = threading.Event()
         self._address = ""
         self._channel = 1
+        self._connect_timeout = 10.0
         self._last_status: Optional[ServerStatus] = None
+        self._hardware_lost: bool = False
         
         # Statistics
         self._stats = {
@@ -299,6 +301,7 @@ class BluetoothCANDriver:
         
         self._address = address
         self._channel = channel
+        self._connect_timeout = timeout
         
         try:
             print(f"[Bluetooth] Connecting to BRemoteZ server at {address} channel {channel}...")
@@ -313,6 +316,7 @@ class BluetoothCANDriver:
             self._socket.connect((address, channel))
             
             self._connected = True
+            self._hardware_lost = False
             self._stop_receive = False
             self._receive_buffer.clear()
             
@@ -449,6 +453,7 @@ class BluetoothCANDriver:
         if self._connected:
             self._connected = False
             self._streaming = False
+            self._hardware_lost = True
     
     def _process_receive_buffer(self):
         """Process complete frames from receive buffer."""
@@ -612,6 +617,7 @@ class BluetoothCANDriver:
         except Exception as e:
             print(f"[Bluetooth] Send error: {e}")
             self._stats['errors'] += 1
+            self._hardware_lost = True
             return False
     
     def _wait_for_response(self, timeout: float = 2.0) -> Optional[tuple]:
@@ -795,6 +801,39 @@ class BluetoothCANDriver:
             status['server_status_error'] = str(e)
         
         return status
+
+    def health_check(self) -> bool:
+        """Check whether Bluetooth RFCOMM connection is still healthy."""
+        if not self._connected or not self._socket:
+            return False
+
+        if self._hardware_lost:
+            return False
+
+        try:
+            return self._send_ping()
+        except Exception as e:
+            print(f"[Bluetooth] Health check failed: {e}")
+            self._hardware_lost = True
+            return False
+
+    def reconnect(self) -> bool:
+        """Reconnect using the last known Bluetooth address/channel."""
+        if not self._address:
+            print("[Bluetooth] Cannot reconnect: missing device address")
+            return False
+
+        address = self._address
+        channel = self._channel
+        timeout = self._connect_timeout
+
+        try:
+            self.disconnect()
+        except Exception:
+            pass
+
+        time.sleep(0.2)
+        return self.connect(address=address, channel=channel, timeout=timeout)
     
     def set_filter(self, can_id: int, can_mask: int = 0xFFFFFFFF) -> bool:
         """

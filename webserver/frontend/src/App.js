@@ -28,11 +28,15 @@ function App() {
   });
   const [dbcLoaded, setDbcLoaded] = useState(false);
   const [dbcFile, setDbcFile] = useState(null);
+  const [toast, setToast] = useState(null);
 
   // Performance: Batch incoming messages and aggregate by CAN ID
   const messageBufferRef = useRef([]);
   const flushIntervalRef = useRef(null);
   const messageCountsRef = useRef(new Map()); // Track total counts per CAN ID
+  const wakeCheckTimerRef = useRef(null);
+  const toastTimerRef = useRef(null);
+  const lastHeartbeatRef = useRef(Date.now());
   
   // Raw message callbacks for components that need to see ALL messages (not aggregated)
   const rawMessageCallbacksRef = useRef([]);
@@ -141,6 +145,39 @@ function App() {
     }
   };
 
+  const showToast = useCallback((message, level = 'info', duration = 3000) => {
+    setToast({ message, level });
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    if (duration > 0) {
+      toastTimerRef.current = setTimeout(() => setToast(null), duration);
+    }
+  }, []);
+
+  const handleWakeRecovery = useCallback(async () => {
+    try {
+      const health = await apiService.getHealth();
+      if (health.connection_state === 'reconnecting' || health.recovery_in_progress) {
+        showToast('Reconnecting to CAN hardware...', 'warning', 0);
+        setConnectionStatus(prev => ({ ...prev, status: 'Reconnecting' }));
+        return;
+      }
+
+      if (health.connection_state === 'connected') {
+        setConnected(true);
+        setConnectionStatus(prev => ({ ...prev, status: 'Connected' }));
+        showToast('CAN connection restored', 'success', 3000);
+      } else if (health.connection_state === 'disconnected' && connected) {
+        setConnected(false);
+        setConnectionStatus(prev => ({ ...prev, status: 'Disconnected' }));
+        showToast('CAN connection lost — hardware may need to be re-plugged', 'error', 0);
+      }
+    } catch (error) {
+      console.error('Wake recovery health check failed:', error);
+    }
+  }, [connected, showToast]);
+
   const checkDBCStatus = async () => {
     try {
       const dbcStatus = await apiService.getCurrentDBC();
@@ -162,6 +199,26 @@ function App() {
 
   const connectWebSocket = useCallback(() => {
     websocketService.connect((message) => {
+      if (message.type === 'connection_status') {
+        if (message.status === 'reconnecting') {
+          setConnectionStatus(prev => ({ ...prev, status: 'Reconnecting' }));
+          showToast('Reconnecting to CAN hardware...', 'warning', 0);
+        } else if (message.status === 'connected') {
+          setConnected(true);
+          setConnectionStatus(prev => ({ ...prev, status: 'Connected' }));
+          showToast('CAN connection restored', 'success', 3000);
+        } else if (message.status === 'disconnected') {
+          setConnected(false);
+          setConnectionStatus(prev => ({ ...prev, status: 'Disconnected' }));
+          if (message.reason === 'hardware_lost') {
+            showToast('CAN connection lost — hardware may need to be re-plugged', 'error', 0);
+          }
+        }
+        return;
+      }
+
+      lastHeartbeatRef.current = Date.now();
+
       // Notify raw message callbacks (for components like ModuleConfig that need ALL messages)
       rawMessageCallbacksRef.current.forEach(callback => {
         try {
@@ -173,8 +230,10 @@ function App() {
       
       // Buffer incoming messages - they'll be flushed by the interval
       messageBufferRef.current.push(message);
+    }, () => {
+      checkConnectionStatus();
     });
-  }, []);
+  }, [checkConnectionStatus, showToast]);
 
   const handleConnect = async (deviceType, channel, baudrate) => {
     console.log('handleConnect called with:', { deviceType, channel, baudrate });
@@ -218,6 +277,7 @@ function App() {
         baudrate: null,
         status: 'Disconnected'
       });
+      setToast(null);
       // Don't clear messages on disconnect - they persist until manually cleared
       return true;
     } catch (error) {
@@ -261,16 +321,76 @@ function App() {
       try {
         const statsData = await apiService.getStats();
         setStats(statsData);
+
+        const now = Date.now();
+        if (now - lastHeartbeatRef.current > 15000) {
+          handleWakeRecovery();
+        }
       } catch (error) {
         console.error('Failed to fetch stats:', error);
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [connected]);
+  }, [connected, handleWakeRecovery]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleWakeRecovery();
+      }
+    };
+
+    const onBeforeUnload = () => {
+      if (!connected) {
+        return;
+      }
+
+      try {
+        const baseUrl = apiService.getBaseUrl();
+        const endpoint = `${baseUrl}/disconnect`;
+        navigator.sendBeacon(endpoint, new Blob([JSON.stringify({})], { type: 'application/json' }));
+      } catch (error) {
+        console.error('Failed to send disconnect beacon:', error);
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('beforeunload', onBeforeUnload);
+
+    wakeCheckTimerRef.current = setInterval(() => {
+      if (document.visibilityState === 'visible' && connected) {
+        const now = Date.now();
+        if (now - lastHeartbeatRef.current > 15000) {
+          handleWakeRecovery();
+        }
+      }
+    }, 5000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      if (wakeCheckTimerRef.current) {
+        clearInterval(wakeCheckTimerRef.current);
+        wakeCheckTimerRef.current = null;
+      }
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
+    };
+  }, [connected, handleWakeRecovery]);
 
   return (
     <div className="App">
+      {toast && (
+        <div className={`connection-toast ${toast.level}`}>
+          {toast.message}
+          {toast.level === 'warning' || toast.level === 'error' ? (
+            <button className="toast-close" onClick={() => setToast(null)}>×</button>
+          ) : null}
+        </div>
+      )}
       <div className="tab-content">
         {activeTab === 'explorer' && (
           <CANExplorer

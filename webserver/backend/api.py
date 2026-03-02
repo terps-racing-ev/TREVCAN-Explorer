@@ -17,7 +17,6 @@ import asyncio
 import json
 from enum import Enum
 import atexit
-import signal
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -258,6 +257,145 @@ class CANBackend:
         # Event loop for async operations from threads
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.start_time: Optional[datetime] = None
+        self.connection_state: str = 'disconnected'
+        self.connection_reason: Optional[str] = None
+        self._health_monitor_task: Optional[asyncio.Task] = None
+        self._shutdown_called: bool = False
+        self._recovery_in_progress: bool = False
+
+    def _is_driver_healthy(self) -> bool:
+        """Check current driver health."""
+        if not self.is_connected or not self.driver:
+            return False
+
+        try:
+            if hasattr(self.driver, 'health_check'):
+                return bool(self.driver.health_check())
+
+            status = self.driver.get_bus_status()
+            return bool(status.get('connected', False))
+        except Exception as e:
+            print(f"[Health] Driver health check failed: {e}")
+            return False
+
+    async def _run_health_monitor(self):
+        """Background monitor that auto-recovers connections after sleep/wake or hardware loss."""
+        print("[Health] Monitor started")
+        try:
+            while not self._shutdown_called:
+                await asyncio.sleep(5.0)
+
+                if self._shutdown_called:
+                    break
+
+                if not self.is_connected or not self.driver or self._recovery_in_progress:
+                    continue
+
+                healthy = await asyncio.to_thread(self._is_driver_healthy)
+                if not healthy:
+                    await self._handle_connection_loss("driver_health_check_failed")
+        except asyncio.CancelledError:
+            pass
+        finally:
+            print("[Health] Monitor stopped")
+
+    def start_health_monitor(self):
+        """Ensure health monitor task is running."""
+        if self.loop and (self._health_monitor_task is None or self._health_monitor_task.done()):
+            self._health_monitor_task = asyncio.create_task(self._run_health_monitor())
+
+    async def stop_health_monitor(self):
+        """Stop health monitor task."""
+        if self._health_monitor_task and not self._health_monitor_task.done():
+            self._health_monitor_task.cancel()
+            try:
+                await self._health_monitor_task
+            except asyncio.CancelledError:
+                pass
+        self._health_monitor_task = None
+
+    async def broadcast_connection_status(self, status: str, reason: Optional[str] = None):
+        """Broadcast connection status updates to all websocket clients."""
+        payload = {
+            "type": "connection_status",
+            "status": status,
+            "timestamp": datetime.now().isoformat()
+        }
+        if reason:
+            payload["reason"] = reason
+        await self.broadcast_message(payload)
+
+    async def _handle_connection_loss(self, reason: str):
+        """Attempt automatic reconnection when health check fails."""
+        if self._recovery_in_progress or not self.is_connected or not self.driver:
+            return
+
+        self._recovery_in_progress = True
+        self.connection_state = 'reconnecting'
+        self.connection_reason = reason
+        await self.broadcast_connection_status('reconnecting', reason)
+
+        try:
+            for attempt in range(1, 4):
+                print(f"[Recovery] Attempt {attempt}/3")
+                success = await asyncio.to_thread(self._attempt_driver_reconnect)
+                if success:
+                    self.connection_state = 'connected'
+                    self.connection_reason = 'recovered'
+                    await self.broadcast_connection_status('connected', 'recovered')
+                    print("[Recovery] Connection restored")
+                    return
+
+                await asyncio.sleep(2 ** (attempt - 1))
+
+            print("[Recovery] Failed to recover connection")
+            await asyncio.to_thread(self.disconnect)
+            self.connection_state = 'disconnected'
+            self.connection_reason = 'hardware_lost'
+            await self.broadcast_connection_status('disconnected', 'hardware_lost')
+        finally:
+            self._recovery_in_progress = False
+
+    def _attempt_driver_reconnect(self) -> bool:
+        """Reconnect using driver-provided reconnect hook."""
+        if not self.driver or not hasattr(self.driver, 'reconnect'):
+            return False
+
+        try:
+            success = bool(self.driver.reconnect())
+            if not success:
+                return False
+
+            if hasattr(self.driver, 'start_receive_thread'):
+                try:
+                    self.driver.start_receive_thread(self._on_message_received)
+                except Exception as e:
+                    print(f"[Recovery] Warning starting receive thread: {e}")
+
+            self.is_connected = True
+            self.start_time = datetime.now()
+            return True
+        except Exception as e:
+            print(f"[Recovery] Reconnect error: {e}")
+            return False
+
+    async def shutdown(self):
+        """Idempotent backend shutdown cleanup."""
+        if self._shutdown_called:
+            return
+
+        self._shutdown_called = True
+        await self.stop_health_monitor()
+
+        if self.is_connected:
+            await asyncio.to_thread(self.disconnect)
+
+        for ws in list(self.active_connections):
+            try:
+                await ws.close()
+            except Exception:
+                pass
+        self.active_connections.clear()
     
     def get_available_devices(self) -> List[DeviceInfo]:
         """Get list of all available CAN devices"""
@@ -429,6 +567,8 @@ class CANBackend:
             
             self.device_type = device_type
             self.is_connected = True
+            self.connection_state = 'connected'
+            self.connection_reason = None
             self.start_time = datetime.now()
             self.message_count = 0
             
@@ -476,6 +616,8 @@ class CANBackend:
             self.driver = None
             self.is_connected = False
             self.device_type = None
+            self.connection_state = 'disconnected'
+            self.connection_reason = None
             print("[Disconnect] Cleanup complete")
             return True
         except Exception as e:
@@ -484,6 +626,8 @@ class CANBackend:
             self.driver = None
             self.is_connected = False
             self.device_type = None
+            self.connection_state = 'disconnected'
+            self.connection_reason = str(e)
             return False
     
     def send_message(self, can_id: int, data: List[int], 
@@ -502,11 +646,25 @@ class CANBackend:
     def get_bus_status(self) -> dict:
         """Get current bus status"""
         if not self.is_connected or not self.driver:
-            return {'connected': False}
+            return {
+                'connected': False,
+                'status': self.connection_state.title() if self.connection_state else 'Disconnected'
+            }
         
         status = self.driver.get_bus_status()
         status['device_type'] = self.device_type.value if self.device_type else None
+        status['status'] = self.connection_state.title()
         return status
+
+    def get_connection_health(self) -> dict:
+        """Get connection health and recovery state for frontend wake handling."""
+        return {
+            'connected': self.is_connected,
+            'connection_state': self.connection_state,
+            'recovery_in_progress': self._recovery_in_progress,
+            'reason': self.connection_reason,
+            'device_type': self.device_type.value if self.device_type else None
+        }
     
     def load_dbc_file(self, file_path: str) -> bool:
         """Load a DBC file for message decoding
@@ -806,21 +964,6 @@ def cleanup_on_exit():
 atexit.register(cleanup_on_exit)
 
 
-def signal_handler(signum, frame):
-    """Handle shutdown signals (Ctrl+C, etc.)."""
-    print(f"\n[Signal] Received signal {signum}, shutting down...")
-    cleanup_on_exit()
-    sys.exit(0)
-
-
-# Register signal handlers for graceful shutdown
-try:
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-except:
-    pass  # Signal handling might not work in all contexts
-
-
 # ============================================================================
 # REST API Endpoints
 # ============================================================================
@@ -857,6 +1000,7 @@ async def connect(request: ConnectionRequest):
     success = backend.connect(request.device_type, request.channel, request.baudrate)
     
     if success:
+        await backend.broadcast_connection_status('connected', 'connected_via_api')
         return ConnectionResponse(
             success=True,
             message="Connected successfully",
@@ -877,6 +1021,7 @@ async def disconnect():
     success = backend.disconnect()
     
     if success:
+        await backend.broadcast_connection_status('disconnected', 'disconnected_via_api')
         return DisconnectionResponse(success=True, message="Disconnected successfully")
     else:
         raise HTTPException(status_code=500, detail="Failed to disconnect")
@@ -887,6 +1032,19 @@ async def get_status():
     """Get current bus status"""
     status = backend.get_bus_status()
     return BusStatusResponse(**status)
+
+
+@app.get("/health")
+async def get_health():
+    """Get backend connection health state for wake/sleep recovery UX."""
+    return backend.get_connection_health()
+
+
+@app.post("/shutdown")
+async def shutdown_backend():
+    """Gracefully disconnect hardware so launcher can terminate process safely."""
+    await backend.shutdown()
+    return {"success": True, "message": "Backend shutdown cleanup complete"}
 
 
 @app.post("/send", response_model=CANMessageResponse)
@@ -1295,8 +1453,9 @@ async def startup_event():
     
     # Set the event loop for the backend so messages can be broadcast
     # even before the first WebSocket connection
-    backend.loop = asyncio.get_event_loop()
+    backend.loop = asyncio.get_running_loop()
     print("[OK] Event loop initialized for CAN message broadcasting")
+    backend.start_health_monitor()
     
     # Auto-load last DBC file if it exists
     if DBC_SUPPORT and LAST_DBC_FILE.exists():
@@ -1326,29 +1485,7 @@ async def shutdown_event():
     print("SHUTTING DOWN SERVER")
     print("=" * 60)
     
-    if backend.is_connected:
-        print(f"[Shutdown] Disconnecting from {backend.device_type.value if backend.device_type else 'device'}...")
-        try:
-            # Stop receive thread first
-            if backend.driver and hasattr(backend.driver, 'stop_receive_thread'):
-                try:
-                    backend.driver.stop_receive_thread()
-                except Exception as e:
-                    print(f"[Shutdown] Warning stopping receive thread: {e}")
-            
-            # Then disconnect
-            backend.disconnect()
-            print("[Shutdown] Disconnected successfully")
-        except Exception as e:
-            print(f"[Shutdown] Error during disconnect: {e}")
-    
-    # Close all WebSocket connections
-    for ws in list(websocket_clients):
-        try:
-            await ws.close()
-        except:
-            pass
-    websocket_clients.clear()
+    await backend.shutdown()
     
     print("[Shutdown] Backend stopped")
     print("=" * 60)

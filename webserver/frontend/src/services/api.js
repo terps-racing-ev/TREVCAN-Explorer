@@ -62,6 +62,20 @@ class ApiService {
     return response.data;
   }
 
+  async getHealth() {
+    const response = await this.client.get('/health');
+    return response.data;
+  }
+
+  async requestBackendShutdown() {
+    const response = await this.client.post('/shutdown');
+    return response.data;
+  }
+
+  getBaseUrl() {
+    return this.client.defaults.baseURL;
+  }
+
   async sendMessage(canId, data, isExtended = false, isRemote = false) {
     const response = await this.client.post('/send', {
       can_id: canId,

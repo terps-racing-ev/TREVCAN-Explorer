@@ -30,25 +30,53 @@ class WebSocketService {
   constructor() {
     this.ws = null;
     this.messageCallback = null;
+    this.onOpenCallback = null;
     this.reconnectInterval = null;
     this.reconnectDelay = 3000;
+    this.heartbeatTimeoutMs = 10000;
+    this.lastMessageAt = 0;
+    this.healthInterval = null;
+    this.shouldReconnect = true;
   }
 
-  connect(onMessage) {
+  connect(onMessage, onOpen = null) {
     this.messageCallback = onMessage;
+    this.onOpenCallback = onOpen;
+    this.shouldReconnect = true;
     this.ws = new WebSocket(WS_URL);
 
     this.ws.onopen = () => {
       console.log('WebSocket connected');
+      this.lastMessageAt = Date.now();
       if (this.reconnectInterval) {
         clearInterval(this.reconnectInterval);
         this.reconnectInterval = null;
+      }
+
+      if (this.healthInterval) {
+        clearInterval(this.healthInterval);
+      }
+
+      this.healthInterval = setInterval(() => {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+          return;
+        }
+
+        if (Date.now() - this.lastMessageAt > this.heartbeatTimeoutMs) {
+          console.warn('WebSocket heartbeat timeout, reconnecting...');
+          this.ws.close();
+        }
+      }, 5000);
+
+      if (this.onOpenCallback) {
+        this.onOpenCallback();
       }
     };
 
     this.ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
+        this.lastMessageAt = Date.now();
         if (message.type !== 'heartbeat' && this.messageCallback) {
           this.messageCallback(message);
         }
@@ -63,20 +91,35 @@ class WebSocketService {
 
     this.ws.onclose = () => {
       console.log('WebSocket disconnected');
+      if (this.healthInterval) {
+        clearInterval(this.healthInterval);
+        this.healthInterval = null;
+      }
+
       // Auto-reconnect
-      if (!this.reconnectInterval) {
+      if (this.shouldReconnect && !this.reconnectInterval) {
         this.reconnectInterval = setInterval(() => {
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            return;
+          }
           console.log('Attempting to reconnect...');
-          this.connect(this.messageCallback);
+          this.connect(this.messageCallback, this.onOpenCallback);
         }, this.reconnectDelay);
       }
     };
   }
 
   disconnect() {
+    this.shouldReconnect = false;
+
     if (this.reconnectInterval) {
       clearInterval(this.reconnectInterval);
       this.reconnectInterval = null;
+    }
+
+    if (this.healthInterval) {
+      clearInterval(this.healthInterval);
+      this.healthInterval = null;
     }
     
     if (this.ws) {
@@ -85,6 +128,7 @@ class WebSocketService {
     }
     
     this.messageCallback = null;
+    this.onOpenCallback = null;
   }
 
   sendHeartbeat() {

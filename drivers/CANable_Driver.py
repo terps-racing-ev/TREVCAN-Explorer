@@ -146,6 +146,8 @@ class CANableDriver:
         self._receive_callback: Optional[Callable[[CANMessage], None]] = None
         self._stop_receive: bool = False
         self._device_info: Optional[dict] = None
+        self._fd_mode: bool = False
+        self._hardware_lost: bool = False
         
         # Ensure libusb DLL is accessible on Windows
         self._setup_libusb_path()
@@ -306,7 +308,9 @@ class CANableDriver:
             
             self._channel = channel
             self._baudrate = baudrate
+            self._fd_mode = fd_mode
             self._is_connected = True
+            self._hardware_lost = False
             
             # Try to get device info
             devices = self.get_available_devices()
@@ -349,7 +353,7 @@ class CANableDriver:
             self.stop_receive_thread()
             
             # Give extra time for thread to fully stop and release resources
-            time.sleep(0.3)
+            time.sleep(0.1)
             
             # Now safely shutdown bus
             if self._bus:
@@ -404,10 +408,11 @@ class CANableDriver:
             # Additional delay to ensure USB device is fully released by OS/libusb
             # This is critical for gs_usb/libusb to properly release the device
             # Windows can be slow to release USB handles
-            time.sleep(1.0)
+            time.sleep(0.2)
             
             self._channel = None
             self._baudrate = None
+            self._fd_mode = False
             self._device_info = None
             
             print("[OK] Disconnected from CANable device")
@@ -420,12 +425,13 @@ class CANableDriver:
             self._bus = None
             self._channel = None
             self._baudrate = None
+            self._fd_mode = False
             self._device_info = None
             
             # Force cleanup even on error
             import gc
             gc.collect()
-            time.sleep(1.0)
+            time.sleep(0.2)
             
             return False
     
@@ -463,6 +469,7 @@ class CANableDriver:
             # Only print error if we're still supposed to be connected
             if self._is_connected:
                 print(f"[ERROR] Failed to send message: {str(e)}")
+                self._hardware_lost = True
             return False
     
     def read_message(self, timeout: float = 1.0) -> Optional[CANMessage]:
@@ -499,6 +506,7 @@ class CANableDriver:
             # Only print error if we're still supposed to be connected
             if self._is_connected:
                 print(f"[ERROR] Failed to read message: {str(e)}")
+                self._hardware_lost = True
             return None
     
     def start_receive_thread(self, callback: Callable[[CANMessage], None]) -> bool:
@@ -601,10 +609,45 @@ class CANableDriver:
                         print(f"[WARN] Receive loop error ({error_count}): {str(e)}")
                     if error_count >= max_errors:
                         print(f"[ERROR] Too many receive errors, stopping")
+                        self._hardware_lost = True
                         break
                 else:
                     # We're stopping anyway, exit cleanly
                     break
+
+    def health_check(self) -> bool:
+        """Check whether CANable bus handle is still valid."""
+        if not self._is_connected or self._bus is None:
+            return False
+
+        if self._hardware_lost:
+            return False
+
+        try:
+            self._bus.recv(timeout=0.0)
+            return True
+        except Exception as e:
+            print(f"[CANable] Health check failed: {e}")
+            self._hardware_lost = True
+            return False
+
+    def reconnect(self) -> bool:
+        """Reconnect using last known channel/baudrate values."""
+        if self._channel is None or self._baudrate is None:
+            print("[CANable] Cannot reconnect: missing connection parameters")
+            return False
+
+        channel = self._channel
+        baudrate = self._baudrate
+        fd_mode = self._fd_mode
+
+        try:
+            self.disconnect()
+        except Exception:
+            pass
+
+        time.sleep(0.2)
+        return self.connect(channel, baudrate, fd_mode=fd_mode)
     
     def get_bus_status(self) -> dict:
         """

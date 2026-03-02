@@ -69,6 +69,10 @@ class NetworkCANDriver:
         self._poll_interval: float = 0.1  # 100ms polling interval
         self._last_timestamp: float = 0.0
         self._server_info: Dict[str, Any] = {}
+        self._hardware_lost: bool = False
+        self._last_channel: int = 0
+        self._last_baudrate: NetworkCANBaudRate = NetworkCANBaudRate.BAUD_500K
+        self._last_auto_connect_server: bool = True
         
     def test_connection(self, timeout: float = 3.0) -> bool:
         """
@@ -153,6 +157,9 @@ class NetworkCANDriver:
             return False
         
         self._session = requests.Session()
+        self._last_channel = channel
+        self._last_baudrate = baudrate
+        self._last_auto_connect_server = auto_connect_server
         
         try:
             # Test server reachability
@@ -201,13 +208,16 @@ class NetworkCANDriver:
                     return False
             
             self._connected = True
+            self._hardware_lost = False
             return True
             
         except requests.exceptions.ConnectionError as e:
             print(f"[NetworkCAN] Connection error: {e}")
+            self._hardware_lost = True
             return False
         except Exception as e:
             print(f"[NetworkCAN] Error: {e}")
+            self._hardware_lost = True
             return False
     
     def disconnect(self) -> bool:
@@ -233,7 +243,6 @@ class NetworkCANDriver:
             print(f"[NetworkCAN] Disconnect error: {e}")
         
         self._connected = False
-        self._base_url = None
         print("[NetworkCAN] Disconnected from server")
         return True
     
@@ -280,6 +289,7 @@ class NetworkCANDriver:
                 
         except Exception as e:
             print(f"[NetworkCAN] Send error: {e}")
+            self._hardware_lost = True
             return False
     
     def set_poll_interval(self, interval: float):
@@ -474,11 +484,13 @@ class NetworkCANDriver:
             except requests.exceptions.ConnectionError:
                 error_count += 1
                 print("[NetworkCAN] Connection lost")
+                self._hardware_lost = True
                 if error_count >= max_errors:
                     break
             except Exception as e:
                 error_count += 1
                 print(f"[NetworkCAN] Receive error: {e}")
+                self._hardware_lost = True
             
             if error_count >= max_errors:
                 print(f"[NetworkCAN] Too many errors ({error_count}), stopping receive")
@@ -563,6 +575,39 @@ class NetworkCANDriver:
             print(f"[NetworkCAN] Status error: {e}")
         
         return {'connected': self._connected, 'interface': 'network'}
+
+    def health_check(self) -> bool:
+        """Check if remote server and CAN link are still reachable."""
+        if not self._connected or not self._session:
+            return False
+
+        if self._hardware_lost:
+            return False
+
+        try:
+            response = self._session.get(f"{self._base_url}/api/status", timeout=2.0)
+            if response.status_code != 200:
+                self._hardware_lost = True
+                return False
+            return True
+        except Exception as e:
+            print(f"[NetworkCAN] Health check failed: {e}")
+            self._hardware_lost = True
+            return False
+
+    def reconnect(self) -> bool:
+        """Reconnect to the same network CAN server and settings."""
+        try:
+            self.disconnect()
+        except Exception:
+            pass
+
+        time.sleep(0.2)
+        return self.connect(
+            channel=self._last_channel,
+            baudrate=self._last_baudrate,
+            auto_connect_server=self._last_auto_connect_server
+        )
     
     @property
     def is_connected(self) -> bool:

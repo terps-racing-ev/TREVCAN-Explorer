@@ -16,6 +16,7 @@ import webbrowser
 import signal
 import atexit
 import socket
+import urllib.request
 from pathlib import Path
 
 # Global process list for cleanup
@@ -46,21 +47,55 @@ def print_banner():
     print(f"{Colors.ENDC}")
 
 def cleanup_processes():
-    """Kill all spawned processes"""
+    """Gracefully stop all spawned processes, then force-kill if needed."""
     global processes
     if processes:
         print_colored("\n  Stopping services...", Colors.DIM)
+
+        # Ask backend to release CAN hardware first
+        try:
+            req = urllib.request.Request(
+                'http://127.0.0.1:8000/shutdown',
+                data=b'{}',
+                headers={'Content-Type': 'application/json'},
+                method='POST'
+            )
+            with urllib.request.urlopen(req, timeout=2):
+                pass
+            print_colored("  [OK] Backend cleanup requested", Colors.DIM)
+        except Exception:
+            pass
+
         for proc_info in processes:
             try:
                 proc = proc_info['process']
                 if proc.poll() is None:
                     if sys.platform == 'win32':
-                        subprocess.run(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
-                                     capture_output=True, shell=True)
+                        try:
+                            proc.send_signal(signal.CTRL_BREAK_EVENT)
+                        except Exception:
+                            pass
+
+                        try:
+                            proc.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            subprocess.run(
+                                ['taskkill', '/T', '/PID', str(proc.pid)],
+                                capture_output=True,
+                                shell=True
+                            )
+                            try:
+                                proc.wait(timeout=2)
+                            except subprocess.TimeoutExpired:
+                                subprocess.run(
+                                    ['taskkill', '/F', '/T', '/PID', str(proc.pid)],
+                                    capture_output=True,
+                                    shell=True
+                                )
                     else:
                         proc.terminate()
                         try:
-                            proc.wait(timeout=3)
+                            proc.wait(timeout=5)
                         except subprocess.TimeoutExpired:
                             proc.kill()
             except Exception:
