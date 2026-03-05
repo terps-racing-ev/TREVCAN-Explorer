@@ -20,6 +20,9 @@ function CANExplorer({
   activeTab,
   onTabChange,
   onRegisterRawCallback,
+  simulationActive,
+  onStartSimulation,
+  onStopSimulation,
   children
 }) {
   const [filterText, setFilterText] = useState('');
@@ -562,6 +565,11 @@ function CANExplorer({
 
   const handleConnectClick = async () => {
     console.log('[CANExplorer] Connect button clicked:', { connected, deviceType, channel, baudrate });
+
+    if (simulationActive) {
+      alert('Stop Test Mode before connecting or disconnecting hardware.');
+      return;
+    }
     
     try {
       if (connected) {
@@ -610,6 +618,19 @@ function CANExplorer({
     } catch (error) {
       console.error('[CANExplorer] Connection error:', error);
       alert('Connection failed: ' + error.message);
+    }
+  };
+
+  const handleSimulationToggle = async () => {
+    try {
+      if (simulationActive) {
+        await onStopSimulation();
+      } else {
+        await onStartSimulation();
+      }
+    } catch (error) {
+      console.error('[CANExplorer] Simulation toggle error:', error);
+      alert('Failed to toggle Test Mode: ' + error.message);
     }
   };
 
@@ -715,7 +736,7 @@ function CANExplorer({
                   }
                   // Network/Bluetooth devices use their own input fields, no channel needed
                 }}
-                disabled={connected}
+                disabled={connected || simulationActive}
               >
                 <option value="pcan">PCAN-USB</option>
                 <option value="canable">CANable</option>
@@ -734,7 +755,7 @@ function CANExplorer({
                     value={networkHost}
                     onChange={(e) => setNetworkHost(e.target.value)}
                     placeholder="IP Address"
-                    disabled={connected}
+                    disabled={connected || simulationActive}
                   />
                   <span className="network-separator">:</span>
                   <input
@@ -743,7 +764,7 @@ function CANExplorer({
                     value={networkPort}
                     onChange={(e) => setNetworkPort(e.target.value)}
                     placeholder="Port"
-                    disabled={connected}
+                    disabled={connected || simulationActive}
                   />
                 </div>
               </div>
@@ -757,7 +778,7 @@ function CANExplorer({
                       className="bluetooth-device-select"
                       value={bluetoothAddress}
                       onChange={(e) => setBluetoothAddress(e.target.value)}
-                      disabled={connected}
+                      disabled={connected || simulationActive}
                     >
                       <option value="">-- Select device --</option>
                       {btDevices.map(device => (
@@ -773,7 +794,7 @@ function CANExplorer({
                       value={bluetoothAddress}
                       onChange={(e) => setBluetoothAddress(e.target.value.toUpperCase())}
                       placeholder="XX:XX:XX:XX:XX:XX"
-                      disabled={connected}
+                      disabled={connected || simulationActive}
                     />
                   );
                 })()}
@@ -787,7 +808,7 @@ function CANExplorer({
                     min="1"
                     max="30"
                     placeholder="1"
-                    disabled={connected}
+                    disabled={connected || simulationActive}
                   />
                 </div>
               </div>
@@ -797,7 +818,7 @@ function CANExplorer({
                 <select
                   value={channel}
                   onChange={(e) => setChannel(e.target.value)}
-                  disabled={connected}
+                  disabled={connected || simulationActive}
                 >
                   {deviceType === 'pcan' ? (
                     pcanDevices.length > 0 ? (
@@ -832,7 +853,7 @@ function CANExplorer({
               <select
                 value={baudrate}
                 onChange={(e) => setBaudrate(e.target.value)}
-                disabled={connected}
+                disabled={connected || simulationActive}
               >
                 <option value="BAUD_1M">1 Mbit/s</option>
                 <option value="BAUD_500K">500 kbit/s</option>
@@ -842,23 +863,35 @@ function CANExplorer({
             </div>
 
             <button
-              className={`btn btn-block ${connected ? 'btn-danger' : 'btn-primary'}`}
+              className={`btn btn-block ${connected && !simulationActive ? 'btn-danger' : 'btn-primary'}`}
               onClick={handleConnectClick}
+              disabled={simulationActive}
             >
-              {connected ? 'Disconnect' : 'Connect'}
+              {connected && !simulationActive ? 'Disconnect' : 'Connect'}
+            </button>
+
+            <button
+              className={`btn btn-block ${simulationActive ? 'btn-warning' : 'btn-secondary'}`}
+              onClick={handleSimulationToggle}
+              disabled={connected && !simulationActive}
+            >
+              {simulationActive ? 'Stop Test Mode' : 'Start Test Mode'}
             </button>
 
             <button
               className="btn btn-secondary btn-block"
               onClick={onRefreshDevices}
-              disabled={connected}
+              disabled={connected || simulationActive}
             >
               <RefreshCw size={16} />
               Refresh Devices
             </button>
 
-            {connected && (
+            {(connected || simulationActive) && (
               <div className="connection-info">
+                {simulationActive && (
+                  <div className="test-mode-pill">TEST MODE ACTIVE</div>
+                )}
                 <div className="info-row">
                   <span className="info-label">Device:</span>
                   <span className="info-value">{connectionStatus.device_type?.toUpperCase()}</span>

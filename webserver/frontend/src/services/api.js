@@ -91,6 +91,21 @@ class ApiService {
     return response.data;
   }
 
+  async startSimulation() {
+    const response = await this.client.post('/simulation/start');
+    return response.data;
+  }
+
+  async stopSimulation() {
+    const response = await this.client.post('/simulation/stop');
+    return response.data;
+  }
+
+  async getSimulationStatus() {
+    const response = await this.client.get('/simulation/status');
+    return response.data;
+  }
+
   async uploadDBC(file) {
     const formData = new FormData();
     formData.append('file', file);

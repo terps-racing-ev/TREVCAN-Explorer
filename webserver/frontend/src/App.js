@@ -29,6 +29,7 @@ function App() {
   const [dbcLoaded, setDbcLoaded] = useState(false);
   const [dbcFile, setDbcFile] = useState(null);
   const [toast, setToast] = useState(null);
+  const [simulationActive, setSimulationActive] = useState(false);
 
   // Performance: Batch incoming messages and aggregate by CAN ID
   const messageBufferRef = useRef([]);
@@ -118,6 +119,7 @@ function App() {
   useEffect(() => {
     fetchDevices();
     checkConnectionStatus();
+    checkSimulationStatus();
     checkDBCStatus();
   }, []);
 
@@ -136,6 +138,7 @@ function App() {
       const status = await apiService.getStatus();
       setConnected(status.connected);
       setConnectionStatus(status);
+      setSimulationActive(status.device_type === 'simulation');
       
       if (status.connected && !websocketService.isConnected()) {
         connectWebSocket();
@@ -145,13 +148,50 @@ function App() {
     }
   };
 
-  const showToast = useCallback((message, level = 'info', duration = 3000) => {
+  const checkSimulationStatus = async () => {
+    try {
+      const status = await apiService.getSimulationStatus();
+      setSimulationActive(status.active);
+
+      if (status.active) {
+        setConnected(true);
+        setConnectionStatus({
+          device_type: 'simulation',
+          channel: 'bms-fake-data',
+          baudrate: 'SIM',
+          status: 'Connected (Test Mode)'
+        });
+
+        if (!websocketService.isConnected()) {
+          connectWebSocket();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check simulation status:', error);
+    }
+  };
+
+  const dismissToast = useCallback(() => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    setToast(null);
+  }, []);
+
+  const showToast = useCallback((message, level = 'info', duration = 10000) => {
+    // Success toasts should always auto-dismiss after 10s.
+    const effectiveDuration = level === 'success' ? 10000 : duration;
+
     setToast({ message, level });
     if (toastTimerRef.current) {
       clearTimeout(toastTimerRef.current);
     }
-    if (duration > 0) {
-      toastTimerRef.current = setTimeout(() => setToast(null), duration);
+    if (effectiveDuration > 0) {
+      toastTimerRef.current = setTimeout(() => {
+        toastTimerRef.current = null;
+        setToast(null);
+      }, effectiveDuration);
     }
   }, []);
 
@@ -167,7 +207,9 @@ function App() {
       if (health.connection_state === 'connected') {
         setConnected(true);
         setConnectionStatus(prev => ({ ...prev, status: 'Connected' }));
-        showToast('CAN connection restored', 'success', 3000);
+        if (!health.simulation_active) {
+          showToast('CAN connection restored', 'success', 3000);
+        }
       } else if (health.connection_state === 'disconnected' && connected) {
         setConnected(false);
         setConnectionStatus(prev => ({ ...prev, status: 'Disconnected' }));
@@ -204,10 +246,19 @@ function App() {
           setConnectionStatus(prev => ({ ...prev, status: 'Reconnecting' }));
           showToast('Reconnecting to CAN hardware...', 'warning', 0);
         } else if (message.status === 'connected') {
+          const simulationConnected = message.reason === 'simulation_started' || simulationActive;
+          if (simulationConnected) {
+            setSimulationActive(true);
+          }
           setConnected(true);
           setConnectionStatus(prev => ({ ...prev, status: 'Connected' }));
-          showToast('CAN connection restored', 'success', 3000);
+          if (!simulationConnected) {
+            showToast('CAN connection restored', 'success', 3000);
+          }
         } else if (message.status === 'disconnected') {
+          if (message.reason === 'simulation_stopped') {
+            setSimulationActive(false);
+          }
           setConnected(false);
           setConnectionStatus(prev => ({ ...prev, status: 'Disconnected' }));
           if (message.reason === 'hardware_lost') {
@@ -233,9 +284,14 @@ function App() {
     }, () => {
       checkConnectionStatus();
     });
-  }, [checkConnectionStatus, showToast]);
+  }, [checkConnectionStatus, showToast, simulationActive]);
 
   const handleConnect = async (deviceType, channel, baudrate) => {
+    if (simulationActive) {
+      alert('Stop Test Mode before connecting to real hardware.');
+      return false;
+    }
+
     console.log('handleConnect called with:', { deviceType, channel, baudrate });
     try {
       console.log('Calling API connect...');
@@ -259,6 +315,58 @@ function App() {
     } catch (error) {
       console.error('Connection failed:', error);
       alert('Failed to connect: ' + (error.response?.data?.detail || error.message));
+      return false;
+    }
+  };
+
+  const handleStartSimulation = async () => {
+    try {
+      const response = await apiService.startSimulation();
+      if (response.success) {
+        setSimulationActive(true);
+        setConnected(true);
+        setConnectionStatus({
+          device_type: 'simulation',
+          channel: 'bms-fake-data',
+          baudrate: 'SIM',
+          status: 'Connected (Test Mode)'
+        });
+
+        if (!websocketService.isConnected()) {
+          connectWebSocket();
+        }
+
+        checkDBCStatus();
+        showToast('Test mode started', 'success', 2500);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to start simulation:', error);
+      alert('Failed to start test mode: ' + (error.response?.data?.detail || error.message));
+      return false;
+    }
+  };
+
+  const handleStopSimulation = async () => {
+    try {
+      const response = await apiService.stopSimulation();
+      if (response.success) {
+        websocketService.disconnect();
+        setSimulationActive(false);
+        setConnected(false);
+        setConnectionStatus({
+          device_type: null,
+          channel: null,
+          baudrate: null,
+          status: 'Disconnected'
+        });
+        setToast(null);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to stop simulation:', error);
       return false;
     }
   };
@@ -342,7 +450,7 @@ function App() {
     };
 
     const onBeforeUnload = () => {
-      if (!connected) {
+      if (!connected || simulationActive) {
         return;
       }
 
@@ -379,16 +487,14 @@ function App() {
         toastTimerRef.current = null;
       }
     };
-  }, [connected, handleWakeRecovery]);
+  }, [connected, handleWakeRecovery, simulationActive]);
 
   return (
     <div className="App">
       {toast && (
         <div className={`connection-toast ${toast.level}`}>
           {toast.message}
-          {toast.level === 'warning' || toast.level === 'error' ? (
-            <button className="toast-close" onClick={() => setToast(null)}>×</button>
-          ) : null}
+          <button className="toast-close" onClick={dismissToast} aria-label="Dismiss notification">×</button>
         </div>
       )}
       <div className="tab-content">
@@ -410,6 +516,9 @@ function App() {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onRegisterRawCallback={registerRawMessageCallback}
+            simulationActive={simulationActive}
+            onStartSimulation={handleStartSimulation}
+            onStopSimulation={handleStopSimulation}
           />
         )}
         {activeTab === 'bms-status' && (
@@ -430,6 +539,9 @@ function App() {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onRegisterRawCallback={registerRawMessageCallback}
+            simulationActive={simulationActive}
+            onStartSimulation={handleStartSimulation}
+            onStopSimulation={handleStopSimulation}
           >
             <BMSStatus 
               messages={messages} 
@@ -456,6 +568,9 @@ function App() {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onRegisterRawCallback={registerRawMessageCallback}
+            simulationActive={simulationActive}
+            onStartSimulation={handleStartSimulation}
+            onStopSimulation={handleStopSimulation}
           >
             <BMSOverview messages={messages} />
           </CANExplorer>
@@ -478,6 +593,9 @@ function App() {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onRegisterRawCallback={registerRawMessageCallback}
+            simulationActive={simulationActive}
+            onStartSimulation={handleStartSimulation}
+            onStopSimulation={handleStopSimulation}
           >
             <ModuleConfig 
               messages={messages} 

@@ -15,6 +15,9 @@ from typing import Optional, Dict, List, Union
 from datetime import datetime
 import asyncio
 import json
+import random
+import time
+import math
 from enum import Enum
 import atexit
 
@@ -260,6 +263,8 @@ class CANBackend:
         self.connection_state: str = 'disconnected'
         self.connection_reason: Optional[str] = None
         self._health_monitor_task: Optional[asyncio.Task] = None
+        self._simulation_task: Optional[asyncio.Task] = None
+        self._simulation_active: bool = False
         self._shutdown_called: bool = False
         self._recovery_in_progress: bool = False
 
@@ -385,6 +390,7 @@ class CANBackend:
             return
 
         self._shutdown_called = True
+        await self.stop_simulation()
         await self.stop_health_monitor()
 
         if self.is_connected:
@@ -471,6 +477,10 @@ class CANBackend:
     
     def connect(self, device_type: DeviceType, channel: Union[str, int], baudrate: str) -> bool:
         """Connect to a CAN device"""
+        if self._simulation_active:
+            print("[Connect] Refusing real hardware connect while simulation is active")
+            return False
+
         if self.is_connected:
             return False
         
@@ -645,6 +655,16 @@ class CANBackend:
     
     def get_bus_status(self) -> dict:
         """Get current bus status"""
+        if self._simulation_active:
+            return {
+                'connected': True,
+                'device_type': 'simulation',
+                'channel': 'bms-fake-data',
+                'baudrate': 'SIM',
+                'status': 'Connected (Test Mode)',
+                'interface': 'simulation'
+            }
+
         if not self.is_connected or not self.driver:
             return {
                 'connected': False,
@@ -663,8 +683,295 @@ class CANBackend:
             'connection_state': self.connection_state,
             'recovery_in_progress': self._recovery_in_progress,
             'reason': self.connection_reason,
-            'device_type': self.device_type.value if self.device_type else None
+            'device_type': self.device_type.value if self.device_type else None,
+            'simulation_active': self._simulation_active
         }
+
+    def is_simulation_active(self) -> bool:
+        """Return whether fake BMS simulation mode is active."""
+        return self._simulation_active
+
+    async def start_simulation(self) -> bool:
+        """Start generating fake BMS CAN data from DBC definitions."""
+        if self._simulation_active:
+            return True
+
+        if self.is_connected and self.driver:
+            # Real hardware is connected, don't mix simulation with live bus.
+            return False
+
+        if not DBC_SUPPORT:
+            return False
+
+        # Ensure BMS DBC is loaded for encode/decode metadata.
+        needs_bms_load = True
+        if self.dbc_database:
+            try:
+                self.dbc_database.get_message_by_name("BMS_Heartbeat_0")
+                needs_bms_load = False
+            except Exception:
+                needs_bms_load = True
+
+        if needs_bms_load:
+            bms_dbc_path = DBC_DIR / "BMS-Firmware-RTOS-Complete.dbc"
+            if not bms_dbc_path.exists():
+                return False
+            if not self.load_dbc_file(str(bms_dbc_path)):
+                return False
+
+        self.is_connected = True
+        self.device_type = None
+        self.connection_state = 'connected'
+        self.connection_reason = 'simulation'
+        self.start_time = datetime.now()
+        self.message_count = 0
+        self._simulation_active = True
+
+        self._simulation_task = asyncio.create_task(self._run_simulation())
+        return True
+
+    async def stop_simulation(self) -> bool:
+        """Stop fake BMS CAN data simulation."""
+        if not self._simulation_active:
+            return True
+
+        self._simulation_active = False
+
+        if self._simulation_task and not self._simulation_task.done():
+            self._simulation_task.cancel()
+            try:
+                await self._simulation_task
+            except asyncio.CancelledError:
+                pass
+
+        self._simulation_task = None
+        self.is_connected = False
+        self.connection_state = 'disconnected'
+        self.connection_reason = 'simulation_stopped'
+        self.device_type = None
+        return True
+
+    def _build_simulated_message(self, can_id: int, payload: bytes, is_extended: bool) -> dict:
+        """Build a websocket message payload from simulated CAN bytes."""
+        message_data = {
+            'id': can_id,
+            'data': list(payload),
+            'timestamp': time.time(),
+            'is_extended': is_extended,
+            'is_remote': False,
+            'dlc': len(payload)
+        }
+
+        if self.dbc_database:
+            decoded = self.decode_message(can_id, payload, is_extended)
+            if decoded:
+                message_data['decoded'] = decoded
+
+        return message_data
+
+    async def _emit_simulated_message(self, message_name: str, signals: Dict[str, Union[int, float]]):
+        """Encode and broadcast one simulated CAN message by DBC message name."""
+        if not self.dbc_database:
+            return
+
+        try:
+            message = self.dbc_database.get_message_by_name(message_name)
+            payload = message.encode(signals)
+            is_extended = message.frame_id > 0x7FF
+            can_id = message.frame_id
+            message_data = self._build_simulated_message(can_id, payload, is_extended)
+            self.message_count += 1
+            await self.broadcast_message(message_data)
+        except Exception as e:
+            print(f"[SIM] Failed to emit {message_name}: {e}")
+
+    async def _run_simulation(self):
+        """Main fake-data loop with rise/fall wave and center-lag thermal/electrical gradients."""
+        print("[SIM] BMS simulation started")
+
+        # Simulation bounds requested by user.
+        temp_min = 20.0
+        temp_max = 60.0
+        voltage_min = 3200.0
+        voltage_max = 4200.0
+
+        cycle_seconds = 50.0  # One full rise-and-fall cycle.
+
+        def normalized_triangle(phase: float) -> tuple[float, bool]:
+            """Return (0..1 value, rising_phase)."""
+            phase = phase % 1.0
+            if phase < 0.5:
+                return phase * 2.0, True
+            return (1.0 - phase) * 2.0, False
+
+        def center_closeness(local_index: int, max_index: int, center_idx: float) -> float:
+            """1.0 at center, 0.0 at far edges."""
+            half_span = max(center_idx, max_index - center_idx)
+            if half_span <= 0:
+                return 0.0
+            return max(0.0, 1.0 - (abs(local_index - center_idx) / half_span))
+
+        def phase_response(closeness: float, rising: bool) -> float:
+            """Middle cells 7-13 heat slower and cool first/faster."""
+            if rising:
+                # Center lags while heating.
+                return 1.0 - (0.42 * closeness)
+            # Center leads while cooling.
+            return 1.0 + (0.55 * closeness)
+
+        def hotspot_curve(x: float, center: float, width: float) -> float:
+            """Smooth 0..1 bump used to build non-uniform local hot/cold regions."""
+            if width <= 0:
+                return 0.0
+            normalized = (x - center) / width
+            return max(0.0, 1.0 - (normalized * normalized))
+
+        # Persistent per-thermistor profile so readings are varied, not a flat gradient.
+        temp_gain = [0.82 + random.uniform(-0.08, 0.18) for _ in range(336)]
+        temp_phase_offset = [random.uniform(-0.09, 0.09) for _ in range(336)]
+        temp_sensor_bias = [random.uniform(-1.6, 1.8) for _ in range(336)]
+        temp_jitter_amp = [0.15 + random.uniform(0.0, 0.45) for _ in range(336)]
+
+        # Build module-local hotspot maps (different regions warm/cool at different rates).
+        module_hotspot_profiles: List[List[float]] = []
+        for _ in range(6):
+            hotspot_centers = [
+                random.uniform(6.0, 20.0),
+                random.uniform(24.0, 36.0),
+                random.uniform(38.0, 52.0)
+            ]
+            hotspot_strengths = [
+                random.uniform(1.0, 2.8),
+                random.uniform(-1.1, 1.7),
+                random.uniform(0.9, 2.5)
+            ]
+            hotspot_widths = [
+                random.uniform(4.0, 8.0),
+                random.uniform(3.0, 7.0),
+                random.uniform(4.5, 9.0)
+            ]
+
+            profile: List[float] = []
+            for local_idx in range(56):
+                value = 0.0
+                for center, strength, width in zip(hotspot_centers, hotspot_strengths, hotspot_widths):
+                    value += strength * hotspot_curve(float(local_idx), center, width)
+                profile.append(value)
+            module_hotspot_profiles.append(profile)
+
+        start_time = time.time()
+
+        try:
+            while self._simulation_active:
+                elapsed = time.time() - start_time
+                base_phase = (elapsed % cycle_seconds) / cycle_seconds
+                base_level, is_rising = normalized_triangle(base_phase)
+
+                for module in range(6):
+                    temp_module_base = module * 56
+                    voltage_module_base = module * 18
+
+                    # Slight pack-level gradient so modules are not identical.
+                    module_temp_offset = (module - 2.5) * 0.8
+                    module_voltage_offset = (module - 2.5) * 18.0
+
+                    # 14 temperature frames per module, 4 temperatures each.
+                    for temp_group in range(14):
+                        start_idx = temp_module_base + (temp_group * 4)
+                        signal_payload: Dict[str, float] = {}
+                        for offset in range(4):
+                            thermistor_idx = start_idx + offset
+                            local_temp_idx = thermistor_idx - temp_module_base  # 0..55
+
+                            # Map thermistor position into a pseudo 18-cell span to mirror cell 7-13 behavior.
+                            pseudo_cell_idx = int(round((local_temp_idx / 55.0) * 17.0))
+                            center_factor = center_closeness(pseudo_cell_idx, 17, 9.0)
+                            response = phase_response(center_factor, is_rising)
+
+                            # Add per-sensor phase skew and gain for richer thermal behavior.
+                            local_phase = (base_phase + temp_phase_offset[thermistor_idx]) % 1.0
+                            local_level, _ = normalized_triangle(local_phase)
+                            effective_level = min(1.0, max(0.0, local_level * response * temp_gain[thermistor_idx]))
+
+                            temp_value = temp_min + ((temp_max - temp_min) * effective_level)
+
+                            # Hotspots intensify while heating and fade during cooling.
+                            hotspot_scale = 0.35 + (1.15 * base_level if is_rising else 0.55 * base_level)
+                            hotspot_value = module_hotspot_profiles[module][local_temp_idx] * hotspot_scale
+
+                            # Mixed-frequency ripple to avoid smooth/linear appearance.
+                            thermal_wave = (
+                                0.6 * math.sin((elapsed * 0.45) + (local_temp_idx * 0.31) + (module * 0.9)) +
+                                0.35 * math.sin((elapsed * 0.9) + (local_temp_idx * 0.11) + (module * 1.7))
+                            )
+
+                            temp_value += module_temp_offset
+                            temp_value += temp_sensor_bias[thermistor_idx]
+                            temp_value += hotspot_value
+                            temp_value += thermal_wave
+                            temp_value += random.uniform(-temp_jitter_amp[thermistor_idx], temp_jitter_amp[thermistor_idx])
+                            temp_value = max(temp_min, min(temp_max, temp_value))
+
+                            signal_payload[f"Temp_{thermistor_idx:03d}"] = round(temp_value, 1)
+
+                        temp_start = temp_module_base + (temp_group * 4)
+                        temp_end = temp_start + 3
+                        await self._emit_simulated_message(
+                            f"Cell_Temp_{temp_start}_{temp_end}",
+                            signal_payload
+                        )
+
+                    # 6 cell-voltage frames per module, 3 voltages each.
+                    for voltage_group in range(6):
+                        start_idx = voltage_module_base + (voltage_group * 3)
+                        signal_payload: Dict[str, int] = {}
+                        for offset in range(3):
+                            cell_idx = start_idx + offset
+                            local_cell_idx = cell_idx - voltage_module_base  # 0..17
+
+                            # Center cells (7-13 -> roughly local 6..12) lag on rise and cool first.
+                            center_factor = center_closeness(local_cell_idx, 17, 9.0)
+                            response = phase_response(center_factor, is_rising)
+
+                            # Add slight phase spread across pack so gradients are visible.
+                            local_phase = (base_phase + (local_cell_idx / 18.0) * 0.08) % 1.0
+                            local_level, _ = normalized_triangle(local_phase)
+                            effective_level = min(1.0, max(0.0, local_level * response))
+
+                            voltage_value = voltage_min + ((voltage_max - voltage_min) * effective_level)
+                            voltage_value += module_voltage_offset + random.uniform(-2.0, 2.0)
+                            voltage_value = max(voltage_min, min(voltage_max, voltage_value))
+
+                            signal_payload[f"Cell_{cell_idx + 1:03d}_Voltage"] = int(round(voltage_value))
+
+                        cell_start = 1 + voltage_module_base + (voltage_group * 3)
+                        cell_end = cell_start + 2
+                        await self._emit_simulated_message(
+                            f"Cell_Voltage_{cell_start}_{cell_end}",
+                            signal_payload
+                        )
+
+                    await self._emit_simulated_message(
+                        f"BMS_Heartbeat_{module}",
+                        {
+                            "BMS_State": 1,
+                            "Error_Flags_Byte0": 0,
+                            "Error_Flags_Byte1": 0,
+                            "Error_Flags_Byte2": 0,
+                            "Error_Flags_Byte3": 0,
+                            "Warning_Summary": 0,
+                            "Fault_Count": 0
+                        }
+                    )
+
+                await asyncio.sleep(0.2)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            print(f"[SIM] Simulation loop crashed: {e}")
+            self._simulation_active = False
+        finally:
+            print("[SIM] BMS simulation stopped")
     
     def load_dbc_file(self, file_path: str) -> bool:
         """Load a DBC file for message decoding
@@ -1015,6 +1322,11 @@ async def connect(request: ConnectionRequest):
 @app.post("/disconnect", response_model=DisconnectionResponse)
 async def disconnect():
     """Disconnect from CAN device"""
+    if backend.is_simulation_active():
+        await backend.stop_simulation()
+        await backend.broadcast_connection_status('disconnected', 'simulation_stopped')
+        return DisconnectionResponse(success=True, message="Simulation stopped")
+
     if not backend.is_connected:
         raise HTTPException(status_code=400, detail="Not connected to any device")
     
@@ -1219,6 +1531,36 @@ async def get_stats():
         "message_count": backend.message_count,
         "uptime_seconds": uptime,
         "message_rate": round(message_rate, 2)
+    }
+
+
+@app.post("/simulation/start")
+async def start_simulation():
+    """Start fake BMS telemetry stream for UI testing."""
+    success = await backend.start_simulation()
+    if not success:
+        raise HTTPException(status_code=400, detail="Unable to start simulation (real device may be connected or DBC unavailable)")
+
+    await backend.broadcast_connection_status('connected', 'simulation_started')
+    return {"success": True, "message": "Simulation started"}
+
+
+@app.post("/simulation/stop")
+async def stop_simulation():
+    """Stop fake BMS telemetry stream."""
+    success = await backend.stop_simulation()
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to stop simulation")
+
+    await backend.broadcast_connection_status('disconnected', 'simulation_stopped')
+    return {"success": True, "message": "Simulation stopped"}
+
+
+@app.get("/simulation/status")
+async def simulation_status():
+    """Get current simulation mode status."""
+    return {
+        "active": backend.is_simulation_active()
     }
 
 
