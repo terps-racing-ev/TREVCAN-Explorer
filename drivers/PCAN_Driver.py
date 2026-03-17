@@ -129,6 +129,7 @@ class PCANDriver:
         self._stop_receive: bool = False
         self._pcan_basic = PCANBasic()
         self._hardware_lost: bool = False
+        self._last_error: Optional[str] = None
         
     def get_available_devices(self) -> List[dict]:
         """
@@ -187,10 +188,24 @@ class PCANDriver:
             True if connection successful, False otherwise.
         """
         if self._is_connected:
-            print("Already connected to a PCAN device. Disconnect first.")
+            self._last_error = "Already connected to a PCAN device. Disconnect first."
+            print(self._last_error)
             return False
         
         try:
+            self._last_error = None
+
+            condition_result = self._pcan_basic.GetValue(channel.value, PCAN_CHANNEL_CONDITION)
+            if condition_result[0] == PCAN_ERROR_OK:
+                condition = int(condition_result[1])
+                if not (condition & PCAN_CHANNEL_AVAILABLE):
+                    self._last_error = f"Channel {channel.name} is not available"
+                    print(f"[ERROR] {self._last_error}")
+                    return False
+
+                if condition & PCAN_CHANNEL_OCCUPIED:
+                    print(f"[PCAN] Channel {channel.name} is marked occupied; attempting connection anyway")
+
             # Map channel enum to string for python-can
             channel_str = channel.name.replace('USB', 'PCAN_USBBUS')
             
@@ -214,13 +229,29 @@ class PCANDriver:
             
             bitrate = baudrate_map.get(baudrate, 500000)
             
-            # Create bus instance
-            self._bus = Bus(
-                interface='pcan',
-                channel=channel_str,
-                bitrate=bitrate,
-                fd=fd_mode
-            )
+            # Create bus instance (primary python-can path)
+            try:
+                self._bus = Bus(
+                    interface='pcan',
+                    channel=channel_str,
+                    bitrate=bitrate,
+                    fd=fd_mode
+                )
+            except Exception as bus_error:
+                # Fallback for python-can/PCAN API compatibility differences.
+                try:
+                    self._bus = PcanBus(
+                        channel=channel_str,
+                        bitrate=bitrate,
+                        fd=fd_mode
+                    )
+                except Exception as pcan_bus_error:
+                    self._last_error = (
+                        f"Failed to initialize {channel.name} at {bitrate} bps. "
+                        f"Bus error: {bus_error}; PcanBus fallback error: {pcan_bus_error}"
+                    )
+                    print(f"[ERROR] {self._last_error}")
+                    return False
             
             self._channel = channel
             self._baudrate = baudrate
@@ -228,11 +259,12 @@ class PCANDriver:
             self._is_connected = True
             self._hardware_lost = False
             
-            print(f"✓ Connected to {channel.name} at {bitrate} bps")
+            print(f"[OK] Connected to {channel.name} at {bitrate} bps")
             return True
             
         except Exception as e:
-            print(f"✗ Failed to connect: {str(e)}")
+            self._last_error = f"Failed to connect: {str(e)}"
+            print(f"[ERROR] {self._last_error}")
             return False
     
     def disconnect(self) -> bool:
@@ -269,11 +301,11 @@ class PCANDriver:
             self._baudrate = None
             self._fd_mode = False
             
-            print("✓ Disconnected from PCAN device")
+            print("[OK] Disconnected from PCAN device")
             return True
             
         except Exception as e:
-            print(f"✗ Failed to disconnect: {str(e)}")
+            print(f"[ERROR] Failed to disconnect: {str(e)}")
             # Even if there's an error, try to clean up
             self._is_connected = False
             self._bus = None
@@ -296,7 +328,7 @@ class PCANDriver:
             True if message sent successfully, False otherwise.
         """
         if not self._is_connected:
-            print("✗ Not connected to PCAN device")
+            print("[ERROR] Not connected to PCAN device")
             return False
         
         try:
@@ -311,7 +343,7 @@ class PCANDriver:
             return True
             
         except Exception as e:
-            print(f"✗ Failed to send message: {str(e)}")
+            print(f"[ERROR] Failed to send message: {str(e)}")
             self._hardware_lost = True
             return False
     
@@ -326,7 +358,7 @@ class PCANDriver:
             CANMessage object if message received, None otherwise.
         """
         if not self._is_connected:
-            print("✗ Not connected to PCAN device")
+            print("[ERROR] Not connected to PCAN device")
             return None
         
         try:
@@ -347,7 +379,7 @@ class PCANDriver:
             )
             
         except Exception as e:
-            print(f"✗ Failed to read message: {str(e)}")
+            print(f"[ERROR] Failed to read message: {str(e)}")
             self._hardware_lost = True
             return None
     
@@ -363,11 +395,11 @@ class PCANDriver:
             True if thread started successfully, False otherwise.
         """
         if not self._is_connected:
-            print("✗ Not connected to PCAN device")
+            print("[ERROR] Not connected to PCAN device")
             return False
         
         if self._receive_thread and self._receive_thread.is_alive():
-            print("✗ Receive thread already running")
+            print("[ERROR] Receive thread already running")
             return False
         
         self._receive_callback = callback
@@ -378,7 +410,7 @@ class PCANDriver:
         )
         self._receive_thread.start()
         
-        print("✓ Receive thread started")
+        print("[OK] Receive thread started")
         return True
     
     def stop_receive_thread(self) -> bool:
@@ -396,7 +428,7 @@ class PCANDriver:
         self._receive_thread = None
         self._receive_callback = None
         
-        print("✓ Receive thread stopped")
+        print("[OK] Receive thread stopped")
         return True
     
     def _receive_loop(self):
@@ -475,19 +507,19 @@ class PCANDriver:
             True if reset successful, False otherwise.
         """
         if not self._is_connected:
-            print("✗ Not connected to PCAN device")
+            print("[ERROR] Not connected to PCAN device")
             return False
         
         try:
             result = self._pcan_basic.Reset(self._channel.value)
             if result == PCAN_ERROR_OK:
-                print("✓ Device reset successfully")
+                print("[OK] Device reset successfully")
                 return True
             else:
-                print(f"✗ Failed to reset device: Error {result}")
+                print(f"[ERROR] Failed to reset device: Error {result}")
                 return False
         except Exception as e:
-            print(f"✗ Failed to reset device: {str(e)}")
+            print(f"[ERROR] Failed to reset device: {str(e)}")
             return False
     
     def get_bus_status(self) -> dict:
@@ -539,7 +571,7 @@ class PCANDriver:
             True if filter set successfully, False otherwise.
         """
         if not self._is_connected:
-            print("✗ Not connected to PCAN device")
+            print("[ERROR] Not connected to PCAN device")
             return False
         
         try:
@@ -553,14 +585,14 @@ class PCANDriver:
             )
             
             if result == PCAN_ERROR_OK:
-                print(f"✓ Filter set: 0x{from_id:X} - 0x{to_id:X}")
+                print(f"[OK] Filter set: 0x{from_id:X} - 0x{to_id:X}")
                 return True
             else:
-                print(f"✗ Failed to set filter: Error {result}")
+                print(f"[ERROR] Failed to set filter: Error {result}")
                 return False
                 
         except Exception as e:
-            print(f"✗ Failed to set filter: {str(e)}")
+            print(f"[ERROR] Failed to set filter: {str(e)}")
             return False
     
     def clear_receive_queue(self) -> bool:
@@ -571,7 +603,7 @@ class PCANDriver:
             True if queue cleared successfully, False otherwise.
         """
         if not self._is_connected:
-            print("✗ Not connected to PCAN device")
+            print("[ERROR] Not connected to PCAN device")
             return False
         
         try:
@@ -580,11 +612,11 @@ class PCANDriver:
             while self.read_message(timeout=0.01):
                 count += 1
             
-            print(f"✓ Cleared {count} messages from queue")
+            print(f"[OK] Cleared {count} messages from queue")
             return True
             
         except Exception as e:
-            print(f"✗ Failed to clear queue: {str(e)}")
+            print(f"[ERROR] Failed to clear queue: {str(e)}")
             return False
     
     @property
@@ -601,6 +633,11 @@ class PCANDriver:
     def baudrate(self) -> Optional[PCANBaudRate]:
         """Get the current baudrate."""
         return self._baudrate
+
+    @property
+    def last_error(self) -> Optional[str]:
+        """Get the most recent driver-level error message."""
+        return self._last_error
     
     def __enter__(self):
         """Context manager entry."""
@@ -630,11 +667,11 @@ if __name__ == "__main__":
     devices = driver.get_available_devices()
     
     if not devices:
-        print("✗ No PCAN devices found!")
+        print("[ERROR] No PCAN devices found!")
         print("  Make sure your PCAN-USB adapter is connected.")
         exit(1)
     
-    print(f"✓ Found {len(devices)} device(s):")
+    print(f"[OK] Found {len(devices)} device(s):")
     for dev in devices:
         status = "OCCUPIED" if dev['occupied'] else "AVAILABLE"
         print(f"  - {dev['channel']}: {status}")
@@ -645,7 +682,7 @@ if __name__ == "__main__":
     channel = PCANChannel[first_device['channel']]
     
     if driver.connect(channel, PCANBaudRate.BAUD_500K):
-        print(f"✓ Successfully connected!")
+        print(f"[OK] Successfully connected!")
         
         # Get bus status
         print("\n3. Checking bus status...")
@@ -656,7 +693,7 @@ if __name__ == "__main__":
         print("\n4. Sending test message...")
         test_data = bytes([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88])
         if driver.send_message(0x123, test_data):
-            print(f"✓ Message sent: ID=0x123, Data={test_data.hex()}")
+            print(f"[OK] Message sent: ID=0x123, Data={test_data.hex()}")
         
         # Example: Read messages
         print("\n5. Listening for messages (5 seconds)...")
@@ -673,8 +710,9 @@ if __name__ == "__main__":
         print("\n6. Disconnecting...")
         driver.disconnect()
     else:
-        print("✗ Failed to connect!")
+        print("[ERROR] Failed to connect!")
     
     print("\n" + "=" * 60)
     print("Test complete!")
     print("=" * 60)
+

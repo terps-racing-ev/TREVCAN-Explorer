@@ -36,6 +36,7 @@ class WebSocketService {
     this.heartbeatTimeoutMs = 10000;
     this.lastMessageAt = 0;
     this.healthInterval = null;
+    this.heartbeatInterval = null;
     this.shouldReconnect = true;
   }
 
@@ -43,6 +44,11 @@ class WebSocketService {
     this.messageCallback = onMessage;
     this.onOpenCallback = onOpen;
     this.shouldReconnect = true;
+
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
     this.ws = new WebSocket(WS_URL);
 
     this.ws.onopen = () => {
@@ -57,8 +63,20 @@ class WebSocketService {
         clearInterval(this.healthInterval);
       }
 
+      if (this.heartbeatInterval) {
+        clearInterval(this.heartbeatInterval);
+      }
+
+      this.heartbeatInterval = setInterval(() => {
+        this.sendHeartbeat();
+      }, 5000);
+
       this.healthInterval = setInterval(() => {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+          return;
+        }
+
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
           return;
         }
 
@@ -96,6 +114,11 @@ class WebSocketService {
         this.healthInterval = null;
       }
 
+      if (this.heartbeatInterval) {
+        clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = null;
+      }
+
       // Auto-reconnect
       if (this.shouldReconnect && !this.reconnectInterval) {
         this.reconnectInterval = setInterval(() => {
@@ -120,6 +143,11 @@ class WebSocketService {
     if (this.healthInterval) {
       clearInterval(this.healthInterval);
       this.healthInterval = null;
+    }
+
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
     }
     
     if (this.ws) {

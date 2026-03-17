@@ -17,6 +17,7 @@ import signal
 import atexit
 import socket
 import urllib.request
+import urllib.error
 from pathlib import Path
 
 # Global process list for cleanup
@@ -219,6 +220,92 @@ def install_frontend_dependencies():
             return False
     return True
 
+def is_port_open(host, port, timeout=0.5):
+    """Check if a TCP port is currently in use."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+def request_backend_shutdown():
+    """Ask any existing backend instance to shut down gracefully."""
+    try:
+        req = urllib.request.Request(
+            'http://127.0.0.1:8000/shutdown',
+            data=b'{}',
+            headers={'Content-Type': 'application/json'},
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=2):
+            pass
+        return True
+    except Exception:
+        return False
+
+def _kill_port_owner_windows(port):
+    """Force-kill process(es) listening on a TCP port (Windows)."""
+    try:
+        result = subprocess.run(
+            ['netstat', '-ano', '-p', 'tcp'],
+            capture_output=True,
+            text=True,
+            shell=True
+        )
+        if result.returncode != 0:
+            return False
+
+        pids = set()
+        for line in result.stdout.splitlines():
+            parts = line.split()
+            if len(parts) < 5:
+                continue
+
+            local_addr = parts[1]
+            state = parts[3]
+            pid = parts[4]
+
+            if state.upper() != 'LISTENING':
+                continue
+            if not local_addr.endswith(f':{port}'):
+                continue
+            if pid.isdigit():
+                pids.add(pid)
+
+        killed_any = False
+        for pid in pids:
+            subprocess.run(
+                ['taskkill', '/F', '/T', '/PID', pid],
+                capture_output=True,
+                shell=True
+            )
+            killed_any = True
+
+        return killed_any
+    except Exception:
+        return False
+
+def ensure_clean_ports():
+    """Prevent stale services from running an outdated API surface."""
+    stale_backend = is_port_open('127.0.0.1', 8000)
+    stale_frontend = is_port_open('127.0.0.1', 3001)
+
+    if stale_backend:
+        print_colored("  Found existing backend on :8000, requesting shutdown...", Colors.DIM)
+        request_backend_shutdown()
+        time.sleep(1.0)
+
+    if sys.platform == 'win32':
+        if is_port_open('127.0.0.1', 8000):
+            print_colored("  Replacing stale backend on :8000...", Colors.WARNING)
+            _kill_port_owner_windows(8000)
+            time.sleep(0.8)
+
+        if stale_frontend and is_port_open('127.0.0.1', 3001):
+            print_colored("  Replacing stale frontend on :3001...", Colors.WARNING)
+            _kill_port_owner_windows(3001)
+            time.sleep(0.8)
+
 def start_backend():
     """Start the backend server in background"""
     global processes
@@ -303,6 +390,9 @@ def main():
         print_colored("  [X] Failed to install dependencies", Colors.FAIL)
         sys.exit(1)
     
+    # Ensure stale dev servers from old revisions do not survive across updates.
+    ensure_clean_ports()
+
     # Start servers silently
     start_backend()
     time.sleep(2)

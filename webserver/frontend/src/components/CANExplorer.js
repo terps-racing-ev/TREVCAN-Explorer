@@ -43,8 +43,11 @@ function CANExplorer({
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, message: null });
   const [autoScroll, setAutoScroll] = useState(true);
   const [hideDuplicates, setHideDuplicates] = useState(false);
+  const [isRecordingTrace, setIsRecordingTrace] = useState(false);
+  const [traceMessageCount, setTraceMessageCount] = useState(0);
   const isolatedMessagesRef = useRef([]);
   const isolationContentRef = useRef(null);
+  const traceMessagesRef = useRef([]);
   const MAX_ISOLATED_MESSAGES = 1000; // Limit to prevent memory issues
   const DUPLICATE_TIME_THRESHOLD_MS = 1; // Messages within 1ms with same data are duplicates
   
@@ -107,11 +110,25 @@ function CANExplorer({
         
         // Update state periodically (every 100ms is handled by the interval below)
       }
+
+      // Trace recording captures all incoming raw messages.
+      if (isRecordingTrace) {
+        const sequence = traceMessagesRef.current.length + 1;
+        traceMessagesRef.current.push({
+          sequence,
+          timestamp: message.timestamp,
+          id: message.id,
+          is_extended: message.is_extended,
+          dlc: message.dlc || message.data?.length || 0,
+          data: Array.isArray(message.data) ? [...message.data] : [],
+          decoded: message.decoded || null
+        });
+      }
     };
     
     const unregister = onRegisterRawCallback(handleRawMessage);
     return () => unregister();
-  }, [onRegisterRawCallback, isolatedIds]);
+  }, [onRegisterRawCallback, isolatedIds, isRecordingTrace]);
   
   // Update isolated messages state periodically for UI rendering
   useEffect(() => {
@@ -125,6 +142,22 @@ function CANExplorer({
     
     return () => clearInterval(interval);
   }, [isolatedIds, isolatedMessages.length]);
+
+  // Keep trace counter in sync while recording without re-rendering on every frame.
+  useEffect(() => {
+    if (!isRecordingTrace) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const currentCount = traceMessagesRef.current.length;
+      if (currentCount !== traceMessageCount) {
+        setTraceMessageCount(currentCount);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isRecordingTrace, traceMessageCount]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -281,6 +314,100 @@ function CANExplorer({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const exportTraceCSV = (traceMessages) => {
+    if (!traceMessages || traceMessages.length === 0) {
+      alert('No recorded CAN trace to save');
+      return;
+    }
+
+    const headers = [
+      'Sequence',
+      'Timestamp',
+      'Delta (ms)',
+      'CAN ID',
+      'Extended',
+      'DLC',
+      'Raw Data (Hex)',
+      'Message Name',
+      'Signals'
+    ];
+
+    const rows = traceMessages.map((msg, index) => {
+      const prev = index > 0 ? traceMessages[index - 1] : null;
+      const deltaMs = prev && typeof msg.timestamp === 'number' && typeof prev.timestamp === 'number'
+        ? ((msg.timestamp - prev.timestamp) * 1000)
+        : 0;
+
+      const idHex = msg.is_extended
+        ? `0x${msg.id.toString(16).padStart(8, '0').toUpperCase()}`
+        : `0x${msg.id.toString(16).padStart(3, '0').toUpperCase()}`;
+
+      const dataHex = Array.isArray(msg.data)
+        ? msg.data.map(b => Number(b).toString(16).padStart(2, '0').toUpperCase()).join(' ')
+        : '';
+
+      const messageName = msg.decoded?.message_name || '';
+
+      const signals = msg.decoded?.signals
+        ? Object.entries(msg.decoded.signals)
+            .map(([name, signal]) => {
+              const isObject = typeof signal === 'object' && signal !== null;
+              const value = isObject ? signal.value : signal;
+              const unit = isObject && signal.unit ? ` ${signal.unit}` : '';
+              return `${name}=${value}${unit}`;
+            })
+            .join('; ')
+        : '';
+
+      return [
+        msg.sequence,
+        msg.timestamp ?? '',
+        deltaMs.toFixed(3),
+        idHex,
+        msg.is_extended ? 'Yes' : 'No',
+        msg.dlc,
+        dataHex,
+        messageName,
+        signals
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => {
+        const str = String(cell ?? '');
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      }).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `can_trace_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleRecordToggle = () => {
+    if (!isRecordingTrace) {
+      traceMessagesRef.current = [];
+      setTraceMessageCount(0);
+      setIsRecordingTrace(true);
+      return;
+    }
+
+    setIsRecordingTrace(false);
+    const snapshot = [...traceMessagesRef.current];
+    setTraceMessageCount(snapshot.length);
+    exportTraceCSV(snapshot);
   };
 
   const handleLoadDBC = async (event) => {
@@ -1005,6 +1132,14 @@ function CANExplorer({
                         <option value="name-desc">Name (Z-A)</option>
                       </select>
                     </div>
+                    <button 
+                      className={`btn btn-sm ${isRecordingTrace ? 'btn-danger' : 'btn-secondary'}`}
+                      onClick={(e) => { e.stopPropagation(); handleRecordToggle(); }}
+                      title={isRecordingTrace ? 'Stop recording and save CSV trace' : 'Start recording all incoming CAN messages'}
+                    >
+                      <Activity size={16} />
+                      {isRecordingTrace ? `Stop (${traceMessageCount})` : 'Record'}
+                    </button>
                     <button 
                       className="btn btn-secondary btn-sm" 
                       onClick={(e) => { e.stopPropagation(); handleDownloadCSV(); }}

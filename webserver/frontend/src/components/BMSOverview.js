@@ -85,7 +85,7 @@ function BMSOverview({ messages }) {
           const moduleId = parseInt(balanceMatch[2]);
           
           Object.entries(signals).forEach(([key, signalData]) => {
-            // Match BMS1_Cell0_Bal through BMS1_Cell8_Bal or BMS2_Cell9_Bal through BMS2_Cell17_Bal
+            // Match BMS1_Cell1_Bal through BMS1_Cell9_Bal or BMS2_Cell10_Bal through BMS2_Cell18_Bal
             const cellBalMatch = key.match(/BMS[12]_Cell(\d+)_Bal/);
             if (cellBalMatch) {
               const cellNum = parseInt(cellBalMatch[1]);
@@ -93,15 +93,15 @@ function BMSOverview({ messages }) {
                 ? signalData.value 
                 : signalData;
               
-              // Cell numbers 0-8 are from BMS1, 9-17 are from BMS2
-              // Map directly to cell index 0-17 within the module
-              if (cellNum >= 0 && cellNum < 18) {
+              // DBC cell numbering is 1-18; map to zero-based index 0-17 for UI arrays.
+              const cellIdx = cellNum - 1;
+              if (cellIdx >= 0 && cellIdx < 18) {
                 // value can be: 1, 1.0, "1", "Balancing (1)", or object with value property
                 // Check for numeric 1 or string containing "Balancing"
                 const isBalancing = Number(value) === 1 || 
                                     (typeof value === 'string' && value.toLowerCase().includes('balancing'));
                 if (isBalancing) {
-                  modules[moduleId][cellNum] = true;
+                  modules[moduleId][cellIdx] = true;
                 }
               }
             }
@@ -122,17 +122,29 @@ function BMSOverview({ messages }) {
         const signals = msg.decoded.signals;
         
         Object.entries(signals).forEach(([key, signalData]) => {
-          if (key.startsWith('Temp_')) {
-            const tempNum = parseInt(key.split('_')[1]);
-            const moduleId = Math.floor(tempNum / 56);
-            const channel = tempNum % 56;
-            
-            if (moduleId >= 0 && moduleId < 6 && channel >= 0 && channel < 56) {
-              const value = typeof signalData === 'object' && signalData !== null 
-                ? signalData.value 
-                : signalData;
-              modules[moduleId][channel] = typeof value === 'number' ? value : null;
+          let tempNum = null;
+
+          const tempMatch = key.match(/^Temp_(\d+)$/);
+          if (tempMatch) {
+            tempNum = parseInt(tempMatch[1], 10);
+          } else {
+            // New DBC naming for ambient channels (e.g., Ambient_Temp_1_054).
+            const ambientMatch = key.match(/^Ambient_Temp_[12]_(\d+)$/);
+            if (ambientMatch) {
+              tempNum = parseInt(ambientMatch[1], 10);
             }
+          }
+
+          if (tempNum === null || Number.isNaN(tempNum)) return;
+
+          const moduleId = Math.floor(tempNum / 56);
+          const channel = tempNum % 56;
+
+          if (moduleId >= 0 && moduleId < 6 && channel >= 0 && channel < 56) {
+            const value = typeof signalData === 'object' && signalData !== null 
+              ? signalData.value 
+              : signalData;
+            modules[moduleId][channel] = typeof value === 'number' ? value : null;
           }
         });
       }
@@ -223,6 +235,40 @@ function BMSOverview({ messages }) {
     
     return { active: allVoltages.length, min, max, avg, delta };
   }, [cellData]);
+
+  // Extract latest LC/HC currents from the current sensor message.
+  const packCurrents = useMemo(() => {
+    let latestCurrents = { lc: null, hc: null };
+    let latestTimestamp = -Infinity;
+
+    messages.forEach(msg => {
+      if (!msg?.decoded?.signals) return;
+
+      const msgName = msg.decoded.message_name || '';
+      if (msgName !== 'Current_Sensor_Data') return;
+
+      const signals = msg.decoded.signals;
+      const lcRaw = signals.LC_Current;
+      const hcRaw = signals.HC_Current;
+      const lcValue = typeof lcRaw === 'object' && lcRaw !== null ? lcRaw.value : lcRaw;
+      const hcValue = typeof hcRaw === 'object' && hcRaw !== null ? hcRaw.value : hcRaw;
+
+      const hasLc = typeof lcValue === 'number';
+      const hasHc = typeof hcValue === 'number';
+      if (!hasLc && !hasHc) return;
+
+      const timestamp = typeof msg.timestamp === 'number' ? msg.timestamp : 0;
+      if (timestamp >= latestTimestamp) {
+        latestTimestamp = timestamp;
+        latestCurrents = {
+          lc: hasLc ? lcValue : null,
+          hc: hasHc ? hcValue : null
+        };
+      }
+    });
+
+    return latestCurrents;
+  }, [messages]);
 
   // Calculate temperature statistics (cell temps only, excluding ambient)
   const tempStats = useMemo(() => {
@@ -335,6 +381,14 @@ function BMSOverview({ messages }) {
             <div className="stat-item">
               <span className="stat-label">Cells:</span>
               <span className="stat-value">{voltageStats.active}/108</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">LC Current:</span>
+              <span className="stat-value">{packCurrents.lc !== null ? `${packCurrents.lc.toFixed(1)}A` : '--'}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">HC Current:</span>
+              <span className="stat-value">{packCurrents.hc !== null ? `${packCurrents.hc.toFixed(1)}A` : '--'}</span>
             </div>
             {cellData.stackVoltage !== null && (
               <div className="stat-item highlight">

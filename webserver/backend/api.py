@@ -264,7 +264,9 @@ class CANBackend:
         self.connection_reason: Optional[str] = None
         self._health_monitor_task: Optional[asyncio.Task] = None
         self._simulation_task: Optional[asyncio.Task] = None
+        self._simulation_current_task: Optional[asyncio.Task] = None
         self._simulation_active: bool = False
+        self._simulation_started_monotonic: Optional[float] = None
         self._shutdown_called: bool = False
         self._recovery_in_progress: bool = False
 
@@ -483,6 +485,8 @@ class CANBackend:
 
         if self.is_connected:
             return False
+
+        self.connection_reason = None
         
         try:
             # Create appropriate driver
@@ -491,11 +495,41 @@ class CANBackend:
                     raise Exception("PCAN driver not available")
                 
                 self.driver = PCANDriver()
-                pcan_channel = PCANChannel[channel]
+
+                # Accept several PCAN channel formats from clients/UI.
+                if isinstance(channel, int):
+                    # Allow index-like values where 0 maps to USB1.
+                    pcan_channel_name = f"USB{channel + 1 if channel < 1 else channel}"
+                else:
+                    channel_str = str(channel).strip().upper()
+                    if ':' in channel_str:
+                        channel_str = channel_str.split(':', 1)[0].strip()
+                    if ' ' in channel_str:
+                        channel_str = channel_str.split(' ', 1)[0].strip()
+                    if channel_str.startswith('PCAN_USBBUS'):
+                        suffix = channel_str.replace('PCAN_USBBUS', '').strip()
+                        channel_str = f"USB{suffix}"
+                    if channel_str.startswith('USBBUS'):
+                        suffix = channel_str.replace('USBBUS', '').strip()
+                        channel_str = f"USB{suffix}"
+                    if channel_str.isdigit():
+                        idx = int(channel_str)
+                        channel_str = f"USB{idx + 1 if idx < 1 else idx}"
+                    pcan_channel_name = channel_str
+
+                try:
+                    pcan_channel = PCANChannel[pcan_channel_name]
+                except KeyError:
+                    valid_channels = ', '.join(ch.name for ch in PCANChannel)
+                    raise Exception(f"Invalid PCAN channel '{channel}'. Valid channels: {valid_channels}")
+
                 pcan_baudrate = PCANBaudRate[baudrate]
                 
                 if not self.driver.connect(pcan_channel, pcan_baudrate):
-                    return False
+                    driver_error = getattr(self.driver, 'last_error', None)
+                    if driver_error:
+                        raise Exception(driver_error)
+                    raise Exception(f"Failed to connect PCAN channel {pcan_channel.name}")
                 
             elif device_type == DeviceType.CANABLE:
                 if not CANABLE_AVAILABLE:
@@ -597,6 +631,10 @@ class CANBackend:
             
         except Exception as e:
             print(f"Connection error: {e}")
+            self.connection_reason = str(e)
+            self.driver = None
+            self.device_type = None
+            self.is_connected = False
             return False
     
     def disconnect(self) -> bool:
@@ -704,10 +742,12 @@ class CANBackend:
             return False
 
         # Ensure BMS DBC is loaded for encode/decode metadata.
+        # Require both core heartbeat and pack-current message support.
         needs_bms_load = True
         if self.dbc_database:
             try:
                 self.dbc_database.get_message_by_name("BMS_Heartbeat_0")
+                self.dbc_database.get_message_by_name("Current_Sensor_Data")
                 needs_bms_load = False
             except Exception:
                 needs_bms_load = True
@@ -726,8 +766,10 @@ class CANBackend:
         self.start_time = datetime.now()
         self.message_count = 0
         self._simulation_active = True
+        self._simulation_started_monotonic = time.perf_counter()
 
         self._simulation_task = asyncio.create_task(self._run_simulation())
+        self._simulation_current_task = asyncio.create_task(self._run_simulated_current_sensor())
         return True
 
     async def stop_simulation(self) -> bool:
@@ -744,7 +786,16 @@ class CANBackend:
             except asyncio.CancelledError:
                 pass
 
+        if self._simulation_current_task and not self._simulation_current_task.done():
+            self._simulation_current_task.cancel()
+            try:
+                await self._simulation_current_task
+            except asyncio.CancelledError:
+                pass
+
         self._simulation_task = None
+        self._simulation_current_task = None
+        self._simulation_started_monotonic = None
         self.is_connected = False
         self.connection_state = 'disconnected'
         self.connection_reason = 'simulation_stopped'
@@ -784,6 +835,75 @@ class CANBackend:
             await self.broadcast_message(message_data)
         except Exception as e:
             print(f"[SIM] Failed to emit {message_name}: {e}")
+
+    def _get_simulation_elapsed(self) -> float:
+        """Return elapsed simulation time in seconds using monotonic clock."""
+        if self._simulation_started_monotonic is None:
+            return 0.0
+        return max(0.0, time.perf_counter() - self._simulation_started_monotonic)
+
+    def _build_simulated_currents(self, elapsed: float) -> tuple[float, float]:
+        """Generate deterministic-but-dynamic LC/HC current values."""
+        cycle_seconds = 50.0
+        base_phase = (elapsed % cycle_seconds) / cycle_seconds
+
+        if base_phase < 0.5:
+            base_level = base_phase * 2.0
+        else:
+            base_level = (1.0 - base_phase) * 2.0
+
+        lc_current = 5.0 + (115.0 * base_level)
+        lc_current += 2.8 * math.sin((elapsed * 0.8) + 0.35)
+        lc_current += random.uniform(-1.2, 1.2)
+        lc_current = max(5.0, min(120.0, lc_current))
+
+        hc_current = lc_current + (3.0 * math.sin((elapsed * 1.2) + 1.1))
+        hc_current += random.uniform(-0.8, 0.8)
+        hc_current = max(5.0, min(120.0, hc_current))
+
+        return round(lc_current, 1), round(hc_current, 1)
+
+    async def _run_simulated_current_sensor(self):
+        """Emit Current_Sensor_Data at a fixed 10 ms cadence while simulation is active."""
+        try:
+            if not self.dbc_database:
+                return
+
+            try:
+                self.dbc_database.get_message_by_name("Current_Sensor_Data")
+            except Exception:
+                return
+
+            emit_interval_s = 0.01
+            next_emit = time.perf_counter()
+
+            while self._simulation_active:
+                elapsed = self._get_simulation_elapsed()
+                lc_current, hc_current = self._build_simulated_currents(elapsed)
+
+                await self._emit_simulated_message(
+                    "Current_Sensor_Data",
+                    {
+                        "LC_Current": lc_current,
+                        "HC_Current": hc_current,
+                        "Reserved_4": 0,
+                        "Reserved_5": 0,
+                        "Reserved_6": 0,
+                        "Reserved_7": 0
+                    }
+                )
+
+                next_emit += emit_interval_s
+                sleep_for = next_emit - time.perf_counter()
+                if sleep_for > 0:
+                    await asyncio.sleep(sleep_for)
+                else:
+                    # If delayed by scheduler load, skip ahead to preserve ~10 ms cadence.
+                    missed_intervals = int((-sleep_for) // emit_interval_s) + 1
+                    next_emit += missed_intervals * emit_interval_s
+                    await asyncio.sleep(0)
+        except asyncio.CancelledError:
+            pass
 
     async def _run_simulation(self):
         """Main fake-data loop with rise/fall wave and center-lag thermal/electrical gradients."""
@@ -832,6 +952,20 @@ class CANBackend:
         temp_sensor_bias = [random.uniform(-1.6, 1.8) for _ in range(336)]
         temp_jitter_amp = [0.15 + random.uniform(0.0, 0.45) for _ in range(336)]
 
+        # Cache actual DBC signal names per temperature message so ambient renames are handled.
+        temp_message_signal_names: Dict[str, set[str]] = {}
+        for module in range(6):
+            temp_module_base = module * 56
+            for temp_group in range(14):
+                temp_start = temp_module_base + (temp_group * 4)
+                temp_end = temp_start + 3
+                message_name = f"Cell_Temp_{temp_start}_{temp_end}"
+                try:
+                    msg = self.dbc_database.get_message_by_name(message_name)
+                    temp_message_signal_names[message_name] = {sig.name for sig in msg.signals}
+                except Exception:
+                    temp_message_signal_names[message_name] = set()
+
         # Build module-local hotspot maps (different regions warm/cool at different rates).
         module_hotspot_profiles: List[List[float]] = []
         for _ in range(6):
@@ -878,6 +1012,10 @@ class CANBackend:
                     # 14 temperature frames per module, 4 temperatures each.
                     for temp_group in range(14):
                         start_idx = temp_module_base + (temp_group * 4)
+                        temp_start = temp_module_base + (temp_group * 4)
+                        temp_end = temp_start + 3
+                        temp_message_name = f"Cell_Temp_{temp_start}_{temp_end}"
+                        signal_name_set = temp_message_signal_names.get(temp_message_name, set())
                         signal_payload: Dict[str, float] = {}
                         for offset in range(4):
                             thermistor_idx = start_idx + offset
@@ -912,12 +1050,28 @@ class CANBackend:
                             temp_value += random.uniform(-temp_jitter_amp[thermistor_idx], temp_jitter_amp[thermistor_idx])
                             temp_value = max(temp_min, min(temp_max, temp_value))
 
-                            signal_payload[f"Temp_{thermistor_idx:03d}"] = round(temp_value, 1)
+                            default_name = f"Temp_{thermistor_idx:03d}"
+                            ambient1_name = f"Ambient_Temp_1_{thermistor_idx:03d}"
+                            ambient2_name = f"Ambient_Temp_2_{thermistor_idx:03d}"
 
-                        temp_start = temp_module_base + (temp_group * 4)
-                        temp_end = temp_start + 3
+                            # Use the exact signal name from DBC for the last two channels.
+                            if local_temp_idx == 54 and ambient1_name in signal_name_set:
+                                signal_name = ambient1_name
+                            elif local_temp_idx == 55 and ambient2_name in signal_name_set:
+                                signal_name = ambient2_name
+                            elif default_name in signal_name_set or not signal_name_set:
+                                signal_name = default_name
+                            elif ambient1_name in signal_name_set:
+                                signal_name = ambient1_name
+                            elif ambient2_name in signal_name_set:
+                                signal_name = ambient2_name
+                            else:
+                                signal_name = default_name
+
+                            signal_payload[signal_name] = round(temp_value, 1)
+
                         await self._emit_simulated_message(
-                            f"Cell_Temp_{temp_start}_{temp_end}",
+                            temp_message_name,
                             signal_payload
                         )
 
@@ -1316,7 +1470,8 @@ async def connect(request: ConnectionRequest):
             baudrate=request.baudrate
         )
     else:
-        raise HTTPException(status_code=500, detail="Failed to connect to device")
+        detail = backend.connection_reason or "Failed to connect to device"
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @app.post("/disconnect", response_model=DisconnectionResponse)
