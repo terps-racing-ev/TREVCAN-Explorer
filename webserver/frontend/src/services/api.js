@@ -123,8 +123,23 @@ class ApiService {
     return response.data;
   }
 
+  async getDBCConfig() {
+    const response = await this.client.get('/dbc/config');
+    return response.data;
+  }
+
   async listDBCFiles() {
     const response = await this.client.get('/dbc/list');
+    return response.data;
+  }
+
+  async updateDBCConfig(files) {
+    const response = await this.client.post('/dbc/config', {
+      files: files.map(file => ({
+        filename: file.filename,
+        enabled: file.enabled,
+      })),
+    });
     return response.data;
   }
 

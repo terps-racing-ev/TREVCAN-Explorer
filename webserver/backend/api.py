@@ -11,13 +11,14 @@ Date: October 27, 2025
 import sys
 import os
 from pathlib import Path
-from typing import Optional, Dict, List, Union
+from typing import Any, Optional, Dict, List, Union
 from datetime import datetime
 import asyncio
 import json
 import random
 import time
 import math
+import hashlib
 from enum import Enum
 import atexit
 
@@ -37,6 +38,7 @@ sys.path.insert(0, str(project_dir))
 DBC_DIR = backend_dir / "dbc_files"
 DBC_DIR.mkdir(exist_ok=True)
 LAST_DBC_FILE = DBC_DIR / "last_loaded.txt"
+DBC_CONFIG_FILE = DBC_DIR / "dbc_config.json"
 
 # Transmit lists directory setup
 TRANSMIT_LISTS_DIR = backend_dir / "transmit_lists"
@@ -187,6 +189,39 @@ class DBCLoadResponse(BaseModel):
     message_count: Optional[int] = None
 
 
+class DBCConfigItem(BaseModel):
+    """Persisted DBC file entry."""
+    filename: str
+    enabled: bool = False
+
+
+class DBCConfigUpdateRequest(BaseModel):
+    """Atomic update for DBC ordering and enabled state."""
+    files: List[DBCConfigItem]
+
+
+class DBCFileInfo(BaseModel):
+    """Frontend-facing DBC file metadata."""
+    filename: str
+    enabled: bool
+    priority: int
+    loaded: bool
+    effective: bool
+    message_count: int = 0
+    size: int = 0
+    modified: float = 0
+
+
+class DBCConfigResponse(BaseModel):
+    """Current multi-DBC state."""
+    loaded: bool
+    filename: Optional[str] = None
+    message_count: int = 0
+    active_signature: Optional[str] = None
+    active_count: int = 0
+    files: List[DBCFileInfo]
+
+
 class TransmitListItem(BaseModel):
     """Single item in the transmit list"""
     id: str  # Unique ID for this item
@@ -221,6 +256,7 @@ class DBCMessageInfo(BaseModel):
     length: int
     signal_count: int
     signals: List[dict]
+    source_dbc: Optional[str] = None
 
 
 class DBCMessagesResponse(BaseModel):
@@ -249,6 +285,7 @@ class CANBackend:
         self.is_connected: bool = False
         self.dbc_database: Optional['cantools.database.Database'] = None
         self.dbc_file_path: Optional[str] = None
+        self.dbc_entries: List[Dict[str, Any]] = []
         
         # WebSocket connections
         self.active_connections: List[WebSocket] = []
@@ -269,6 +306,309 @@ class CANBackend:
         self._simulation_started_monotonic: Optional[float] = None
         self._shutdown_called: bool = False
         self._recovery_in_progress: bool = False
+
+    def _normalize_dbc_filename(self, filename: str) -> str:
+        """Return a safe filename without path segments."""
+        normalized = Path(filename).name
+        if not normalized or normalized != filename or normalized.startswith('.'):
+            raise ValueError("Invalid DBC filename")
+        return normalized
+
+    def _load_dbc_database_from_file(self, file_path: Path) -> Optional['cantools.database.Database']:
+        """Parse one DBC file if support is available."""
+        if not DBC_SUPPORT:
+            return None
+
+        return cantools.database.load_file(str(file_path), strict=False)
+
+    def _message_identity(self, message: Any) -> tuple[int, bool]:
+        """Return comparable frame identity for a cantools message."""
+        is_extended = bool(getattr(message, 'is_extended_frame', message.frame_id > 0x7FF))
+        actual_id = message.frame_id & 0x1FFFFFFF if is_extended else message.frame_id
+        return actual_id, is_extended
+
+    def _find_message_by_frame_id(
+        self,
+        database: 'cantools.database.Database',
+        can_id: int,
+        is_extended: bool
+    ) -> Optional[Any]:
+        """Find a matching message while respecting standard vs extended IDs."""
+        lookup_id = can_id & 0x1FFFFFFF if is_extended else can_id
+        for message in database.messages:
+            message_id, message_is_extended = self._message_identity(message)
+            if message_id == lookup_id and message_is_extended == is_extended:
+                return message
+        return None
+
+    def _find_effective_message_by_name(self, message_name: str) -> Optional[tuple[Dict[str, Any], Any]]:
+        """Return the first enabled message definition with this name."""
+        for entry in self.dbc_entries:
+            if not entry.get('enabled') or not entry.get('database'):
+                continue
+
+            try:
+                return entry, entry['database'].get_message_by_name(message_name)
+            except KeyError:
+                continue
+        return None
+
+    def _refresh_effective_dbc(self):
+        """Maintain legacy single-DBC fields as the effective active DBC."""
+        effective_entry = next(
+            (entry for entry in self.dbc_entries if entry.get('enabled') and entry.get('database')),
+            None
+        )
+        self.dbc_database = effective_entry['database'] if effective_entry else None
+        self.dbc_file_path = str(effective_entry['path']) if effective_entry else None
+
+    def _save_dbc_config(self):
+        """Persist DBC ordering and enabled state."""
+        payload = {
+            "files": [
+                {
+                    "filename": entry['filename'],
+                    "enabled": bool(entry.get('enabled', False))
+                }
+                for entry in self.dbc_entries
+            ]
+        }
+        with open(DBC_CONFIG_FILE, 'w', encoding='utf-8') as config_file:
+            json.dump(payload, config_file, indent=2)
+
+    def _build_dbc_entry(self, filename: str, enabled: bool) -> Dict[str, Any]:
+        """Create one in-memory DBC entry from disk state."""
+        normalized = self._normalize_dbc_filename(filename)
+        file_path = DBC_DIR / normalized
+        database = None
+
+        if file_path.exists() and DBC_SUPPORT:
+            try:
+                database = self._load_dbc_database_from_file(file_path)
+            except Exception as e:
+                print(f"[DBC] Failed to load {normalized}: {e}")
+
+        return {
+            'filename': normalized,
+            'enabled': bool(enabled),
+            'path': file_path,
+            'database': database
+        }
+
+    def load_dbc_config(self):
+        """Load persisted DBC configuration and available files from disk."""
+        raw_entries: List[Dict[str, Any]] = []
+        migrated_from_legacy = False
+
+        if DBC_CONFIG_FILE.exists():
+            try:
+                with open(DBC_CONFIG_FILE, 'r', encoding='utf-8') as config_file:
+                    payload = json.load(config_file)
+                raw_entries = payload.get('files', []) if isinstance(payload, dict) else []
+            except Exception as e:
+                print(f"[DBC] Failed to read DBC config: {e}")
+
+        if not raw_entries and LAST_DBC_FILE.exists():
+            try:
+                with open(LAST_DBC_FILE, 'r', encoding='utf-8') as legacy_file:
+                    legacy_filename = legacy_file.read().strip()
+                if legacy_filename:
+                    raw_entries = [{'filename': legacy_filename, 'enabled': True}]
+                    migrated_from_legacy = True
+            except Exception as e:
+                print(f"[DBC] Failed to migrate legacy DBC state: {e}")
+
+        normalized_entries: List[Dict[str, Any]] = []
+        seen_filenames = set()
+
+        for item in raw_entries:
+            if not isinstance(item, dict):
+                continue
+
+            filename = item.get('filename')
+            if not isinstance(filename, str):
+                continue
+
+            try:
+                normalized = self._normalize_dbc_filename(filename)
+            except ValueError:
+                continue
+
+            if normalized in seen_filenames:
+                continue
+
+            seen_filenames.add(normalized)
+            normalized_entries.append({
+                'filename': normalized,
+                'enabled': bool(item.get('enabled', False))
+            })
+
+        for file_path in sorted(DBC_DIR.glob('*.dbc')):
+            if file_path.name in seen_filenames:
+                continue
+            normalized_entries.append({'filename': file_path.name, 'enabled': False})
+            seen_filenames.add(file_path.name)
+
+        self.dbc_entries = [
+            self._build_dbc_entry(entry['filename'], entry['enabled'])
+            for entry in normalized_entries
+            if (DBC_DIR / entry['filename']).exists()
+        ]
+        self._refresh_effective_dbc()
+
+        if migrated_from_legacy or not DBC_CONFIG_FILE.exists():
+            try:
+                self._save_dbc_config()
+            except Exception as e:
+                print(f"[DBC] Failed to persist DBC config: {e}")
+
+    def _upload_effective_dbc_to_remote(self):
+        """Upload the effective DBC to remote decoders when required."""
+        if self.device_type not in (DeviceType.NETWORK, DeviceType.BLUETOOTH) or not self.driver:
+            return
+
+        if not self.dbc_file_path or not hasattr(self.driver, 'upload_dbc'):
+            return
+
+        try:
+            if self.driver.upload_dbc(self.dbc_file_path):
+                print(f"[DBC] Uploaded effective DBC to remote server: {self.dbc_file_path}")
+            else:
+                print("[DBC] Warning: Failed to upload effective DBC to remote server")
+        except Exception as e:
+            print(f"[DBC] Warning: Remote upload failed: {e}")
+
+    def get_active_dbc_signature(self) -> Optional[str]:
+        """Return a stable identifier for the enabled DBC set and order."""
+        active_files = [entry['filename'] for entry in self.dbc_entries if entry.get('enabled')]
+        if not active_files:
+            return None
+
+        joined = '|'.join(active_files)
+        digest = hashlib.sha1(joined.encode('utf-8')).hexdigest()[:12]
+        return f"dbcset-{digest}"
+
+    def get_dbc_status(self) -> Dict[str, Any]:
+        """Return the current multi-DBC state payload."""
+        effective_filename = Path(self.dbc_file_path).name if self.dbc_file_path else None
+        files = []
+
+        for index, entry in enumerate(self.dbc_entries):
+            file_path = entry['path']
+            files.append({
+                'filename': entry['filename'],
+                'enabled': bool(entry.get('enabled', False)),
+                'priority': index,
+                'loaded': entry.get('database') is not None,
+                'effective': bool(entry.get('enabled')) and entry['filename'] == effective_filename,
+                'message_count': len(entry['database'].messages) if entry.get('database') else 0,
+                'size': file_path.stat().st_size if file_path.exists() else 0,
+                'modified': file_path.stat().st_mtime if file_path.exists() else 0
+            })
+
+        return {
+            'loaded': self.dbc_database is not None,
+            'filename': effective_filename,
+            'message_count': len(self.dbc_database.messages) if self.dbc_database else 0,
+            'active_signature': self.get_active_dbc_signature(),
+            'active_count': sum(1 for entry in self.dbc_entries if entry.get('enabled')),
+            'files': files
+        }
+
+    def register_dbc_file(self, filename: str, enabled: bool = False) -> Dict[str, Any]:
+        """Add or refresh one DBC file in the ordered config."""
+        normalized = self._normalize_dbc_filename(filename)
+        file_path = DBC_DIR / normalized
+        if not file_path.exists():
+            raise FileNotFoundError(f"DBC file not found: {normalized}")
+
+        new_entry = self._build_dbc_entry(normalized, enabled)
+        for existing in self.dbc_entries:
+            if existing['filename'] == normalized:
+                existing['path'] = new_entry['path']
+                existing['database'] = new_entry['database']
+                self._refresh_effective_dbc()
+                self._save_dbc_config()
+                self._upload_effective_dbc_to_remote()
+                return existing
+
+        self.dbc_entries.append(new_entry)
+        self._refresh_effective_dbc()
+        self._save_dbc_config()
+        self._upload_effective_dbc_to_remote()
+        return new_entry
+
+    def update_dbc_config(self, items: List[DBCConfigItem]) -> Dict[str, Any]:
+        """Replace DBC ordering and enabled flags atomically."""
+        incoming_filenames = [self._normalize_dbc_filename(item.filename) for item in items]
+        current_filenames = [entry['filename'] for entry in self.dbc_entries]
+
+        if len(set(incoming_filenames)) != len(incoming_filenames):
+            raise ValueError("DBC config contains duplicate filenames")
+
+        if set(incoming_filenames) != set(current_filenames):
+            raise ValueError("DBC config update must include every known DBC file exactly once")
+
+        item_map = {
+            self._normalize_dbc_filename(item.filename): item
+            for item in items
+        }
+        entry_map = {entry['filename']: entry for entry in self.dbc_entries}
+
+        self.dbc_entries = []
+        for filename in incoming_filenames:
+            entry = entry_map[filename]
+            entry['enabled'] = bool(item_map[filename].enabled)
+            self.dbc_entries.append(entry)
+
+        self._refresh_effective_dbc()
+        self._save_dbc_config()
+        self._upload_effective_dbc_to_remote()
+        return self.get_dbc_status()
+
+    def delete_dbc_entry(self, filename: str) -> Dict[str, Any]:
+        """Remove a DBC from memory and config after the file is deleted."""
+        normalized = self._normalize_dbc_filename(filename)
+        self.dbc_entries = [entry for entry in self.dbc_entries if entry['filename'] != normalized]
+        self._refresh_effective_dbc()
+        self._save_dbc_config()
+        self._upload_effective_dbc_to_remote()
+        return self.get_dbc_status()
+
+    def load_dbc_file(self, file_path: str) -> bool:
+        """Legacy helper that enables a DBC and promotes it to top priority."""
+        path = Path(file_path)
+        if not path.exists():
+            return False
+
+        try:
+            if path.parent.resolve() != DBC_DIR.resolve():
+                target_path = DBC_DIR / path.name
+                shutil.copy2(path, target_path)
+                path = target_path
+
+            self.register_dbc_file(path.name, enabled=True)
+
+            promoted_entry = None
+            remaining_entries = []
+            for entry in self.dbc_entries:
+                if entry['filename'] == path.name:
+                    entry['enabled'] = True
+                    promoted_entry = entry
+                else:
+                    remaining_entries.append(entry)
+
+            if promoted_entry is None:
+                return False
+
+            self.dbc_entries = [promoted_entry, *remaining_entries]
+            self._refresh_effective_dbc()
+            self._save_dbc_config()
+            self._upload_effective_dbc_to_remote()
+            return True
+        except Exception as e:
+            print(f"DBC load error: {e}")
+            return False
 
     def _is_driver_healthy(self) -> bool:
         """Check current driver health."""
@@ -616,16 +956,8 @@ class CANBackend:
             self.start_time = datetime.now()
             self.message_count = 0
             
-            # For Network/Bluetooth drivers, upload DBC to server if already loaded locally
-            if device_type in (DeviceType.NETWORK, DeviceType.BLUETOOTH) and self.dbc_file_path:
-                try:
-                    if hasattr(self.driver, 'upload_dbc'):
-                        if self.driver.upload_dbc(self.dbc_file_path):
-                            print(f"[Connect] DBC uploaded to remote server: {self.dbc_file_path}")
-                        else:
-                            print(f"[Connect] Warning: Failed to upload DBC to remote server")
-                except Exception as e:
-                    print(f"[Connect] Warning: DBC upload failed: {e}")
+            # For Network/Bluetooth drivers, upload the effective DBC if one is active.
+            self._upload_effective_dbc_to_remote()
             
             return True
             
@@ -744,13 +1076,8 @@ class CANBackend:
         # Ensure BMS DBC is loaded for encode/decode metadata.
         # Require both core heartbeat and pack-current message support.
         needs_bms_load = True
-        if self.dbc_database:
-            try:
-                self.dbc_database.get_message_by_name("BMS_Heartbeat_0")
-                self.dbc_database.get_message_by_name("Current_Sensor_Data")
-                needs_bms_load = False
-            except Exception:
-                needs_bms_load = True
+        if self._find_effective_message_by_name("BMS_Heartbeat_0") and self._find_effective_message_by_name("Current_Sensor_Data"):
+            needs_bms_load = False
 
         if needs_bms_load:
             bms_dbc_path = DBC_DIR / "BMS-Firmware-RTOS-Complete.dbc"
@@ -1127,163 +1454,123 @@ class CANBackend:
         finally:
             print("[SIM] BMS simulation stopped")
     
-    def load_dbc_file(self, file_path: str) -> bool:
-        """Load a DBC file for message decoding
-        
-        For Network driver: uploads DBC to remote server for server-side decoding
-        For local drivers (PCAN, CANable): loads DBC locally for client-side decoding
-        """
-        if not DBC_SUPPORT:
-            return False
-        
-        try:
-            # Always load locally for DBC message info and local decoding fallback
-            self.dbc_database = cantools.database.load_file(file_path, strict=False)
-            self.dbc_file_path = file_path
-            
-            # For Network/Bluetooth driver, also upload DBC to remote server for server-side decoding
-            if self.device_type in (DeviceType.NETWORK, DeviceType.BLUETOOTH) and self.driver:
-                try:
-                    if hasattr(self.driver, 'upload_dbc'):
-                        if self.driver.upload_dbc(file_path):
-                            print(f"[DBC] Uploaded to remote server: {file_path}")
-                        else:
-                            print(f"[DBC] Warning: Failed to upload to remote server, using local decoding")
-                except Exception as e:
-                    print(f"[DBC] Warning: Remote upload failed: {e}, using local decoding")
-            
-            return True
-        except Exception as e:
-            print(f"DBC load error: {e}")
-            return False
-    
     def get_dbc_messages(self) -> List[dict]:
-        """Get list of messages from loaded DBC file"""
-        if not self.dbc_database:
+        """Get effective message list from enabled DBC files."""
+        if not self.dbc_entries:
             return []
-        
+
         messages = []
-        for msg in self.dbc_database.messages:
-            try:
-                is_extended = msg.frame_id > 0x7FF
-                actual_id = msg.frame_id & 0x1FFFFFFF if is_extended else msg.frame_id
-                
-                signals = []
-                for signal in msg.signals:
-                    # Convert choices to plain dict (cantools returns NamedSignalValue objects)
-                    choices_dict = {}
-                    if signal.choices:
-                        choices_dict = {int(k): str(v) for k, v in signal.choices.items()}
-                    
-                    signals.append({
-                        'name': signal.name,
-                        'start_bit': signal.start,
-                        'length': signal.length,
-                        'byte_order': signal.byte_order,
-                        'scale': signal.scale,
-                        'offset': signal.offset,
-                        'minimum': signal.minimum,
-                        'maximum': signal.maximum,
-                        'unit': signal.unit or '',
-                        'choices': choices_dict
-                    })
-                
-                # Ensure length is an integer, default to 8 if not set
-                msg_length = msg.length if msg.length is not None else 8
-                
-                messages.append({
-                    'name': msg.name,
-                    'frame_id': actual_id,
-                    'is_extended': is_extended,
-                    'dlc': msg_length,
-                    'length': msg_length,
-                    'signal_count': len(signals),
-                    'signals': signals
-                })
-            except Exception as e:
-                print(f"Error processing message {msg.name}: {e}")
+        seen_frame_keys = set()
+
+        for entry in self.dbc_entries:
+            if not entry.get('enabled') or not entry.get('database'):
                 continue
+
+            for msg in entry['database'].messages:
+                try:
+                    actual_id, is_extended = self._message_identity(msg)
+                    frame_key = (actual_id, is_extended)
+                    if frame_key in seen_frame_keys:
+                        continue
+                    seen_frame_keys.add(frame_key)
+
+                    signals = []
+                    for signal in msg.signals:
+                        choices_dict = {}
+                        if signal.choices:
+                            choices_dict = {int(k): str(v) for k, v in signal.choices.items()}
+
+                        signals.append({
+                            'name': signal.name,
+                            'start_bit': signal.start,
+                            'length': signal.length,
+                            'byte_order': signal.byte_order,
+                            'scale': signal.scale,
+                            'offset': signal.offset,
+                            'minimum': signal.minimum,
+                            'maximum': signal.maximum,
+                            'unit': signal.unit or '',
+                            'choices': choices_dict
+                        })
+
+                    msg_length = msg.length if msg.length is not None else 8
+
+                    messages.append({
+                        'name': msg.name,
+                        'frame_id': actual_id,
+                        'is_extended': is_extended,
+                        'dlc': msg_length,
+                        'length': msg_length,
+                        'signal_count': len(signals),
+                        'signals': signals,
+                        'source_dbc': entry['filename']
+                    })
+                except Exception as e:
+                    print(f"Error processing message {msg.name}: {e}")
+                    continue
         
         return messages
     
     def decode_message(self, can_id: int, data: bytes, is_extended: bool = False) -> Optional[dict]:
-        """Decode a CAN message using DBC"""
-        if not self.dbc_database:
+        """Decode a CAN message using the first matching enabled DBC."""
+        if not self.dbc_entries:
             print(f"[DECODE] No DBC database loaded")
             return None
-        
-        try:
-            # Cantools stores extended IDs with the extended bit (0x80000000) stripped off
-            # So we need to mask it when looking up extended IDs
-            if is_extended:
-                lookup_id = can_id & 0x1FFFFFFF  # Strip extended bit if present
-            else:
-                lookup_id = can_id
-            
-            print(f"[DECODE] Attempting to decode: can_id=0x{can_id:X}, is_extended={is_extended}, lookup_id=0x{lookup_id:X}")
-            message = self.dbc_database.get_message_by_frame_id(lookup_id)
-            print(f"[DECODE] Found message: {message.name}")
-            decoded = message.decode(data)
-            
-            # Convert NamedSignalValue objects to regular Python types for JSON serialization
-            # If a signal has enumerated values (VAL_ in DBC), use the name; otherwise use the numeric value
-            # Also include units and other metadata from the signal definition
-            signals = {}
-            for key, value in decoded.items():
-                # Get the signal definition for metadata
-                signal = message.get_signal_by_name(key)
-                
-                # Extract the display value (enum name or numeric value)
-                if hasattr(value, 'name') and value.name is not None:
-                    # Use the enumerated text label (e.g., "FAULT" instead of 5)
-                    display_value = value.name
-                    raw_value = value.value
-                elif hasattr(value, 'value'):
-                    # No enum, just use the numeric value
-                    display_value = value.value
-                    raw_value = value.value
-                else:
-                    # Plain value (shouldn't happen with cantools, but just in case)
-                    display_value = value
-                    raw_value = value
-                
-                # Build signal info with metadata
-                signal_info = {
-                    'value': display_value,
+
+        for entry in self.dbc_entries:
+            if not entry.get('enabled') or not entry.get('database'):
+                continue
+
+            try:
+                message = self._find_message_by_frame_id(entry['database'], can_id, is_extended)
+                if not message:
+                    continue
+
+                decoded = message.decode(data)
+                signals = {}
+                for key, value in decoded.items():
+                    signal = message.get_signal_by_name(key)
+
+                    if hasattr(value, 'name') and value.name is not None:
+                        display_value = value.name
+                        raw_value = value.value
+                    elif hasattr(value, 'value'):
+                        display_value = value.value
+                        raw_value = value.value
+                    else:
+                        display_value = value
+                        raw_value = value
+
+                    signal_info = {
+                        'value': display_value,
+                    }
+
+                    if isinstance(display_value, str) and isinstance(raw_value, (int, float)):
+                        signal_info['raw'] = raw_value
+
+                    if signal.unit:
+                        signal_info['unit'] = signal.unit
+                    if signal.scale != 1:
+                        signal_info['scale'] = signal.scale
+                    if signal.offset != 0:
+                        signal_info['offset'] = signal.offset
+                    if signal.minimum is not None:
+                        signal_info['min'] = signal.minimum
+                    if signal.maximum is not None:
+                        signal_info['max'] = signal.maximum
+
+                    signals[key] = signal_info
+
+                return {
+                    'message_name': message.name,
+                    'signals': signals,
+                    'source_dbc': entry['filename']
                 }
-                
-                # Add raw numeric value if different from display (for enums)
-                if isinstance(display_value, str) and isinstance(raw_value, (int, float)):
-                    signal_info['raw'] = raw_value
-                
-                # Add unit if available
-                if signal.unit:
-                    signal_info['unit'] = signal.unit
-                
-                # Add scale and offset if non-default
-                if signal.scale != 1:
-                    signal_info['scale'] = signal.scale
-                if signal.offset != 0:
-                    signal_info['offset'] = signal.offset
-                
-                # Add min/max range if specified
-                if signal.minimum is not None:
-                    signal_info['min'] = signal.minimum
-                if signal.maximum is not None:
-                    signal_info['max'] = signal.maximum
-                
-                signals[key] = signal_info
-            
-            return {
-                'message_name': message.name,
-                'signals': signals
-            }
-        except KeyError as e:
-            print(f"[DECODE] Message not found in DBC: can_id=0x{can_id:X}, is_extended={is_extended}, error={e}")
-            return None
-        except Exception as e:
-            print(f"[DECODE] Decode error: can_id=0x{can_id:X}, error={e}")
-            return None
+            except Exception as e:
+                print(f"[DECODE] Decode error in {entry['filename']}: can_id=0x{can_id:X}, error={e}")
+
+        print(f"[DECODE] Message not found in enabled DBCs: can_id=0x{can_id:X}, is_extended={is_extended}")
+        return None
     
     def _on_message_received(self, msg):
         """Callback for received CAN messages - broadcasts to all WebSocket clients
@@ -1406,6 +1693,12 @@ app.add_middleware(
 
 # Global backend instance
 backend = CANBackend()
+
+
+def get_transmit_list_path(dbc_context: str) -> Path:
+    """Return a stable JSON path for a transmit-list context string."""
+    digest = hashlib.sha1(dbc_context.encode('utf-8')).hexdigest()[:16]
+    return TRANSMIT_LISTS_DIR / f"{digest}_transmit_list.json"
 
 
 def cleanup_on_exit():
@@ -1535,7 +1828,7 @@ async def send_message(request: CANMessageRequest):
 
 @app.post("/dbc/upload", response_model=DBCLoadResponse)
 async def upload_dbc(file: UploadFile = File(...)):
-    """Upload and load a DBC file"""
+    """Upload a DBC file and register it in the ordered list as disabled by default."""
     if not DBC_SUPPORT:
         raise HTTPException(status_code=400, detail="DBC support not available (install cantools)")
     
@@ -1545,66 +1838,49 @@ async def upload_dbc(file: UploadFile = File(...)):
     
     try:
         # Save the uploaded file
-        file_path = DBC_DIR / file.filename
+        filename = backend._normalize_dbc_filename(file.filename)
+        file_path = DBC_DIR / filename
         with open(file_path, 'wb') as f:
             shutil.copyfileobj(file.file, f)
-        
-        # Load the DBC file
-        success = backend.load_dbc_file(str(file_path))
-        
-        if success:
-            # Save as last loaded file
-            with open(LAST_DBC_FILE, 'w') as f:
-                f.write(file.filename)
-            
-            message_count = len(backend.dbc_database.messages) if backend.dbc_database else 0
-            return DBCLoadResponse(
-                success=True,
-                message=f"DBC file '{file.filename}' uploaded and loaded successfully",
-                file_path=str(file_path),
-                message_count=message_count
-            )
-        else:
-            raise HTTPException(status_code=500, detail="Failed to load DBC file")
+
+        entry = backend.register_dbc_file(filename, enabled=False)
+        message_count = len(entry['database'].messages) if entry.get('database') else 0
+        return DBCLoadResponse(
+            success=True,
+            message=f"DBC file '{filename}' uploaded successfully. Enable it to use it for decoding.",
+            file_path=str(file_path),
+            message_count=message_count
+        )
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
 
 
-@app.get("/dbc/current")
+@app.get("/dbc/current", response_model=DBCConfigResponse)
 async def get_current_dbc():
-    """Get information about currently loaded DBC file"""
-    if not backend.dbc_database:
-        return {
-            "loaded": False,
-            "filename": None,
-            "message_count": 0
-        }
-    
-    # Try to get filename from last loaded
-    filename = "Unknown"
-    if LAST_DBC_FILE.exists():
-        with open(LAST_DBC_FILE, 'r') as f:
-            filename = f.read().strip()
-    
-    return {
-        "loaded": True,
-        "filename": filename,
-        "message_count": len(backend.dbc_database.messages)
-    }
+    """Get information about the current effective DBC state and full ordered list."""
+    return DBCConfigResponse(**backend.get_dbc_status())
 
 
-@app.get("/dbc/list")
+@app.get("/dbc/list", response_model=DBCConfigResponse)
 async def list_dbc_files():
-    """List all uploaded DBC files"""
-    files = []
-    for file_path in DBC_DIR.glob("*.dbc"):
-        files.append({
-            "filename": file_path.name,
-            "size": file_path.stat().st_size,
-            "modified": file_path.stat().st_mtime
-        })
-    return {"files": files}
+    """List all uploaded DBC files with ordering, enabled state, and load status."""
+    return DBCConfigResponse(**backend.get_dbc_status())
+
+
+@app.get("/dbc/config", response_model=DBCConfigResponse)
+async def get_dbc_config():
+    """Return the full multi-DBC config for the frontend manager."""
+    return DBCConfigResponse(**backend.get_dbc_status())
+
+
+@app.post("/dbc/config", response_model=DBCConfigResponse)
+async def update_dbc_config(request: DBCConfigUpdateRequest):
+    """Update DBC priority ordering and enabled state atomically."""
+    try:
+        return DBCConfigResponse(**backend.update_dbc_config(request.files))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.delete("/dbc/delete/{filename}")
@@ -1613,30 +1889,29 @@ async def delete_dbc_file(filename: str):
     # Validate filename to prevent path traversal
     if "/" in filename or "\\" in filename or ".." in filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
-    
-    file_path = DBC_DIR / filename
+
+    normalized_filename = backend._normalize_dbc_filename(filename)
+    file_path = DBC_DIR / normalized_filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     try:
         file_path.unlink()
-        
-        # Clear last loaded if this was the last file
-        if LAST_DBC_FILE.exists():
-            with open(LAST_DBC_FILE, 'r') as f:
-                last_filename = f.read().strip()
-            if last_filename == filename:
-                LAST_DBC_FILE.unlink()
-                backend.dbc_database = None
-        
-        return {"success": True, "message": f"File '{filename}' deleted"}
+
+        status = backend.delete_dbc_entry(normalized_filename)
+
+        return {
+            "success": True,
+            "message": f"File '{normalized_filename}' deleted",
+            "dbc": status
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
 
 
 @app.post("/dbc/load", response_model=DBCLoadResponse)
 async def load_dbc(request: DBCLoadRequest):
-    """Load a DBC file (legacy endpoint for backward compatibility)"""
+    """Legacy endpoint: enable a DBC and promote it to top priority."""
     if not DBC_SUPPORT:
         raise HTTPException(status_code=400, detail="DBC support not available (install cantools)")
     
@@ -1649,7 +1924,7 @@ async def load_dbc(request: DBCLoadRequest):
         message_count = len(backend.dbc_database.messages) if backend.dbc_database else 0
         return DBCLoadResponse(
             success=True,
-            message="DBC file loaded successfully",
+            message="DBC file enabled and moved to highest priority",
             file_path=request.file_path,
             message_count=message_count
         )
@@ -1659,7 +1934,7 @@ async def load_dbc(request: DBCLoadRequest):
 
 @app.get("/dbc/messages", response_model=DBCMessagesResponse)
 async def get_dbc_messages():
-    """Get list of messages from loaded DBC file"""
+    """Get effective message list from enabled DBC files."""
     if not backend.dbc_database:
         raise HTTPException(status_code=400, detail="No DBC file loaded")
     
@@ -1725,12 +2000,9 @@ async def simulation_status():
 
 @app.post("/transmit_list/save")
 async def save_transmit_list(request: SaveTransmitListRequest):
-    """Save transmit list for a specific DBC file"""
+    """Save transmit list for the current DBC context."""
     try:
-        # Sanitize DBC filename for use as JSON filename
-        dbc_filename = Path(request.dbc_file).stem
-        json_filename = f"{dbc_filename}_transmit_list.json"
-        json_path = TRANSMIT_LISTS_DIR / json_filename
+        json_path = get_transmit_list_path(request.dbc_file)
         
         # Convert items to dict for JSON serialization
         items_data = [item.dict() for item in request.items]
@@ -1753,12 +2025,9 @@ async def save_transmit_list(request: SaveTransmitListRequest):
 
 @app.get("/transmit_list/load", response_model=TransmitListResponse)
 async def load_transmit_list(dbc_file: str):
-    """Load transmit list for a specific DBC file"""
+    """Load transmit list for the current DBC context."""
     try:
-        # Sanitize DBC filename for use as JSON filename
-        dbc_filename = Path(dbc_file).stem
-        json_filename = f"{dbc_filename}_transmit_list.json"
-        json_path = TRANSMIT_LISTS_DIR / json_filename
+        json_path = get_transmit_list_path(dbc_file)
         
         if not json_path.exists():
             return TransmitListResponse(
@@ -1793,11 +2062,13 @@ async def encode_message(message_name: str, signals: str):
     
     try:
         # Parse signals from JSON string
-        import json
         signals_dict = json.loads(signals)
-        
-        # Find the message in the DBC database
-        message = backend.dbc_database.get_message_by_name(message_name)
+
+        resolved_message = backend._find_effective_message_by_name(message_name)
+        if not resolved_message:
+            raise KeyError(message_name)
+
+        _, message = resolved_message
         
         # Encode the message with the provided signal values
         data = message.encode(signals_dict)
@@ -1953,24 +2224,16 @@ async def startup_event():
     backend.loop = asyncio.get_running_loop()
     print("[OK] Event loop initialized for CAN message broadcasting")
     backend.start_health_monitor()
-    
-    # Auto-load last DBC file if it exists
-    if DBC_SUPPORT and LAST_DBC_FILE.exists():
-        try:
-            with open(LAST_DBC_FILE, 'r') as f:
-                last_filename = f.read().strip()
-            
-            dbc_path = DBC_DIR / last_filename
-            if dbc_path.exists():
-                if backend.load_dbc_file(str(dbc_path)):
-                    msg_count = len(backend.dbc_database.messages) if backend.dbc_database else 0
-                    print(f"[OK] Auto-loaded DBC file: {last_filename} ({msg_count} messages)")
-                else:
-                    print(f"[ERROR] Failed to auto-load DBC file: {last_filename}")
-            else:
-                print(f"[INFO] Last DBC file not found: {last_filename}")
-        except Exception as e:
-            print(f"[ERROR] Error auto-loading DBC file: {e}")
+
+    try:
+        backend.load_dbc_config()
+        status = backend.get_dbc_status()
+        print(
+            f"[OK] Loaded DBC config: {len(status['files'])} file(s), "
+            f"{status['active_count']} active, effective={status['filename']}"
+        )
+    except Exception as e:
+        print(f"[ERROR] Error loading DBC config: {e}")
     
     print("=" * 60)
 

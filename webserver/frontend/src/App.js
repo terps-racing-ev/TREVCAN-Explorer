@@ -62,8 +62,14 @@ function App() {
     uptime_seconds: 0,
     message_rate: 0
   });
-  const [dbcLoaded, setDbcLoaded] = useState(false);
-  const [dbcFile, setDbcFile] = useState(null);
+  const [dbcConfig, setDbcConfig] = useState({
+    loaded: false,
+    filename: null,
+    message_count: 0,
+    active_signature: null,
+    active_count: 0,
+    files: []
+  });
   const [toast, setToast] = useState(null);
   const [simulationActive, setSimulationActive] = useState(false);
 
@@ -102,6 +108,11 @@ function App() {
     writeTabRegistry(registry);
     return Object.keys(registry).length;
   }, []);
+
+  const dbcLoaded = dbcConfig.loaded;
+  const dbcFile = dbcConfig.filename;
+  const dbcFiles = dbcConfig.files || [];
+  const dbcContext = dbcConfig.active_signature;
 
   // Start periodic flushing when connected
   useEffect(() => {
@@ -288,11 +299,8 @@ function App() {
 
   const checkDBCStatus = async () => {
     try {
-      const dbcStatus = await apiService.getCurrentDBC();
-      if (dbcStatus.loaded) {
-        setDbcLoaded(true);
-        setDbcFile(dbcStatus.filename);
-      }
+      const dbcStatus = await apiService.getDBCConfig();
+      setDbcConfig(dbcStatus);
     } catch (error) {
       console.error('Failed to check DBC status:', error);
     }
@@ -480,8 +488,7 @@ function App() {
     try {
       const response = await apiService.uploadDBC(file);
       if (response.success) {
-        setDbcLoaded(true);
-        setDbcFile(file.name);
+        await checkDBCStatus();
         alert(`DBC file uploaded successfully!\n${response.message}`);
         return true;
       }
@@ -489,6 +496,34 @@ function App() {
     } catch (error) {
       console.error('DBC upload failed:', error);
       alert('Failed to upload DBC file: ' + (error.response?.data?.detail || error.message));
+      return false;
+    }
+  };
+
+  const handleUpdateDBCConfig = async (files) => {
+    try {
+      const response = await apiService.updateDBCConfig(files);
+      setDbcConfig(response);
+      return true;
+    } catch (error) {
+      console.error('Failed to update DBC config:', error);
+      alert('Failed to update DBC configuration: ' + (error.response?.data?.detail || error.message));
+      return false;
+    }
+  };
+
+  const handleDeleteDBC = async (filename) => {
+    try {
+      const response = await apiService.deleteDBC(filename);
+      if (response.success && response.dbc) {
+        setDbcConfig(response.dbc);
+      } else {
+        await checkDBCStatus();
+      }
+      return true;
+    } catch (error) {
+      console.error('Failed to delete DBC file:', error);
+      alert('Failed to delete DBC file: ' + (error.response?.data?.detail || error.message));
       return false;
     }
   };
@@ -582,8 +617,12 @@ function App() {
             onClearMessages={handleClearMessages}
             onSendMessage={handleSendMessage}
             onLoadDBC={handleLoadDBC}
+            onUpdateDBCConfig={handleUpdateDBCConfig}
+            onDeleteDBC={handleDeleteDBC}
             dbcLoaded={dbcLoaded}
             dbcFile={dbcFile}
+            dbcFiles={dbcFiles}
+            dbcContext={dbcContext}
             devices={devices}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
@@ -605,8 +644,12 @@ function App() {
             onClearMessages={handleClearMessages}
             onSendMessage={handleSendMessage}
             onLoadDBC={handleLoadDBC}
+            onUpdateDBCConfig={handleUpdateDBCConfig}
+            onDeleteDBC={handleDeleteDBC}
             dbcLoaded={dbcLoaded}
             dbcFile={dbcFile}
+            dbcFiles={dbcFiles}
+            dbcContext={dbcContext}
             devices={devices}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
@@ -634,8 +677,12 @@ function App() {
             onClearMessages={handleClearMessages}
             onSendMessage={handleSendMessage}
             onLoadDBC={handleLoadDBC}
+            onUpdateDBCConfig={handleUpdateDBCConfig}
+            onDeleteDBC={handleDeleteDBC}
             dbcLoaded={dbcLoaded}
             dbcFile={dbcFile}
+            dbcFiles={dbcFiles}
+            dbcContext={dbcContext}
             devices={devices}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
@@ -659,8 +706,12 @@ function App() {
             onClearMessages={handleClearMessages}
             onSendMessage={handleSendMessage}
             onLoadDBC={handleLoadDBC}
+            onUpdateDBCConfig={handleUpdateDBCConfig}
+            onDeleteDBC={handleDeleteDBC}
             dbcLoaded={dbcLoaded}
             dbcFile={dbcFile}
+            dbcFiles={dbcFiles}
+            dbcContext={dbcContext}
             devices={devices}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}

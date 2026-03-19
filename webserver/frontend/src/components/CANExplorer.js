@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { Send, Trash2, FileText, Filter, Upload, ChevronDown, ChevronRight, ChevronLeft, Activity, Wifi, WifiOff, RefreshCw, List, PanelLeftClose, PanelLeft, Download, X, Eye, EyeOff, Flag } from 'lucide-react';
+import { Send, Trash2, FileText, Filter, Upload, ChevronDown, ChevronRight, ChevronLeft, Activity, Wifi, WifiOff, RefreshCw, List, PanelLeftClose, PanelLeft, Download, X, Eye, EyeOff, Flag, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import TransmitList from './TransmitList';
 import './CANExplorer.css';
 
@@ -9,8 +9,12 @@ function CANExplorer({
   onClearMessages, 
   onSendMessage, 
   onLoadDBC, 
+  onUpdateDBCConfig,
+  onDeleteDBC,
   dbcLoaded, 
   dbcFile,
+  dbcFiles,
+  dbcContext,
   devices,
   onConnect,
   onDisconnect,
@@ -34,6 +38,7 @@ function CANExplorer({
   const [dbcExpanded, setDbcExpanded] = useState(true);
   const [filterExpanded, setFilterExpanded] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [draggedDbcFile, setDraggedDbcFile] = useState(null);
   const fileInputRef = useRef(null);
   
   // Message Isolation feature state
@@ -431,6 +436,78 @@ function CANExplorer({
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const persistDbcFiles = useCallback(async (nextFiles) => {
+    if (!onUpdateDBCConfig) {
+      return false;
+    }
+
+    return onUpdateDBCConfig(
+      nextFiles.map(file => ({
+        filename: file.filename,
+        enabled: file.enabled,
+      }))
+    );
+  }, [onUpdateDBCConfig]);
+
+  const handleToggleDbcEnabled = async (filename) => {
+    const nextFiles = dbcFiles.map(file => (
+      file.filename === filename
+        ? { ...file, enabled: !file.enabled }
+        : { ...file }
+    ));
+    await persistDbcFiles(nextFiles);
+  };
+
+  const handleMoveDbc = async (filename, direction) => {
+    const currentIndex = dbcFiles.findIndex(file => file.filename === filename);
+    if (currentIndex === -1) {
+      return;
+    }
+
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= dbcFiles.length) {
+      return;
+    }
+
+    const nextFiles = dbcFiles.map(file => ({ ...file }));
+    const [movedFile] = nextFiles.splice(currentIndex, 1);
+    nextFiles.splice(targetIndex, 0, movedFile);
+    await persistDbcFiles(nextFiles);
+  };
+
+  const handleDropDbc = async (targetFilename) => {
+    if (!draggedDbcFile || draggedDbcFile === targetFilename) {
+      setDraggedDbcFile(null);
+      return;
+    }
+
+    const sourceIndex = dbcFiles.findIndex(file => file.filename === draggedDbcFile);
+    const targetIndex = dbcFiles.findIndex(file => file.filename === targetFilename);
+    if (sourceIndex === -1 || targetIndex === -1) {
+      setDraggedDbcFile(null);
+      return;
+    }
+
+    const nextFiles = dbcFiles.map(file => ({ ...file }));
+    const [movedFile] = nextFiles.splice(sourceIndex, 1);
+    nextFiles.splice(targetIndex, 0, movedFile);
+    setDraggedDbcFile(null);
+    await persistDbcFiles(nextFiles);
+  };
+
+  const handleDeleteDbc = async (filename) => {
+    if (!onDeleteDBC) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete DBC file "${filename}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    await onDeleteDBC(filename);
   };
 
   const toggleRowExpansion = (msgId) => {
@@ -1051,26 +1128,107 @@ function CANExplorer({
             <FileText size={18} />
             <span>DBC File</span>
           </div>
-          {dbcExpanded && <><button className="btn btn-secondary btn-block" onClick={handleUploadClick}>
-            <Upload size={16} />
-            Upload
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".dbc"
-            onChange={handleLoadDBC}
-            style={{ display: 'none' }}
-          />
-          {dbcLoaded ? (
-            <div className="sidebar-status success">
-              ✓ {dbcFile || 'Loaded'}
-            </div>
-          ) : (
-            <div className="sidebar-status">
-              No file loaded
-            </div>
-          )}</>}
+          {dbcExpanded && <>
+            <button className="btn btn-secondary btn-block" onClick={handleUploadClick}>
+              <Upload size={16} />
+              Upload
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".dbc"
+              onChange={handleLoadDBC}
+              style={{ display: 'none' }}
+            />
+            {dbcLoaded ? (
+              <div className="sidebar-status success">
+                Active: {dbcFile}
+              </div>
+            ) : (
+              <div className="sidebar-status">
+                No enabled DBC files
+              </div>
+            )}
+            {dbcFiles.length > 0 ? (
+              <div className="dbc-list">
+                {dbcFiles.map((file, index) => (
+                  <div
+                    key={file.filename}
+                    className={`dbc-list-item ${file.effective ? 'effective' : ''} ${draggedDbcFile === file.filename ? 'dragging' : ''}`}
+                    draggable
+                    onDragStart={() => setDraggedDbcFile(file.filename)}
+                    onDragEnd={() => setDraggedDbcFile(null)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={() => handleDropDbc(file.filename)}
+                  >
+                    <div className="dbc-item-main">
+                      <label className="dbc-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(file.enabled)}
+                          onChange={() => handleToggleDbcEnabled(file.filename)}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="dbc-drag-handle"
+                        title="Drag to reorder"
+                        aria-label={`Drag ${file.filename} to reorder`}
+                      >
+                        <GripVertical size={14} />
+                      </button>
+                      <div className="dbc-item-info">
+                        <div className="dbc-item-title-row">
+                          <span className="dbc-item-title">{file.filename}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="dbc-item-footer">
+                      <div className="dbc-item-meta">
+                        <span className={`dbc-state-pill ${file.enabled ? 'enabled' : 'disabled'}`}>
+                          {file.enabled ? `Priority ${index + 1}` : 'Disabled'}
+                        </span>
+                        {file.effective && <span className="dbc-effective-pill">Active</span>}
+                        <span>{file.message_count || 0} msgs</span>
+                      </div>
+                      <div className="dbc-item-actions">
+                        <button
+                          type="button"
+                          className="dbc-action-btn"
+                          onClick={() => handleMoveDbc(file.filename, -1)}
+                          disabled={index === 0}
+                          title="Move up"
+                        >
+                          <ArrowUp size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="dbc-action-btn"
+                          onClick={() => handleMoveDbc(file.filename, 1)}
+                          disabled={index === dbcFiles.length - 1}
+                          title="Move down"
+                        >
+                          <ArrowDown size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="dbc-action-btn dbc-delete-btn"
+                          onClick={() => handleDeleteDbc(file.filename)}
+                          title="Delete DBC file"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="sidebar-status">
+                No uploaded DBC files
+              </div>
+            )}
+          </>}
         </div>
 
         {/* Filter */}
@@ -1299,7 +1457,7 @@ function CANExplorer({
               {expandedTransmitList && (
                 <div className="collapsible-content transmit-list-container">
                   <TransmitList 
-                    dbcFile={dbcFile}
+                    dbcContext={dbcContext}
                     onSendMessage={onSendMessage}
                   />
                 </div>

@@ -3,7 +3,7 @@ import { Send, Plus, Trash2, ChevronRight, ChevronDown, Edit2, Play, Square } fr
 import { apiService } from '../services/api';
 import './TransmitList.css';
 
-function TransmitList({ dbcFile, onSendMessage }) {
+function TransmitList({ dbcContext, onSendMessage }) {
   const [transmitItems, setTransmitItems] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
@@ -13,13 +13,19 @@ function TransmitList({ dbcFile, onSendMessage }) {
   const [cyclicSending, setCyclicSending] = useState({}); // { itemId: true/false }
   const cyclicIntervalsRef = useRef({}); // Store interval IDs
 
-  // Load transmit list when DBC file changes
+  // Load transmit list when the active DBC context changes.
   useEffect(() => {
-    if (dbcFile) {
+    if (dbcContext) {
       loadTransmitList();
       loadDBCMessages();
+      return;
     }
-  }, [dbcFile]);
+
+    setTransmitItems([]);
+    setDbcMessages([]);
+    setSelectedId(null);
+    setExpandedId(null);
+  }, [dbcContext]);
 
   // Load DBC messages for picker
   const loadDBCMessages = async () => {
@@ -42,7 +48,7 @@ function TransmitList({ dbcFile, onSendMessage }) {
   // Load transmit list from backend
   const loadTransmitList = async () => {
     try {
-      const response = await apiService.loadTransmitList(dbcFile);
+      const response = await apiService.loadTransmitList(dbcContext);
       if (response.success) {
         setTransmitItems(response.items || []);
       }
@@ -54,7 +60,10 @@ function TransmitList({ dbcFile, onSendMessage }) {
   // Save transmit list to backend
   const saveTransmitList = async (items) => {
     try {
-      await apiService.saveTransmitList(items, dbcFile);
+      if (!dbcContext) {
+        return;
+      }
+      await apiService.saveTransmitList(items, dbcContext);
     } catch (error) {
       console.error('Failed to save transmit list:', error);
     }
@@ -180,13 +189,17 @@ function TransmitList({ dbcFile, onSendMessage }) {
     <div className="transmit-list">
       <div className="transmit-list-header">
         <h4>Transmit List</h4>
-        <button className="btn btn-sm btn-primary" onClick={() => setShowAddDialog(true)}>
+        <button className="btn btn-sm btn-primary" onClick={() => setShowAddDialog(true)} disabled={!dbcContext}>
           <Plus size={12} />
           Add
         </button>
       </div>
 
-      {transmitItems.length === 0 ? (
+      {!dbcContext ? (
+        <div className="transmit-list-empty">
+          Enable at least one DBC file to use the transmit list.
+        </div>
+      ) : transmitItems.length === 0 ? (
         <div className="transmit-list-empty">
           No transmit messages. Click "Add" to create one.
         </div>
