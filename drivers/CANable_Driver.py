@@ -184,69 +184,123 @@ class CANableDriver:
         else:
             self._libusb_backend = None
         
+    @staticmethod
+    def _get_socketcan_interfaces() -> List[str]:
+        """Detect SocketCAN network interfaces on Linux (e.g. can0, can1)."""
+        interfaces = []
+        if sys.platform == 'linux':
+            try:
+                net_dir = '/sys/class/net'
+                for iface in sorted(os.listdir(net_dir)):
+                    type_path = os.path.join(net_dir, iface, 'type')
+                    # CAN devices have ARPHRD_CAN (type 280)
+                    try:
+                        with open(type_path) as f:
+                            if f.read().strip() == '280':
+                                interfaces.append(iface)
+                    except (OSError, IOError):
+                        pass
+            except OSError:
+                pass
+        return interfaces
+
     def get_available_devices(self) -> List[dict]:
         """
-        Scan for available CANable devices using USB enumeration.
-        
+        Scan for available CANable / CAN devices.
+
+        On Linux this first enumerates SocketCAN interfaces (can0, can1, …)
+        which covers MCP251x SPI controllers, CANable with slcan, and any
+        other kernel-managed CAN adapters.  USB gs_usb devices are scanned
+        as a fallback (or on Windows where SocketCAN is unavailable).
+
         Returns:
             List of dictionaries containing device information.
-            Each device has: index, vid, pid, manufacturer, product, serial, bus, address
         """
         available_devices = []
-        
-        if usb is None:
+        device_index = 0
+
+        # --- SocketCAN interfaces (Linux) --------------------------------
+        for iface in self._get_socketcan_interfaces():
+            # Try to read the bitrate currently configured on the interface
+            bitrate_str = 'unknown'
+            try:
+                import subprocess
+                out = subprocess.check_output(
+                    ['ip', '-details', 'link', 'show', iface],
+                    text=True, timeout=2
+                )
+                for line in out.splitlines():
+                    if 'bitrate' in line:
+                        for part in line.split():
+                            if part.isdigit():
+                                bitrate_str = part
+                                break
+                        break
+            except Exception:
+                pass
+
+            device_info = {
+                'index': device_index,
+                'interface': 'socketcan',
+                'channel': iface,
+                'manufacturer': 'Linux',
+                'product': 'SocketCAN',
+                'serial_number': '',
+                'description': f"SocketCAN {iface} ({bitrate_str} bps)",
+            }
+            available_devices.append(device_info)
+            device_index += 1
+
+        # --- USB gs_usb devices (Windows / fallback) ---------------------
+        if usb is not None:
+            try:
+                backend = getattr(self, '_libusb_backend', None)
+                for vid, pid in GS_USB_DEVICES:
+                    devices = usb.core.find(find_all=True, backend=backend, idVendor=vid, idProduct=pid)
+                    for dev in devices:
+                        try:
+                            manufacturer = usb.util.get_string(dev, dev.iManufacturer) if dev.iManufacturer else "Unknown"
+                            product = usb.util.get_string(dev, dev.iProduct) if dev.iProduct else "Unknown"
+                            serial = usb.util.get_string(dev, dev.iSerialNumber) if dev.iSerialNumber else "Unknown"
+                        except Exception:
+                            manufacturer = "Unknown"
+                            product = "Unknown"
+                            serial = "Unknown"
+
+                        device_info = {
+                            'index': device_index,
+                            'interface': 'gs_usb',
+                            'vid': vid,
+                            'pid': pid,
+                            'manufacturer': manufacturer,
+                            'product': product,
+                            'serial_number': serial,
+                            'bus': dev.bus,
+                            'address': dev.address,
+                            'description': f"{manufacturer} {product}",
+                            'channel': f"can{device_index}",
+                            '_usb_device': dev,
+                        }
+                        available_devices.append(device_info)
+                        device_index += 1
+            except Exception as e:
+                print(f"Error scanning for USB devices: {e}")
+        elif sys.platform != 'linux':
             print("[WARN] pyusb not available, cannot enumerate USB devices")
             print("  Install with: pip install pyusb")
-            return available_devices
-        
-        try:
-            # Use explicit backend if available (Windows fix)
-            backend = getattr(self, '_libusb_backend', None)
-            
-            # Find all gs_usb compatible devices
-            device_index = 0
-            for vid, pid in GS_USB_DEVICES:
-                devices = usb.core.find(find_all=True, backend=backend, idVendor=vid, idProduct=pid)
-                
-                for dev in devices:
-                    try:
-                        # Get device information
-                        manufacturer = usb.util.get_string(dev, dev.iManufacturer) if dev.iManufacturer else "Unknown"
-                        product = usb.util.get_string(dev, dev.iProduct) if dev.iProduct else "Unknown"
-                        serial = usb.util.get_string(dev, dev.iSerialNumber) if dev.iSerialNumber else "Unknown"
-                    except:
-                        manufacturer = "Unknown"
-                        product = "Unknown"
-                        serial = "Unknown"
-                    
-                    device_info = {
-                        'index': device_index,
-                        'vid': vid,
-                        'pid': pid,
-                        'manufacturer': manufacturer,
-                        'product': product,
-                        'serial_number': serial,
-                        'bus': dev.bus,
-                        'address': dev.address,
-                        'description': f"{manufacturer} {product}",
-                        'channel': f"can{device_index}",  # gs_usb uses can0, can1, etc.
-                        '_usb_device': dev  # Store reference for direct connection
-                    }
-                    
-                    available_devices.append(device_info)
-                    device_index += 1
-            
-            if not available_devices:
-                print("ℹ No CANable/gs_usb devices found")
+
+        if not available_devices:
+            print("ℹ No CAN devices found")
+            if sys.platform == 'linux':
+                print("  Make sure:")
+                print("  1. CAN interface is UP (sudo ip link set can0 up type can bitrate 500000)")
+                print("  2. Or CANable is connected with candleLight firmware")
+            else:
                 print("  Make sure:")
                 print("  1. CANable is connected via USB")
                 print("  2. Device has candleLight firmware (gs_usb compatible)")
-                print("  3. On Windows: libusb-1.0.dll is in the project directory")
-                print("  4. On Linux: You have permissions (try: sudo usermod -a -G plugdev $USER)")
-            
-        except Exception as e:
-            print(f"Error scanning for USB devices: {e}")
-        
+                print("  3. libusb-1.0.dll is in the project directory")
+
         return available_devices
     
     def _force_cleanup(self):
@@ -268,8 +322,14 @@ class CANableDriver:
     def connect(self, channel: int, baudrate: CANableBaudRate, 
                 fd_mode: bool = False) -> bool:
         """
-        Connect to a CANable device using gs_usb/Candle API.
-        
+        Connect to a CAN device.
+
+        On Linux the method first checks if the requested device index
+        corresponds to a SocketCAN interface (can0, can1, …) and uses the
+        ``socketcan`` backend.  If no SocketCAN interface is found for the
+        given index it falls back to the ``gs_usb`` (Candle API) backend,
+        which is the primary path on Windows.
+
         Args:
             channel: Device index (0 for first device, 1 for second, etc.)
                     Use get_available_devices() to see available indices.
@@ -280,30 +340,54 @@ class CANableDriver:
             True if connection successful, False otherwise.
         """
         if self._is_connected:
-            print("Already connected to a CANable device. Disconnect first.")
+            print("Already connected to a CAN device. Disconnect first.")
             return False
         
         # Ensure any previous connection is fully cleaned up
         self._force_cleanup()
         
         try:
-            # Get bitrate value
             bitrate = baudrate.value
-            
-            # Try to connect - no retries to avoid locking issues
+
+            # Resolve which interface/backend to use based on device list
+            devices = self.get_available_devices()
+            iface_type = None
+            iface_channel = None
+
+            if channel < len(devices):
+                dev_entry = devices[channel]
+                iface_type = dev_entry.get('interface')     # 'socketcan' or 'gs_usb'
+                iface_channel = dev_entry.get('channel')    # e.g. 'can0' or 'can1'
+                self._device_info = dev_entry
+
+            # ------ SocketCAN path (Linux) --------------------------------
+            if iface_type == 'socketcan' and iface_channel:
+                self._bus = Bus(
+                    interface='socketcan',
+                    channel=iface_channel,
+                    bitrate=bitrate,
+                    fd=fd_mode,
+                )
+                self._channel = channel
+                self._baudrate = baudrate
+                self._fd_mode = fd_mode
+                self._is_connected = True
+                self._hardware_lost = False
+
+                print(f"[OK] Connected to {iface_channel} (socketcan) at {bitrate} bps")
+                return True
+
+            # ------ gs_usb path (Windows / USB CANable) -------------------
             try:
-                # Create bus instance using gs_usb interface (Candle API)
-                # This provides direct USB access to CANable with candleLight firmware
-                # IMPORTANT: Must use 'index' parameter for device selection!
                 self._bus = Bus(
                     interface='gs_usb',
-                    channel=channel,  # Still needed for python-can
-                    index=channel,    # THIS IS CRITICAL - index parameter for device selection
+                    channel=channel,
+                    index=channel,
                     bitrate=bitrate,
                     fd=fd_mode,
                     data_bitrate=bitrate if fd_mode else None
                 )
-            except Exception as e:
+            except Exception:
                 raise
             
             self._channel = channel
@@ -311,27 +395,25 @@ class CANableDriver:
             self._fd_mode = fd_mode
             self._is_connected = True
             self._hardware_lost = False
-            
-            # Try to get device info
-            devices = self.get_available_devices()
-            if channel < len(devices):
-                self._device_info = devices[channel]
-                device_desc = self._device_info.get('description', 'Unknown')
-            else:
-                device_desc = f"Device {channel}"
-            
+
+            device_desc = self._device_info.get('description', 'Unknown') if self._device_info else f"Device {channel}"
             print(f"[OK] Connected to {device_desc} (channel {channel}) at {bitrate} bps")
             print(f"  Using Candle API (gs_usb) via libusb")
             return True
             
         except Exception as e:
             print(f"[ERROR] Failed to connect: {str(e)}")
-            print(f"\n  Troubleshooting:")
-            print(f"  1. Verify CANable is connected and has candleLight firmware")
-            print(f"  2. Check available devices with get_available_devices()")
-            print(f"  3. On Windows: Ensure WinUSB driver is installed (use Zadig)")
-            print(f"  4. Try unplugging and replugging the CANable")
-            print(f"  5. On Linux: Check permissions (sudo usermod -a -G plugdev $USER)")
+            if sys.platform == 'linux':
+                print(f"\n  Troubleshooting (Linux):")
+                print(f"  1. Ensure interface is UP: sudo ip link set can0 up type can bitrate 500000")
+                print(f"  2. Check available interfaces: ip link show type can")
+                print(f"  3. Check permissions (sudo usermod -a -G plugdev $USER)")
+            else:
+                print(f"\n  Troubleshooting:")
+                print(f"  1. Verify CANable is connected and has candleLight firmware")
+                print(f"  2. Check available devices with get_available_devices()")
+                print(f"  3. On Windows: Ensure WinUSB driver is installed (use Zadig)")
+                print(f"  4. Try unplugging and replugging the CANable")
             return False
     
     def disconnect(self) -> bool:

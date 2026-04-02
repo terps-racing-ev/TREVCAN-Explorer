@@ -775,7 +775,7 @@ class CANBackend:
                     devices.append(DeviceInfo(
                         device_type="canable",
                         index=dev['index'],
-                        name=f"Device {dev['index']}",
+                        name=dev.get('channel', f"Device {dev['index']}"),
                         description=dev.get('description', f"CANable Device {dev['index']}"),
                         available=True
                     ))

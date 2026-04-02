@@ -164,9 +164,12 @@ def detect_can_devices():
 def check_node_installed():
     """Check if Node.js is installed"""
     # First try using PATH
+    # shell=True is needed on Windows for .cmd wrappers but breaks Linux
+    # (list args are silently dropped, causing node REPL to hang)
+    _shell = sys.platform == 'win32'
     try:
         result = subprocess.run(['node', '--version'], 
-                              capture_output=True, text=True, shell=True)
+                              capture_output=True, text=True, shell=_shell)
         if result.returncode == 0:
             return True, result.stdout.strip()
     except FileNotFoundError:
@@ -198,9 +201,10 @@ def check_node_installed():
 
 def check_npm_installed():
     """Check if npm is installed"""
+    _shell = sys.platform == 'win32'
     try:
         result = subprocess.run(['npm', '--version'], 
-                              capture_output=True, text=True, shell=True)
+                              capture_output=True, text=True, shell=_shell)
         return result.returncode == 0
     except FileNotFoundError:
         return False
@@ -212,9 +216,10 @@ def install_frontend_dependencies():
     
     if not node_modules.exists():
         print_colored("  Installing dependencies...", Colors.DIM)
+        _shell = sys.platform == 'win32'
         try:
             subprocess.run(['npm', 'install'], 
-                         cwd=str(frontend_dir), shell=True, check=True, capture_output=True)
+                         cwd=str(frontend_dir), shell=_shell, check=True, capture_output=True)
             return True
         except subprocess.CalledProcessError:
             return False
@@ -403,7 +408,7 @@ def main():
     time.sleep(6)
     
     # Open browser
-    webbrowser.open("http://localhost:3001")
+    webbrowser.open(f"http://{local_ip}:3001")
     
     # Print startup info
     print(f"\n  {Colors.OKGREEN}[OK]{Colors.ENDC} Backend    {Colors.DIM}http://localhost:8000{Colors.ENDC}")

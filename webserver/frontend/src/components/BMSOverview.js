@@ -236,6 +236,23 @@ function BMSOverview({ messages }) {
     return { active: allVoltages.length, min, max, avg, delta };
   }, [cellData]);
 
+  const moduleVoltageStats = useMemo(() => {
+    return cellData.modules.map(module => {
+      const validVoltages = module.filter(voltage => voltage !== null);
+      if (validVoltages.length === 0) {
+        return { min: null, max: null, delta: null };
+      }
+
+      const min = Math.min(...validVoltages);
+      const max = Math.max(...validVoltages);
+      return {
+        min,
+        max,
+        delta: max - min
+      };
+    });
+  }, [cellData]);
+
   // Extract latest LC/HC currents from the current sensor message.
   const packCurrents = useMemo(() => {
     let latestCurrents = { lc: null, hc: null };
@@ -442,6 +459,8 @@ function BMSOverview({ messages }) {
                   <div className="module-title">Module {moduleId} <span className="module-state">{moduleStates[moduleId]}</span></div>
                   <div className="module-ambient">
                     Amb (MPlug Side) {isDisplayableTemp(thermistorData[moduleId]?.[54]) ? `${thermistorData[moduleId][54].toFixed(1)}°C` : '--'} / (STM Side) {isDisplayableTemp(thermistorData[moduleId]?.[55]) ? `${thermistorData[moduleId][55].toFixed(1)}°C` : '--'}
+                    {' | '}
+                    ΔV {moduleVoltageStats[moduleId]?.delta !== null ? `${(moduleVoltageStats[moduleId].delta * 1000).toFixed(0)}mV` : '--'}
                   </div>
                 </div>
                 <div className="cell-groups-list">
