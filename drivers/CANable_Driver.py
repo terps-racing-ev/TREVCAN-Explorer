@@ -349,19 +349,13 @@ class CANableDriver:
         try:
             bitrate = baudrate.value
 
-            # Resolve which interface/backend to use based on device list
-            devices = self.get_available_devices()
-            iface_type = None
-            iface_channel = None
-
-            if channel < len(devices):
-                dev_entry = devices[channel]
-                iface_type = dev_entry.get('interface')     # 'socketcan' or 'gs_usb'
-                iface_channel = dev_entry.get('channel')    # e.g. 'can0' or 'can1'
-                self._device_info = dev_entry
+            # Determine interface type cheaply — only check SocketCAN names
+            # (no USB scan) so we don't open device handles before Bus().
+            socketcan_ifaces = self._get_socketcan_interfaces()
 
             # ------ SocketCAN path (Linux) --------------------------------
-            if iface_type == 'socketcan' and iface_channel:
+            if channel < len(socketcan_ifaces):
+                iface_channel = socketcan_ifaces[channel]
                 self._bus = Bus(
                     interface='socketcan',
                     channel=iface_channel,
@@ -373,16 +367,24 @@ class CANableDriver:
                 self._fd_mode = fd_mode
                 self._is_connected = True
                 self._hardware_lost = False
+                self._device_info = {
+                    'index': channel,
+                    'interface': 'socketcan',
+                    'channel': iface_channel,
+                    'description': f"SocketCAN {iface_channel}",
+                }
 
                 print(f"[OK] Connected to {iface_channel} (socketcan) at {bitrate} bps")
                 return True
 
             # ------ gs_usb path (Windows / USB CANable) -------------------
+            # Adjust index to account for any SocketCAN interfaces
+            gs_usb_index = channel - len(socketcan_ifaces)
             try:
                 self._bus = Bus(
                     interface='gs_usb',
-                    channel=channel,
-                    index=channel,
+                    channel=gs_usb_index,
+                    index=gs_usb_index,
                     bitrate=bitrate,
                     fd=fd_mode,
                     data_bitrate=bitrate if fd_mode else None
@@ -396,6 +398,10 @@ class CANableDriver:
             self._is_connected = True
             self._hardware_lost = False
 
+            # Get device info AFTER connection to avoid USB handle conflicts on Windows
+            devices = self.get_available_devices()
+            if channel < len(devices):
+                self._device_info = devices[channel]
             device_desc = self._device_info.get('description', 'Unknown') if self._device_info else f"Device {channel}"
             print(f"[OK] Connected to {device_desc} (channel {channel}) at {bitrate} bps")
             print(f"  Using Candle API (gs_usb) via libusb")
