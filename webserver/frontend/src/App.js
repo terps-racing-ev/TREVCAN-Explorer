@@ -5,6 +5,7 @@ import ConnectionPanel from './components/ConnectionPanel';
 import CANExplorer from './components/CANExplorer';
 import ModuleConfig from './components/ModuleConfig';
 import BMSOverview from './components/BMSOverview';
+import BalanceManager from './components/BalanceManager';
 import BMSStatus from './components/BMSStatus';
 import StatusBar from './components/StatusBar';
 import { apiService } from './services/api';
@@ -697,6 +698,38 @@ function App() {
             onStopSimulation={handleStopSimulation}
           >
             <BMSOverview messages={messages} />
+          </CANExplorer>
+        )}
+        {activeTab === 'balance-manager' && (
+          <CANExplorer
+            connected={connected}
+            messages={messages}
+            onClearMessages={handleClearMessages}
+            onSendMessage={handleSendMessage}
+            onLoadDBC={handleLoadDBC}
+            onUpdateDBCConfig={handleUpdateDBCConfig}
+            onDeleteDBC={handleDeleteDBC}
+            dbcLoaded={dbcLoaded}
+            dbcFile={dbcFile}
+            dbcFiles={dbcFiles}
+            dbcContext={dbcContext}
+            devices={devices}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onRefreshDevices={fetchDevices}
+            connectionStatus={connectionStatus}
+            stats={stats}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onRegisterRawCallback={registerRawMessageCallback}
+            simulationActive={simulationActive}
+            onStartSimulation={handleStartSimulation}
+            onStopSimulation={handleStopSimulation}
+          >
+            <BalanceManager
+              messages={messages}
+              onSendMessage={handleSendMessage}
+            />
           </CANExplorer>
         )}
         {activeTab === 'module-config' && (

@@ -38,6 +38,28 @@
       },
       "description": "DBC: BMS_Balance_Config_4",
       "cycle_time": 4000
+    },
+    {
+      "id": "1775270681134-0.26141864960237926",
+      "can_id": 149950215,
+      "data": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "is_extended": true,
+      "message_name": "BMS_Balance_Config_0",
+      "signals": {
+        "Target_Voltage_mV": 0,
+        "Max_Cells_Per_Chip": 0
+      },
+      "description": "DBC: BMS_Balance_Config_0",
+      "cycle_time": 3000
     }
   ]
 }

@@ -889,6 +889,12 @@ function CANExplorer({
                 Status Dashboard
               </button>
               <button
+                className={`sidebar-tab submenu ${activeTab === 'balance-manager' ? 'active' : ''}`}
+                onClick={() => onTabChange('balance-manager')}
+              >
+                Balance Manager
+              </button>
+              <button
                 className={`sidebar-tab submenu ${activeTab === 'module-config' ? 'active' : ''}`}
                 onClick={() => onTabChange('module-config')}
               >
