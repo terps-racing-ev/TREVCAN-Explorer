@@ -12,6 +12,7 @@ import subprocess
 import sys
 import os
 import time
+import argparse
 import webbrowser
 import signal
 import atexit
@@ -311,35 +312,39 @@ def ensure_clean_ports():
             _kill_port_owner_windows(3001)
             time.sleep(0.8)
 
-def start_backend():
+def start_backend(inherit_logs=False):
     """Start the backend server in background"""
     global processes
     backend_dir = Path(__file__).parent / "webserver" / "backend"
+    stdout_target = None if inherit_logs else subprocess.DEVNULL
+    stderr_target = None if inherit_logs else subprocess.DEVNULL
     
     # Start backend - use DEVNULL but avoid CREATE_NO_WINDOW which can break asyncio
     if sys.platform == 'win32':
         backend_process = subprocess.Popen(
             [sys.executable, '-u', 'api.py'],
             cwd=str(backend_dir),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=stdout_target,
+            stderr=stderr_target,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
         )
     else:
         backend_process = subprocess.Popen(
             [sys.executable, '-u', 'api.py'],
             cwd=str(backend_dir),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stdout=stdout_target,
+            stderr=stderr_target
         )
     
     processes.append({'process': backend_process, 'name': 'Backend'})
     return backend_process
 
-def start_frontend():
+def start_frontend(inherit_logs=False):
     """Start the frontend development server in background"""
     global processes
     frontend_dir = Path(__file__).parent / "webserver" / "frontend"
+    stdout_target = None if inherit_logs else subprocess.DEVNULL
+    stderr_target = None if inherit_logs else subprocess.DEVNULL
     
     env = os.environ.copy()
     env['PORT'] = '3001'
@@ -351,8 +356,8 @@ def start_frontend():
             ['npm.cmd', 'start'],
             cwd=str(frontend_dir),
             env=env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=stdout_target,
+            stderr=stderr_target,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
         )
     else:
@@ -360,8 +365,8 @@ def start_frontend():
             ['npm', 'start'],
             cwd=str(frontend_dir),
             env=env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stdout=stdout_target,
+            stderr=stderr_target
         )
     
     processes.append({'process': frontend_process, 'name': 'Frontend'})
@@ -372,13 +377,38 @@ def open_browser(url, delay=5):
     time.sleep(delay)
     webbrowser.open(url)
 
-def main():
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Start the TREVCAN Explorer stack")
+    parser.add_argument(
+        '--no-browser',
+        action='store_true',
+        help='Do not open the frontend URL in a browser'
+    )
+    parser.add_argument(
+        '--inherit-logs',
+        action='store_true',
+        help='Send backend and frontend logs to the current stdout/stderr'
+    )
+    parser.add_argument(
+        '--service',
+        action='store_true',
+        help='Enable systemd-friendly behavior (no browser, inherited logs, no device scan)'
+    )
+    return parser.parse_args()
+
+def main(args):
     """Main function"""
-    print_banner()
+    service_mode = args.service
+    show_browser = not args.no_browser and not service_mode
+    inherit_logs = args.inherit_logs or service_mode
+
+    if not service_mode:
+        print_banner()
     
     # Get system info
     local_ip = get_local_ip()
-    devices = detect_can_devices()
+    devices = detect_can_devices() if not service_mode else []
     node_ok, node_version = check_node_installed()
     
     # Check prerequisites
@@ -399,34 +429,36 @@ def main():
     ensure_clean_ports()
 
     # Start servers silently
-    start_backend()
+    start_backend(inherit_logs=inherit_logs)
     time.sleep(2)
-    start_frontend()
+    start_frontend(inherit_logs=inherit_logs)
     
     # Wait for frontend to be ready
     print_colored("\n  Starting services...", Colors.DIM)
     time.sleep(6)
     
     # Open browser
-    webbrowser.open(f"http://{local_ip}:3001")
+    if show_browser:
+        webbrowser.open(f"http://{local_ip}:3001")
     
     # Print startup info
     print(f"\n  {Colors.OKGREEN}[OK]{Colors.ENDC} Backend    {Colors.DIM}http://localhost:8000{Colors.ENDC}")
     print(f"  {Colors.OKGREEN}[OK]{Colors.ENDC} Frontend   {Colors.DIM}http://localhost:3001{Colors.ENDC}")
     print(f"  {Colors.OKGREEN}[OK]{Colors.ENDC} Network    {Colors.DIM}http://{local_ip}:3001{Colors.ENDC}")
     
-    print(f"\n  {Colors.BOLD}Devices:{Colors.ENDC}")
-    for device, status in devices:
-        if status in ["Available", "Connected", "Driver available"]:
-            color = Colors.OKGREEN
-            symbol = "[OK]"
-        elif status == "Not connected":
-            color = Colors.WARNING
-            symbol = "[--]"
-        else:
-            color = Colors.DIM
-            symbol = "[--]"
-        print(f"  {color}{symbol}{Colors.ENDC} {device:12} {Colors.DIM}{status}{Colors.ENDC}")
+    if devices:
+        print(f"\n  {Colors.BOLD}Devices:{Colors.ENDC}")
+        for device, status in devices:
+            if status in ["Available", "Connected", "Driver available"]:
+                color = Colors.OKGREEN
+                symbol = "[OK]"
+            elif status == "Not connected":
+                color = Colors.WARNING
+                symbol = "[--]"
+            else:
+                color = Colors.DIM
+                symbol = "[--]"
+            print(f"  {color}{symbol}{Colors.ENDC} {device:12} {Colors.DIM}{status}{Colors.ENDC}")
     
     print(f"\n  {Colors.DIM}Press Ctrl+C to stop{Colors.ENDC}\n")
     
@@ -444,7 +476,7 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        main(parse_args())
     except KeyboardInterrupt:
         cleanup_processes()
         sys.exit(0)
