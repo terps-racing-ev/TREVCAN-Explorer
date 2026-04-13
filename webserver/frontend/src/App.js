@@ -11,41 +11,7 @@ import StatusBar from './components/StatusBar';
 import { apiService } from './services/api';
 import { websocketService } from './services/websocket';
 
-const TAB_REGISTRY_KEY = 'trevcan-open-tabs';
-const TAB_STALE_MS = 15000;
-
 const isPageVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
-
-const readTabRegistry = () => {
-  try {
-    const raw = window.localStorage.getItem(TAB_REGISTRY_KEY);
-    if (!raw) {
-      return {};
-    }
-
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch (error) {
-    console.warn('[Tabs] Failed to read tab registry:', error);
-    return {};
-  }
-};
-
-const pruneTabRegistry = (registry, now = Date.now()) => {
-  return Object.fromEntries(
-    Object.entries(registry).filter(([, timestamp]) => (
-      typeof timestamp === 'number' && now - timestamp < TAB_STALE_MS
-    ))
-  );
-};
-
-const writeTabRegistry = (registry) => {
-  try {
-    window.localStorage.setItem(TAB_REGISTRY_KEY, JSON.stringify(registry));
-  } catch (error) {
-    console.warn('[Tabs] Failed to write tab registry:', error);
-  }
-};
 
 function App() {
   const [activeTab, setActiveTab] = useState('explorer');
@@ -81,11 +47,10 @@ function App() {
   const wakeCheckTimerRef = useRef(null);
   const toastTimerRef = useRef(null);
   const lastHeartbeatRef = useRef(Date.now());
-  const tabHeartbeatRef = useRef(null);
-  const tabIdRef = useRef(`tab-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const canStateRef = useRef('unknown'); // tracks backend CAN state for toast gating
   
   // Raw message callbacks for components that need to see ALL messages (not aggregated)
-  const rawMessageCallbacksRef = useRef([]);
+  const rawMessageCallbacksRef = useRef([]);;
   
   // Register/unregister callbacks for raw messages
   const registerRawMessageCallback = useCallback((callback) => {
@@ -93,21 +58,6 @@ function App() {
     return () => {
       rawMessageCallbacksRef.current = rawMessageCallbacksRef.current.filter(cb => cb !== callback);
     };
-  }, []);
-
-  const updateTabPresence = useCallback(() => {
-    const now = Date.now();
-    const registry = pruneTabRegistry(readTabRegistry(), now);
-    registry[tabIdRef.current] = now;
-    writeTabRegistry(registry);
-    return Object.keys(registry).length;
-  }, []);
-
-  const unregisterTab = useCallback(() => {
-    const registry = pruneTabRegistry(readTabRegistry());
-    delete registry[tabIdRef.current];
-    writeTabRegistry(registry);
-    return Object.keys(registry).length;
   }, []);
 
   const dbcLoaded = dbcConfig.loaded;
@@ -188,19 +138,6 @@ function App() {
     checkDBCStatus();
   }, []);
 
-  useEffect(() => {
-    updateTabPresence();
-    tabHeartbeatRef.current = setInterval(updateTabPresence, 5000);
-
-    return () => {
-      if (tabHeartbeatRef.current) {
-        clearInterval(tabHeartbeatRef.current);
-        tabHeartbeatRef.current = null;
-      }
-      unregisterTab();
-    };
-  }, [unregisterTab, updateTabPresence]);
-
   const fetchDevices = async () => {
     try {
       const data = await apiService.getDevices();
@@ -277,18 +214,24 @@ function App() {
     try {
       const health = await apiService.getHealth();
       if (health.connection_state === 'reconnecting' || health.recovery_in_progress) {
-        showToast('Reconnecting to CAN hardware...', 'warning', 0);
+        if (canStateRef.current !== 'reconnecting') {
+          showToast('Reconnecting to CAN hardware...', 'warning', 0);
+        }
+        canStateRef.current = 'reconnecting';
         setConnectionStatus(prev => ({ ...prev, status: 'Reconnecting' }));
         return;
       }
 
       if (health.connection_state === 'connected') {
+        const wasDown = canStateRef.current === 'reconnecting' || canStateRef.current === 'disconnected';
+        canStateRef.current = 'connected';
         setConnected(true);
         setConnectionStatus(prev => ({ ...prev, status: 'Connected' }));
-        if (!health.simulation_active) {
+        if (wasDown && !health.simulation_active) {
           showToast('CAN connection restored', 'success', 3000);
         }
       } else if (health.connection_state === 'disconnected' && connected) {
+        canStateRef.current = 'disconnected';
         setConnected(false);
         setConnectionStatus(prev => ({ ...prev, status: 'Disconnected' }));
         showToast('CAN connection lost — hardware may need to be re-plugged', 'error', 0);
@@ -318,6 +261,7 @@ function App() {
     websocketService.connect((message) => {
       if (message.type === 'connection_status') {
         if (message.status === 'reconnecting') {
+          canStateRef.current = 'reconnecting';
           setConnectionStatus(prev => ({ ...prev, status: 'Reconnecting' }));
           showToast('Reconnecting to CAN hardware...', 'warning', 0);
         } else if (message.status === 'connected') {
@@ -325,15 +269,18 @@ function App() {
           if (simulationConnected) {
             setSimulationActive(true);
           }
+          const wasDown = canStateRef.current === 'reconnecting' || canStateRef.current === 'disconnected';
+          canStateRef.current = 'connected';
           setConnected(true);
           setConnectionStatus(prev => ({ ...prev, status: 'Connected' }));
-          if (!simulationConnected) {
+          if (wasDown && !simulationConnected) {
             showToast('CAN connection restored', 'success', 3000);
           }
         } else if (message.status === 'disconnected') {
           if (message.reason === 'simulation_stopped') {
             setSimulationActive(false);
           }
+          canStateRef.current = 'disconnected';
           setConnected(false);
           setConnectionStatus(prev => ({ ...prev, status: 'Disconnected' }));
           if (message.reason === 'hardware_lost') {
@@ -374,6 +321,7 @@ function App() {
       console.log('API response:', response);
       
       if (response.success) {
+        canStateRef.current = 'connected';
         setConnected(true);
         setConnectionStatus({
           device_type: deviceType,
@@ -459,6 +407,7 @@ function App() {
       
       await apiService.disconnect();
       websocketService.disconnect();
+      canStateRef.current = 'disconnected';
       setConnected(false);
       setConnectionStatus({
         device_type: null,
@@ -561,23 +510,7 @@ function App() {
       }
     };
 
-    const onBeforeUnload = () => {
-      const remainingTabs = unregisterTab();
-      if (!connected || simulationActive || remainingTabs > 0) {
-        return;
-      }
-
-      try {
-        const baseUrl = apiService.getBaseUrl();
-        const endpoint = `${baseUrl}/disconnect`;
-        navigator.sendBeacon(endpoint, new Blob([JSON.stringify({})], { type: 'application/json' }));
-      } catch (error) {
-        console.error('Failed to send disconnect beacon:', error);
-      }
-    };
-
     document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('beforeunload', onBeforeUnload);
 
     wakeCheckTimerRef.current = setInterval(() => {
       if (document.visibilityState === 'visible' && connected) {
@@ -590,7 +523,6 @@ function App() {
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('beforeunload', onBeforeUnload);
       if (wakeCheckTimerRef.current) {
         clearInterval(wakeCheckTimerRef.current);
         wakeCheckTimerRef.current = null;
@@ -600,7 +532,7 @@ function App() {
         toastTimerRef.current = null;
       }
     };
-  }, [connected, handleWakeRecovery, simulationActive, unregisterTab]);
+  }, [connected, handleWakeRecovery, simulationActive]);
 
   return (
     <div className="App">

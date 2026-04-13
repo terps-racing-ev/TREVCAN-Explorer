@@ -306,6 +306,7 @@ class CANBackend:
         self._simulation_started_monotonic: Optional[float] = None
         self._shutdown_called: bool = False
         self._recovery_in_progress: bool = False
+        self._user_requested_disconnect: bool = False
 
     def _normalize_dbc_filename(self, filename: str) -> str:
         """Return a safe filename without path segments."""
@@ -632,7 +633,7 @@ class CANBackend:
             while not self._shutdown_called:
                 await asyncio.sleep(5.0)
 
-                if self._shutdown_called:
+                if self._shutdown_called or self._user_requested_disconnect:
                     break
 
                 if not self.is_connected or not self.driver or self._recovery_in_progress:
@@ -673,7 +674,7 @@ class CANBackend:
         await self.broadcast_message(payload)
 
     async def _handle_connection_loss(self, reason: str):
-        """Attempt automatic reconnection when health check fails."""
+        """Retry reconnection indefinitely until hardware returns or user disconnects."""
         if self._recovery_in_progress or not self.is_connected or not self.driver:
             return
 
@@ -682,9 +683,12 @@ class CANBackend:
         self.connection_reason = reason
         await self.broadcast_connection_status('reconnecting', reason)
 
+        attempt = 0
+        max_backoff = 30  # cap at 30 seconds between retries
         try:
-            for attempt in range(1, 4):
-                print(f"[Recovery] Attempt {attempt}/3")
+            while not self._shutdown_called and not self._user_requested_disconnect:
+                attempt += 1
+                print(f"[Recovery] Attempt {attempt}")
                 success = await asyncio.to_thread(self._attempt_driver_reconnect)
                 if success:
                     self.connection_state = 'connected'
@@ -693,13 +697,13 @@ class CANBackend:
                     print("[Recovery] Connection restored")
                     return
 
-                await asyncio.sleep(2 ** (attempt - 1))
+                backoff = min(2 ** min(attempt - 1, 5), max_backoff)
+                print(f"[Recovery] Next retry in {backoff}s")
+                await asyncio.sleep(backoff)
 
-            print("[Recovery] Failed to recover connection")
-            await asyncio.to_thread(self.disconnect)
-            self.connection_state = 'disconnected'
-            self.connection_reason = 'hardware_lost'
-            await self.broadcast_connection_status('disconnected', 'hardware_lost')
+            # User pressed disconnect while we were retrying
+            if self._user_requested_disconnect:
+                print("[Recovery] Stopped — user requested disconnect")
         finally:
             self._recovery_in_progress = False
 
@@ -953,6 +957,7 @@ class CANBackend:
             self.is_connected = True
             self.connection_state = 'connected'
             self.connection_reason = None
+            self._user_requested_disconnect = False
             self.start_time = datetime.now()
             self.message_count = 0
             
@@ -1775,8 +1780,12 @@ async def disconnect():
         await backend.broadcast_connection_status('disconnected', 'simulation_stopped')
         return DisconnectionResponse(success=True, message="Simulation stopped")
 
-    if not backend.is_connected:
+    if not backend.is_connected and not backend._recovery_in_progress:
         raise HTTPException(status_code=400, detail="Not connected to any device")
+    
+    # Signal that the user explicitly asked to disconnect so the health
+    # monitor stops trying to recover the connection.
+    backend._user_requested_disconnect = True
     
     success = backend.disconnect()
     
@@ -2189,7 +2198,19 @@ async def websocket_can_messages(websocket: WebSocket):
         backend.loop = asyncio.get_event_loop()
     
     await backend.add_websocket_connection(websocket)
-    
+
+    # Inform the new client of the current CAN connection state so it can
+    # render the correct UI immediately (e.g. during an ongoing reconnect).
+    try:
+        await websocket.send_json({
+            "type": "connection_status",
+            "status": backend.connection_state,
+            "reason": backend.connection_reason,
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception:
+        pass
+
     try:
         while True:
             # Keep connection alive and handle any client messages
