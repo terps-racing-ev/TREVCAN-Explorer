@@ -38,19 +38,19 @@ const PARAM_TEMP_SUMMARY_INTERVAL = 0x12;
 const PARAM_CAN_TX_TIMEOUT = 0x13;
 
 const READBACK_PARAM_DEFINITIONS = [
-  { selector: PARAM_BQ_NORMAL_READ_INTERVAL, key: 'bqNormalReadInterval', label: 'BQ Normal Read', unit: 'ms', is16Bit: true },
-  { selector: PARAM_BQ_NORMAL_CAN_INTERVAL, key: 'bqNormalCanInterval', label: 'BQ Normal CAN', unit: 'ms', is16Bit: true },
-  { selector: PARAM_BQ_SLEEP_READ_INTERVAL, key: 'bqSleepReadInterval', label: 'BQ Sleep Read', unit: 'ms', is16Bit: true },
-  { selector: PARAM_BQ_SLEEP_CAN_INTERVAL, key: 'bqSleepCanInterval', label: 'BQ Sleep CAN', unit: 'ms', is16Bit: true },
-  { selector: PARAM_I2C_TIMEOUT, key: 'i2cTimeout', label: 'I2C Timeout', unit: 'ms', is16Bit: false },
-  { selector: PARAM_BALANCE_CMD_TIMEOUT, key: 'balanceCmdTimeout', label: 'Balance Cmd Timeout', unit: 'ms', is16Bit: true },
-  { selector: PARAM_BALANCE_REEVALUATE, key: 'balanceReevaluate', label: 'Balance Reevaluate', unit: 'ms', is16Bit: true },
-  { selector: PARAM_BALANCE_REFRESH, key: 'balanceRefresh', label: 'Balance Refresh', unit: 'ms', is16Bit: true },
-  { selector: PARAM_BALANCE_OCV_SETTLE, key: 'balanceOcvSettle', label: 'Balance OCV Settle', unit: 'ms', is16Bit: true },
-  { selector: PARAM_BALANCE_STATUS_INTERVAL, key: 'balanceStatusInterval', label: 'Balance Status CAN', unit: 'ms', is16Bit: true },
-  { selector: PARAM_CAN_HEARTBEAT_INTERVAL, key: 'canHeartbeatInterval', label: 'CAN Heartbeat', unit: 'ms', is16Bit: true },
-  { selector: PARAM_TEMP_SUMMARY_INTERVAL, key: 'tempSummaryInterval', label: 'Temp Summary CAN', unit: 'ms', is16Bit: true },
-  { selector: PARAM_CAN_TX_TIMEOUT, key: 'canTxTimeout', label: 'CAN TX Timeout', unit: 'ms', is16Bit: false }
+  { selector: PARAM_BQ_NORMAL_READ_INTERVAL, dbcName: 'BQ_NORMAL_READ_INT', key: 'bqNormalReadInterval', label: 'BQ Normal Read', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BQ_NORMAL_CAN_INTERVAL, dbcName: 'BQ_NORMAL_CAN_INT', key: 'bqNormalCanInterval', label: 'BQ Normal CAN', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BQ_SLEEP_READ_INTERVAL, dbcName: 'BQ_SLEEP_READ_INT', key: 'bqSleepReadInterval', label: 'BQ Sleep Read', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BQ_SLEEP_CAN_INTERVAL, dbcName: 'BQ_SLEEP_CAN_INT', key: 'bqSleepCanInterval', label: 'BQ Sleep CAN', unit: 'ms', is16Bit: true },
+  { selector: PARAM_I2C_TIMEOUT, dbcName: 'I2C_TIMEOUT', key: 'i2cTimeout', label: 'I2C Timeout', unit: 'ms', is16Bit: false },
+  { selector: PARAM_BALANCE_CMD_TIMEOUT, dbcName: 'BAL_CMD_TIMEOUT', key: 'balanceCmdTimeout', label: 'Balance Cmd Timeout', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BALANCE_REEVALUATE, dbcName: 'BAL_REEVALUATE', key: 'balanceReevaluate', label: 'Balance Reevaluate', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BALANCE_REFRESH, dbcName: 'BAL_REFRESH', key: 'balanceRefresh', label: 'Balance Refresh', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BALANCE_OCV_SETTLE, dbcName: 'BAL_OCV_SETTLE', key: 'balanceOcvSettle', label: 'Balance OCV Settle', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BALANCE_STATUS_INTERVAL, dbcName: 'BAL_STATUS_INT', key: 'balanceStatusInterval', label: 'Balance Status CAN', unit: 'ms', is16Bit: true },
+  { selector: PARAM_CAN_HEARTBEAT_INTERVAL, dbcName: 'CAN_HEARTBEAT_INT', key: 'canHeartbeatInterval', label: 'CAN Heartbeat', unit: 'ms', is16Bit: true },
+  { selector: PARAM_TEMP_SUMMARY_INTERVAL, dbcName: 'TEMP_SUMMARY_INT', key: 'tempSummaryInterval', label: 'Temp Summary CAN', unit: 'ms', is16Bit: true },
+  { selector: PARAM_CAN_TX_TIMEOUT, dbcName: 'CAN_TX_TIMEOUT', key: 'canTxTimeout', label: 'CAN TX Timeout', unit: 'ms', is16Bit: false }
 ];
 
 function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallback }) {
@@ -102,6 +102,13 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
     status === 'SUCCESS_RESET_REQUIRED' ||
     status === 'Reset_Required' ||
     status === 2;
+  const normalizeParam = (param) => (typeof param === 'string' ? param.toUpperCase() : param);
+  const findReadbackParamDefinition = (param) => {
+    const normalizedParam = normalizeParam(param);
+    return READBACK_PARAM_DEFINITIONS.find(
+      (def) => def.selector === normalizedParam || def.dbcName === normalizedParam
+    );
+  };
 
   // Process a single raw message (called for EVERY message, not aggregated)
   const processRawMessage = useCallback((msg) => {
@@ -139,6 +146,7 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
       const cmdEcho = getSignalValue(signals, 'Command_Echo');
       const status = getSignalValue(signals, 'Status');
       const param = getSignalValue(signals, 'Byte2_OldVal_or_Param');
+      const normalizedParam = normalizeParam(param);
       const valueLow = getSignalValue(signals, 'Byte3_NewVal_or_ValLo');
       const valueHigh = getSignalValue(signals, 'Byte4_ValHi') || 0;
       const combined16Bit = ((valueHigh & 0xFF) << 8) | (valueLow & 0xFF);
@@ -159,24 +167,24 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
           }
           
           // Map parameter names to config fields
-          if (param === 'MODULE_ID' || param === PARAM_MODULE_ID) {
+          if (normalizedParam === 'MODULE_ID' || normalizedParam === PARAM_MODULE_ID) {
             updated[moduleId].moduleId = valueLow;
             console.log(`[ModuleConfig] Module ${moduleId}: moduleId = ${valueLow}`);
-          } else if (param === 'MAX_TEMP' || param === PARAM_MAX_TEMP) {
+          } else if (normalizedParam === 'MAX_TEMP' || normalizedParam === PARAM_MAX_TEMP) {
             updated[moduleId].maxTemp = valueLow;
             console.log(`[ModuleConfig] Module ${moduleId}: maxTemp = ${valueLow}°C`);
-          } else if (param === 'MIN_TEMP' || param === PARAM_MIN_TEMP) {
+          } else if (normalizedParam === 'MIN_TEMP' || normalizedParam === PARAM_MIN_TEMP) {
             // Handle signed byte
             const signedVal = valueLow > 127 ? valueLow - 256 : valueLow;
             updated[moduleId].minTemp = signedVal;
             console.log(`[ModuleConfig] Module ${moduleId}: minTemp = ${signedVal}°C`);
-          } else if (param === 'MIN_VOLTAGE' || param === PARAM_MIN_VOLTAGE) {
+          } else if (normalizedParam === 'MIN_VOLTAGE' || normalizedParam === PARAM_MIN_VOLTAGE) {
             updated[moduleId].minVoltage = valueLow * 100; // Convert to mV
             console.log(`[ModuleConfig] Module ${moduleId}: minVoltage = ${valueLow * 100}mV`);
-          } else if (param === 'MAX_VOLTAGE' || param === PARAM_MAX_VOLTAGE) {
+          } else if (normalizedParam === 'MAX_VOLTAGE' || normalizedParam === PARAM_MAX_VOLTAGE) {
             updated[moduleId].maxVoltage = valueLow * 100; // Convert to mV
             console.log(`[ModuleConfig] Module ${moduleId}: maxVoltage = ${valueLow * 100}mV`);
-          } else if (param === 'BQ_MODE' || param === PARAM_BQ_MODE) {
+          } else if (normalizedParam === 'BQ_MODE' || normalizedParam === PARAM_BQ_MODE) {
             // GET BQ Mode response: Byte3=BMS1 actual, Byte4=BMS2 actual, Byte5=cached mode
             updated[moduleId].bms1Mode = valueLow;
             updated[moduleId].bms2Mode = valueHigh;
@@ -186,7 +194,7 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
             }
             console.log(`[ModuleConfig] Module ${moduleId}: BQ Mode — BMS1=${valueLow === 0 ? 'NORMAL' : 'SLEEP'}, BMS2=${valueHigh === 0 ? 'NORMAL' : 'SLEEP'}`);
           } else {
-            const readbackParam = READBACK_PARAM_DEFINITIONS.find((def) => def.selector === param);
+            const readbackParam = findReadbackParamDefinition(normalizedParam);
             if (readbackParam) {
               updated[moduleId][readbackParam.key] = readbackParam.is16Bit ? combined16Bit : (valueLow & 0xFF);
               console.log(`[ModuleConfig] Module ${moduleId}: ${readbackParam.label} = ${updated[moduleId][readbackParam.key]}${readbackParam.unit}`);
