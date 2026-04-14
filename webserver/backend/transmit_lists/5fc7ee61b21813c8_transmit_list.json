@@ -1,0 +1,62 @@
+{
+  "dbc_file": "dbcset-e18373eef9f3",
+  "items": [
+    {
+      "id": "1775935468365-0.34998775259936254",
+      "can_id": 1049280,
+      "data": [
+        1,
+        15,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "is_extended": true,
+      "message_name": null,
+      "signals": null,
+      "description": "VCU_MOBO_Command ",
+      "cycle_time": null
+    },
+    {
+      "id": "1775938267634-0.11794393674881676",
+      "can_id": 1049280,
+      "data": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "is_extended": true,
+      "message_name": null,
+      "signals": null,
+      "description": "Custom message 0x1002c0",
+      "cycle_time": null
+    },
+    {
+      "id": "1775938566932-0.8149717602677343",
+      "can_id": 5243584,
+      "data": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "is_extended": true,
+      "message_name": null,
+      "signals": null,
+      "description": "Custom message 0x5002c0",
+      "cycle_time": null
+    }
+  ]
+}

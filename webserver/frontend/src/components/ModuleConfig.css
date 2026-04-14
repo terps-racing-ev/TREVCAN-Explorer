@@ -1,0 +1,460 @@
+.module-config {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.module-config-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #000000;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.module-config-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f5f5f5;
+  flex: 1;
+}
+
+.module-config-header svg {
+  color: #dc2626;
+}
+
+.refresh-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  color: #f5f5f5;
+  border: 1px solid #4b5563;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.refresh-all-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+  border-color: #6b7280;
+}
+
+.refresh-all-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.refresh-all-btn.loading {
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  border-color: #dc2626;
+}
+
+.refresh-all-btn svg.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.module-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.module-id-input {
+  width: 70px;
+  padding: 4px 8px;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  background: #141414;
+  color: #f5f5f5;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.module-id-input:focus {
+  outline: none;
+  border-color: #dc2626;
+}
+
+.add-module-btn {
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-module-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+}
+
+.add-module-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.config-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(220, 38, 38, 0.1);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.2);
+  color: #fca5a5;
+  font-size: 12px;
+}
+
+.modules-container {
+  flex: 1;
+  overflow: auto;
+  padding: clamp(6px, 0.5vh, 12px);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: clamp(8px, 1vw, 16px);
+  align-content: start;
+}
+
+.module-card {
+  background: #141414;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #2a2a2a;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+/* Responding module - red theme */
+.module-card.responding {
+  border-color: #dc2626;
+}
+
+.module-card.responding .module-card-header {
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  border-bottom: 2px solid #dc2626;
+}
+
+/* Non-responding module - greyed out */
+.module-card.not-responding {
+  opacity: 0.6;
+  border-color: #333;
+}
+
+.module-card.not-responding .module-card-header {
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  border-bottom: 2px solid #4b5563;
+}
+
+.module-card.not-responding .module-card-header h3 {
+  color: #9ca3af;
+}
+
+.module-card.not-responding .can-id-badge {
+  background: rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.module-card.not-responding:hover {
+  opacity: 0.8;
+}
+
+.offline-badge {
+  font-size: 9px;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  color: #fbbf24;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.module-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: clamp(6px, 0.6vh, 10px) clamp(8px, 0.8vw, 12px);
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  border-bottom: 2px solid #dc2626;
+}
+
+.module-card-header h3 {
+  margin: 0;
+  font-size: clamp(11px, 0.9vw, 14px);
+  font-weight: 600;
+  color: white;
+  flex: 1;
+}
+
+.can-id-badge {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 10px;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.module-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.refresh-btn,
+.remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refresh-btn {
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.refresh-btn.loading svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.remove-btn {
+  background: rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.remove-btn:hover {
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+}
+
+.ack-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  animation: fadeIn 0.3s ease;
+}
+
+.ack-status.success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border-bottom: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.ack-status.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.config-grid {
+  padding: clamp(6px, 0.6vh, 12px);
+  background: #0a0a0a;
+}
+
+.config-row {
+  display: grid;
+  grid-template-columns: 110px 80px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: clamp(4px, 0.4vh, 8px) 0;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.config-row:last-child {
+  border-bottom: none;
+}
+
+.config-row label {
+  font-size: 11px;
+  color: #888;
+  font-weight: 500;
+}
+
+.config-value {
+  text-align: right;
+}
+
+.current-value {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  color: #f5f5f5;
+  font-weight: 600;
+}
+
+.current-value.placeholder {
+  color: #444;
+}
+
+.config-input {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.config-input input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  background: #141414;
+  color: #f5f5f5;
+  font-size: 11px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  min-width: 0;
+}
+
+.config-input input:focus {
+  outline: none;
+  border-color: #dc2626;
+}
+
+.config-input input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.config-input input::placeholder {
+  color: #444;
+}
+
+.set-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  background: #1a1a1a;
+  color: #888;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.set-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  color: white;
+  border-color: #dc2626;
+}
+
+.set-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.config-note {
+  padding: 8px 12px;
+  background: #141414;
+  border-top: 1px solid #1a1a1a;
+}
+
+.config-note small {
+  color: #555;
+  font-size: 10px;
+}
+
+/* Sleep Mode Toggle */
+.sleep-mode-row .sleep-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.sleep-mode-row .toggle-btn {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  border: 1px solid #333;
+  border-radius: 3px;
+  background: #1a1a1a;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sleep-mode-row .toggle-btn:hover:not(:disabled) {
+  background: #252525;
+  border-color: #444;
+  color: #ccc;
+}
+
+.sleep-mode-row .toggle-btn.active {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border-color: #22c55e;
+  color: white;
+}
+
+.sleep-mode-row .toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .modules-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .config-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  
+  .config-value {
+    text-align: left;
+  }
+}

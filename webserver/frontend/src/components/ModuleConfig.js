@@ -1,0 +1,577 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Settings, Send, RefreshCw, Check, X, AlertTriangle } from 'lucide-react';
+import './ModuleConfig.css';
+
+// CAN ID calculation for BMS configuration
+// Base ID: 0x08F0XF00 where X = module ID (bits 15:12)
+const CONFIG_CMD_BASE = 0x08F00F00;
+const CONFIG_ACK_BASE = 0x08F00F01;
+
+// Command bytes
+const CMD_SET_MODULE_ID = 0x01;
+const CMD_SET_MAX_TEMP = 0x02;
+const CMD_SET_MIN_TEMP = 0x03;
+const CMD_SET_MIN_VOLTAGE = 0x04;
+const CMD_SET_MAX_VOLTAGE = 0x05;
+const CMD_GET_VALUE = 0x06;
+const CMD_SET_SLEEP_MODE = 0x07;
+
+// Parameter selectors for GET command
+const PARAM_MODULE_ID = 0x01;
+const PARAM_MAX_TEMP = 0x02;
+const PARAM_MIN_TEMP = 0x03;
+const PARAM_MIN_VOLTAGE = 0x04;
+const PARAM_MAX_VOLTAGE = 0x05;
+const PARAM_SLEEP_MODE = 0x06;
+
+function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallback }) {
+  // Module configurations (keyed by module ID 0-15)
+  const [moduleConfigs, setModuleConfigs] = useState({});
+  // Input field values (separate from confirmed values)
+  const [inputValues, setInputValues] = useState({});
+  // Last ACK status per module
+  const [ackStatus, setAckStatus] = useState({});
+  // All 6 modules are always shown
+  const activeModules = [0, 1, 2, 3, 4, 5];
+  // Track which modules have responded (have any config data)
+  const [respondingModules, setRespondingModules] = useState(new Set());
+  // Loading state per module
+  const [loadingModules, setLoadingModules] = useState({});
+  // Global refresh in progress
+  const [isRefreshingAll, setIsRefreshingAll] = useState(false);
+  
+  // Track processed message timestamps to avoid re-processing
+  const processedTimestampsRef = useRef(new Set());
+  // Store active modules in ref for callback access
+  const activeModulesRef = useRef(activeModules);
+  
+  // Calculate CAN ID for a module
+  const getConfigCmdId = useCallback((moduleId) => CONFIG_CMD_BASE | (moduleId << 12), []);
+  const getConfigAckId = useCallback((moduleId) => CONFIG_ACK_BASE | (moduleId << 12), []);
+
+  // Helper function to extract signal value from different formats
+  // Network driver returns: { signal_name: value }
+  // PCAN/CANable local decoding returns: { signal_name: { value: ..., raw: ... } }
+  const getSignalValue = useCallback((signals, signalName) => {
+    const signal = signals[signalName];
+    if (signal === undefined || signal === null) return undefined;
+    
+    // If it's an object with a 'value' property (local DBC decoding format)
+    if (typeof signal === 'object' && signal !== null && 'value' in signal) {
+      return signal.value;
+    }
+    
+    // Otherwise it's a direct value (network driver format)
+    return signal;
+  }, []);
+
+  // Process a single raw message (called for EVERY message, not aggregated)
+  const processRawMessage = useCallback((msg) => {
+    // Create unique key for this message
+    const msgKey = `${msg.id}-${msg.timestamp}`;
+    
+    // Skip if already processed
+    if (processedTimestampsRef.current.has(msgKey)) return;
+    
+    // Check each active module's ACK ID
+    for (const moduleId of activeModulesRef.current) {
+      const expectedAckId = CONFIG_ACK_BASE | (moduleId << 12);
+      
+      // Check if this message matches
+      if (msg.id !== expectedAckId) continue;
+      
+      // Mark as processed
+      processedTimestampsRef.current.add(msgKey);
+      
+      // Limit the set size to prevent memory growth
+      if (processedTimestampsRef.current.size > 1000) {
+        const arr = Array.from(processedTimestampsRef.current);
+        processedTimestampsRef.current = new Set(arr.slice(-500));
+      }
+      
+      // Extract data from decoded signals
+      // Supports both network driver (server-side) and PCAN/CANable (local) DBC decoding
+      const signals = msg.decoded?.signals;
+      if (!signals) {
+        console.log(`[ModuleConfig] Message matched but no decoded signals`);
+        continue;
+      }
+      
+      // Use helper to extract values from either signal format
+      const cmdEcho = getSignalValue(signals, 'Command_Echo');
+      const status = getSignalValue(signals, 'Status');
+      const param = getSignalValue(signals, 'Byte2_OldVal_or_Param');
+      const valueLow = getSignalValue(signals, 'Byte3_NewVal_or_ValLo');
+      const valueHigh = getSignalValue(signals, 'Byte4_ValHi') || 0;
+      
+      console.log(`[ModuleConfig] ✓ MATCHED ACK for module ${moduleId}: cmd=${cmdEcho}, status=${status}, param=${param}, value=${valueLow}`);
+      
+      // Mark this module as responding
+      setRespondingModules(prev => new Set([...prev, moduleId]));
+      
+      if (cmdEcho === 'GET_VALUE') {
+        // GET response - update module config based on parameter
+        setModuleConfigs(prev => {
+          const updated = { ...prev };
+          if (!updated[moduleId]) {
+            updated[moduleId] = {};
+          }
+          
+          // Map parameter names to config fields
+          if (param === 'MODULE_ID' || param === PARAM_MODULE_ID) {
+            updated[moduleId].moduleId = valueLow;
+            console.log(`[ModuleConfig] Module ${moduleId}: moduleId = ${valueLow}`);
+          } else if (param === 'MAX_TEMP' || param === PARAM_MAX_TEMP) {
+            updated[moduleId].maxTemp = valueLow;
+            console.log(`[ModuleConfig] Module ${moduleId}: maxTemp = ${valueLow}°C`);
+          } else if (param === 'MIN_TEMP' || param === PARAM_MIN_TEMP) {
+            // Handle signed byte
+            const signedVal = valueLow > 127 ? valueLow - 256 : valueLow;
+            updated[moduleId].minTemp = signedVal;
+            console.log(`[ModuleConfig] Module ${moduleId}: minTemp = ${signedVal}°C`);
+          } else if (param === 'MIN_VOLTAGE' || param === PARAM_MIN_VOLTAGE) {
+            updated[moduleId].minVoltage = valueLow * 100; // Convert to mV
+            console.log(`[ModuleConfig] Module ${moduleId}: minVoltage = ${valueLow * 100}mV`);
+          } else if (param === 'MAX_VOLTAGE' || param === PARAM_MAX_VOLTAGE) {
+            updated[moduleId].maxVoltage = valueLow * 100; // Convert to mV
+            console.log(`[ModuleConfig] Module ${moduleId}: maxVoltage = ${valueLow * 100}mV`);
+          } else if (param === 'SLEEP_MODE' || param === PARAM_SLEEP_MODE) {
+            // 0 = enabled (can sleep), 1 = disabled (no sleep)
+            updated[moduleId].sleepMode = valueLow;
+            console.log(`[ModuleConfig] Module ${moduleId}: sleepMode = ${valueLow === 0 ? 'Enabled' : 'Disabled'}`);
+          }
+          
+          return updated;
+        });
+        
+        // Update ACK status
+        setAckStatus(prev => ({
+          ...prev,
+          [moduleId]: { type: 'get', success: status === 'SUCCESS', param: param, timestamp: Date.now() }
+        }));
+        
+      } else {
+        // SET response
+        setAckStatus(prev => ({
+          ...prev,
+          [moduleId]: { 
+            type: 'set', 
+            cmd: cmdEcho, 
+            success: status === 'SUCCESS' || status === 'NEEDS_RESET',
+            needsReset: status === 'NEEDS_RESET',
+            oldValue: param, 
+            newValue: valueLow, 
+            timestamp: Date.now() 
+          }
+        }));
+        
+        // If successful, refresh to get updated value
+        if (status === 'SUCCESS' || status === 'NEEDS_RESET') {
+          // The SET was successful, update the display
+          setModuleConfigs(prev => {
+            const updated = { ...prev };
+            if (!updated[moduleId]) {
+              updated[moduleId] = {};
+            }
+            
+            // Map command echo to config field and update with new value
+            if (cmdEcho === 'SET_MODULE_ID') {
+              updated[moduleId].moduleId = valueLow;
+            } else if (cmdEcho === 'SET_MAX_TEMP') {
+              updated[moduleId].maxTemp = valueLow;
+            } else if (cmdEcho === 'SET_MIN_TEMP') {
+              updated[moduleId].minTemp = valueLow > 127 ? valueLow - 256 : valueLow;
+            } else if (cmdEcho === 'SET_MIN_VOLTAGE') {
+              updated[moduleId].minVoltage = valueLow * 100;
+            } else if (cmdEcho === 'SET_MAX_VOLTAGE') {
+              updated[moduleId].maxVoltage = valueLow * 100;
+            } else if (cmdEcho === 'SET_SLEEP_MODE') {
+              updated[moduleId].sleepMode = valueLow;
+            }
+            
+            return updated;
+          });
+        }
+      }
+      
+      break; // Found matching module, stop checking others
+    }
+  }, [getSignalValue]);
+
+  // Register for raw messages when component mounts
+  useEffect(() => {
+    if (onRegisterRawCallback) {
+      console.log('[ModuleConfig] Registering for raw message callbacks');
+      const unregister = onRegisterRawCallback(processRawMessage);
+      return () => {
+        console.log('[ModuleConfig] Unregistering raw message callbacks');
+        unregister();
+      };
+    }
+  }, [onRegisterRawCallback, processRawMessage]);
+
+  // Send GET request for all parameters of a module with delays between each request
+  const refreshModule = useCallback(async (moduleId) => {
+    if (!connected || !onSendMessage) return;
+    
+    setLoadingModules(prev => ({ ...prev, [moduleId]: true }));
+    
+    const canId = getConfigCmdId(moduleId);
+    const params = [PARAM_MODULE_ID, PARAM_MAX_TEMP, PARAM_MIN_TEMP, PARAM_MIN_VOLTAGE, PARAM_MAX_VOLTAGE, PARAM_SLEEP_MODE];
+    const paramNames = ['Module ID', 'Max Temp', 'Min Temp', 'Min Voltage', 'Max Voltage', 'Sleep Mode'];
+    
+    console.log(`[ModuleConfig] Refreshing module ${moduleId}, CAN ID: 0x${canId.toString(16).toUpperCase()}`);
+    
+    for (let i = 0; i < params.length; i++) {
+      const param = params[i];
+      console.log(`[ModuleConfig] Sending GET for ${paramNames[i]} (param ${param})`);
+      await onSendMessage(canId, [CMD_GET_VALUE, param, 0, 0, 0, 0, 0, 0], true, false);
+      // 500ms delay between parameter requests to ensure we receive and process each response
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    setLoadingModules(prev => ({ ...prev, [moduleId]: false }));
+  }, [connected, onSendMessage, getConfigCmdId]);
+
+  // Refresh all modules in parallel (each module's parameters are still sequential with delays)
+  const refreshAllModules = useCallback(async () => {
+    if (!connected || !onSendMessage || isRefreshingAll) return;
+    
+    setIsRefreshingAll(true);
+    console.log(`[ModuleConfig] Refreshing all ${activeModules.length} modules in parallel`);
+    
+    // Start all module refreshes in parallel
+    await Promise.all(activeModules.map(moduleId => refreshModule(moduleId)));
+    
+    setIsRefreshingAll(false);
+  }, [connected, onSendMessage, activeModules, refreshModule, isRefreshingAll]);
+
+  // Refresh all active modules on mount and when connection changes
+  useEffect(() => {
+    if (connected) {
+      // Small delay to let connection stabilize
+      const timer = setTimeout(() => {
+        refreshAllModules();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [connected]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Send SET command
+  const sendSetCommand = useCallback(async (moduleId, cmd, value) => {
+    if (!connected || !onSendMessage) return;
+    
+    const canId = getConfigCmdId(moduleId);
+    let byteValue = value;
+    
+    // Handle signed values for temperature
+    if (cmd === CMD_SET_MIN_TEMP && value < 0) {
+      byteValue = 256 + value; // Convert to unsigned byte representation
+    }
+    
+    // Convert voltage to scaled value
+    if (cmd === CMD_SET_MIN_VOLTAGE || cmd === CMD_SET_MAX_VOLTAGE) {
+      byteValue = Math.round(value / 100); // Convert mV to scaled value
+    }
+    
+    console.log(`[ModuleConfig] Sending SET cmd=0x${cmd.toString(16)}, value=${byteValue} to 0x${canId.toString(16).toUpperCase()}`);
+    await onSendMessage(canId, [cmd, byteValue & 0xFF, 0, 0, 0, 0, 0, 0], true, false);
+  }, [connected, onSendMessage, getConfigCmdId]);
+
+  // Handle input change
+  const handleInputChange = (moduleId, field, value) => {
+    setInputValues(prev => ({
+      ...prev,
+      [moduleId]: {
+        ...prev[moduleId],
+        [field]: value
+      }
+    }));
+  };
+
+  // Get display value (input if modified, otherwise current config)
+  const getDisplayValue = (moduleId, field, defaultValue = '') => {
+    if (inputValues[moduleId]?.[field] !== undefined) {
+      return inputValues[moduleId][field];
+    }
+    if (moduleConfigs[moduleId]?.[field] !== undefined) {
+      return moduleConfigs[moduleId][field];
+    }
+    return defaultValue;
+  };
+
+  // Check if value has been modified
+  const isModified = (moduleId, field) => {
+    const inputVal = inputValues[moduleId]?.[field];
+    const configVal = moduleConfigs[moduleId]?.[field];
+    return inputVal !== undefined && inputVal !== '' && String(inputVal) !== String(configVal);
+  };
+
+  // Clear ACK status after 5 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setAckStatus(prev => {
+        const updated = { ...prev };
+        let changed = false;
+        Object.keys(updated).forEach(key => {
+          if (now - updated[key].timestamp > 5000) {
+            delete updated[key];
+            changed = true;
+          }
+        });
+        return changed ? updated : prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="module-config">
+      <div className="module-config-header">
+        <Settings size={18} />
+        <h2>BMS Module Configuration</h2>
+        <button 
+          onClick={refreshAllModules} 
+          disabled={!connected || isRefreshingAll}
+          className={`refresh-all-btn ${isRefreshingAll ? 'loading' : ''}`}
+          title="Refresh all modules sequentially"
+        >
+          <RefreshCw size={14} className={isRefreshingAll ? 'spinning' : ''} />
+          {isRefreshingAll ? 'Refreshing...' : 'Refresh All'}
+        </button>
+      </div>
+
+      {!connected && (
+        <div className="config-warning">
+          <AlertTriangle size={14} />
+          <span>Connect to CAN bus to configure modules</span>
+        </div>
+      )}
+
+      <div className="modules-container">
+        {activeModules.map(moduleId => {
+          const config = moduleConfigs[moduleId] || {};
+          const ack = ackStatus[moduleId];
+          const isLoading = loadingModules[moduleId];
+          const canIdHex = `0x${getConfigCmdId(moduleId).toString(16).toUpperCase()}`;
+          const isResponding = respondingModules.has(moduleId);
+          
+          return (
+            <div key={moduleId} className={`module-card ${isResponding ? 'responding' : 'not-responding'}`}>
+              <div className="module-card-header">
+                <h3>Module {moduleId}</h3>
+                <span className="can-id-badge">{canIdHex}</span>
+                {!isResponding && <span className="offline-badge">Offline</span>}
+                <div className="module-actions">
+                  <button 
+                    onClick={() => refreshModule(moduleId)} 
+                    disabled={!connected || isLoading}
+                    className={`refresh-btn ${isLoading ? 'loading' : ''}`}
+                    title="Refresh all values (1s between each)"
+                  >
+                    <RefreshCw size={12} />
+                  </button>
+                </div>
+              </div>
+
+              {ack && (
+                <div className={`ack-status ${ack.success ? 'success' : 'error'}`}>
+                  {ack.success ? <Check size={12} /> : <X size={12} />}
+                  {ack.type === 'set' ? (
+                    <>
+                      {ack.success ? 'Set OK' : 'Set failed'}
+                      {ack.needsReset && ' (Reset required)'}
+                      {ack.success && ` (${ack.oldValue} → ${ack.newValue})`}
+                    </>
+                  ) : (
+                    ack.success ? 'Value received' : 'Read failed'
+                  )}
+                </div>
+              )}
+
+              <div className="config-grid">
+                {/* Module ID */}
+                <div className="config-row">
+                  <label>Module ID</label>
+                  <div className="config-value">
+                    <span className={`current-value ${config.moduleId === undefined ? 'placeholder' : ''}`}>
+                      {config.moduleId !== undefined ? config.moduleId : '—'}
+                    </span>
+                  </div>
+                  <div className="config-input">
+                    <input
+                      type="number"
+                      min="0"
+                      max="15"
+                      value={getDisplayValue(moduleId, 'newModuleId', '')}
+                      onChange={(e) => handleInputChange(moduleId, 'newModuleId', e.target.value)}
+                      placeholder="0-15"
+                      disabled={!connected}
+                    />
+                    <button
+                      onClick={() => sendSetCommand(moduleId, CMD_SET_MODULE_ID, parseInt(inputValues[moduleId]?.newModuleId))}
+                      disabled={!connected || !isModified(moduleId, 'newModuleId')}
+                      className="set-btn"
+                      title="Set (requires reset)"
+                    >
+                      <Send size={10} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Max Temperature */}
+                <div className="config-row">
+                  <label>Max Temp</label>
+                  <div className="config-value">
+                    <span className={`current-value ${config.maxTemp === undefined ? 'placeholder' : ''}`}>
+                      {config.maxTemp !== undefined ? `${config.maxTemp}°C` : '—'}
+                    </span>
+                  </div>
+                  <div className="config-input">
+                    <input
+                      type="number"
+                      min="0"
+                      max="127"
+                      value={getDisplayValue(moduleId, 'maxTemp', '')}
+                      onChange={(e) => handleInputChange(moduleId, 'maxTemp', e.target.value)}
+                      placeholder="°C"
+                      disabled={!connected}
+                    />
+                    <button
+                      onClick={() => sendSetCommand(moduleId, CMD_SET_MAX_TEMP, parseInt(inputValues[moduleId]?.maxTemp))}
+                      disabled={!connected || !isModified(moduleId, 'maxTemp')}
+                      className="set-btn"
+                    >
+                      <Send size={10} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Min Temperature */}
+                <div className="config-row">
+                  <label>Min Temp</label>
+                  <div className="config-value">
+                    <span className={`current-value ${config.minTemp === undefined ? 'placeholder' : ''}`}>
+                      {config.minTemp !== undefined ? `${config.minTemp}°C` : '—'}
+                    </span>
+                  </div>
+                  <div className="config-input">
+                    <input
+                      type="number"
+                      min="-128"
+                      max="127"
+                      value={getDisplayValue(moduleId, 'minTemp', '')}
+                      onChange={(e) => handleInputChange(moduleId, 'minTemp', e.target.value)}
+                      placeholder="°C"
+                      disabled={!connected}
+                    />
+                    <button
+                      onClick={() => sendSetCommand(moduleId, CMD_SET_MIN_TEMP, parseInt(inputValues[moduleId]?.minTemp))}
+                      disabled={!connected || !isModified(moduleId, 'minTemp')}
+                      className="set-btn"
+                    >
+                      <Send size={10} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Min Voltage */}
+                <div className="config-row">
+                  <label>Min Voltage</label>
+                  <div className="config-value">
+                    <span className={`current-value ${config.minVoltage === undefined ? 'placeholder' : ''}`}>
+                      {config.minVoltage !== undefined ? `${config.minVoltage}mV` : '—'}
+                    </span>
+                  </div>
+                  <div className="config-input">
+                    <input
+                      type="number"
+                      min="0"
+                      max="25500"
+                      step="100"
+                      value={getDisplayValue(moduleId, 'minVoltage', '')}
+                      onChange={(e) => handleInputChange(moduleId, 'minVoltage', e.target.value)}
+                      placeholder="mV"
+                      disabled={!connected}
+                    />
+                    <button
+                      onClick={() => sendSetCommand(moduleId, CMD_SET_MIN_VOLTAGE, parseInt(inputValues[moduleId]?.minVoltage))}
+                      disabled={!connected || !isModified(moduleId, 'minVoltage')}
+                      className="set-btn"
+                    >
+                      <Send size={10} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Max Voltage */}
+                <div className="config-row">
+                  <label>Max Voltage</label>
+                  <div className="config-value">
+                    <span className={`current-value ${config.maxVoltage === undefined ? 'placeholder' : ''}`}>
+                      {config.maxVoltage !== undefined ? `${config.maxVoltage}mV` : '—'}
+                    </span>
+                  </div>
+                  <div className="config-input">
+                    <input
+                      type="number"
+                      min="0"
+                      max="25500"
+                      step="100"
+                      value={getDisplayValue(moduleId, 'maxVoltage', '')}
+                      onChange={(e) => handleInputChange(moduleId, 'maxVoltage', e.target.value)}
+                      placeholder="mV"
+                      disabled={!connected}
+                    />
+                    <button
+                      onClick={() => sendSetCommand(moduleId, CMD_SET_MAX_VOLTAGE, parseInt(inputValues[moduleId]?.maxVoltage))}
+                      disabled={!connected || !isModified(moduleId, 'maxVoltage')}
+                      className="set-btn"
+                    >
+                      <Send size={10} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sleep Mode */}
+                <div className="config-row sleep-mode-row">
+                  <label>Sleep Mode</label>
+                  <div className="config-value">
+                    <span className={`current-value ${config.sleepMode === undefined ? 'placeholder' : ''}`}>
+                      {config.sleepMode !== undefined ? (config.sleepMode === 0 ? 'Enabled' : 'Disabled') : '—'}
+                    </span>
+                  </div>
+                  <div className="config-input sleep-toggle">
+                    <button
+                      onClick={() => sendSetCommand(moduleId, CMD_SET_SLEEP_MODE, 0)}
+                      disabled={!connected}
+                      className={`toggle-btn ${config.sleepMode === 0 ? 'active' : ''}`}
+                      title="Enable sleep mode (BQ chips can sleep)"
+                    >
+                      Enable
+                    </button>
+                    <button
+                      onClick={() => sendSetCommand(moduleId, CMD_SET_SLEEP_MODE, 1)}
+                      disabled={!connected}
+                      className={`toggle-btn ${config.sleepMode === 1 ? 'active' : ''}`}
+                      title="Disable sleep mode (keep BQ chips awake)"
+                    >
+                      Disable
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="config-note">
+                <small>Temp/voltage/sleep settings reset to defaults on power cycle</small>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export default ModuleConfig;
