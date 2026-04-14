@@ -407,13 +407,43 @@
   font-size: 10px;
 }
 
-/* Sleep Mode Toggle */
-.sleep-mode-row .sleep-toggle {
+/* BQ Power Mode Toggle */
+.bq-mode-row .bq-mode-toggle {
   display: flex;
   gap: 4px;
 }
 
-.sleep-mode-row .toggle-btn {
+.bq-mode-row .bq-mode-value {
+  display: flex;
+  align-items: center;
+}
+
+.bq-mode-status {
+  display: flex;
+  gap: 6px;
+}
+
+.chip-mode {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid #333;
+}
+
+.chip-mode.normal {
+  color: #22c55e;
+  border-color: #22c55e44;
+  background: #22c55e11;
+}
+
+.chip-mode.sleep {
+  color: #eab308;
+  border-color: #eab30844;
+  background: #eab30811;
+}
+
+.bq-mode-row .toggle-btn {
   flex: 1;
   padding: 4px 8px;
   font-size: 10px;
@@ -426,19 +456,25 @@
   transition: all 0.15s ease;
 }
 
-.sleep-mode-row .toggle-btn:hover:not(:disabled) {
+.bq-mode-row .toggle-btn:hover:not(:disabled) {
   background: #252525;
   border-color: #444;
   color: #ccc;
 }
 
-.sleep-mode-row .toggle-btn.active {
+.bq-mode-row .toggle-btn.active.normal {
   background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   border-color: #22c55e;
   color: white;
 }
 
-.sleep-mode-row .toggle-btn:disabled {
+.bq-mode-row .toggle-btn.active.sleep {
+  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+  border-color: #eab308;
+  color: white;
+}
+
+.bq-mode-row .toggle-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

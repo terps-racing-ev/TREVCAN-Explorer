@@ -14,7 +14,7 @@ const CMD_SET_MIN_TEMP = 0x03;
 const CMD_SET_MIN_VOLTAGE = 0x04;
 const CMD_SET_MAX_VOLTAGE = 0x05;
 const CMD_GET_VALUE = 0x06;
-const CMD_SET_SLEEP_MODE = 0x07;
+const CMD_SET_BQ_MODE = 0x07;
 
 // Parameter selectors for GET command
 const PARAM_MODULE_ID = 0x01;
@@ -22,7 +22,7 @@ const PARAM_MAX_TEMP = 0x02;
 const PARAM_MIN_TEMP = 0x03;
 const PARAM_MIN_VOLTAGE = 0x04;
 const PARAM_MAX_VOLTAGE = 0x05;
-const PARAM_SLEEP_MODE = 0x06;
+const PARAM_BQ_MODE = 0x06;
 
 function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallback }) {
   // Module configurations (keyed by module ID 0-15)
@@ -135,10 +135,13 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
           } else if (param === 'MAX_VOLTAGE' || param === PARAM_MAX_VOLTAGE) {
             updated[moduleId].maxVoltage = valueLow * 100; // Convert to mV
             console.log(`[ModuleConfig] Module ${moduleId}: maxVoltage = ${valueLow * 100}mV`);
-          } else if (param === 'SLEEP_MODE' || param === PARAM_SLEEP_MODE) {
-            // 0 = enabled (can sleep), 1 = disabled (no sleep)
-            updated[moduleId].sleepMode = valueLow;
-            console.log(`[ModuleConfig] Module ${moduleId}: sleepMode = ${valueLow === 0 ? 'Enabled' : 'Disabled'}`);
+          } else if (param === 'BQ_MODE' || param === PARAM_BQ_MODE) {
+            // GET BQ Mode response: Byte3=BMS1 actual, Byte4=BMS2 actual
+            // 0=NORMAL, 1=SLEEP
+            updated[moduleId].bms1Mode = valueLow;
+            updated[moduleId].bms2Mode = valueHigh;
+            updated[moduleId].bqMode = valueLow; // Use BMS1 as primary display
+            console.log(`[ModuleConfig] Module ${moduleId}: BQ Mode — BMS1=${valueLow === 0 ? 'NORMAL' : 'SLEEP'}, BMS2=${valueHigh === 0 ? 'NORMAL' : 'SLEEP'}`);
           }
           
           return updated;
@@ -185,8 +188,11 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
               updated[moduleId].minVoltage = valueLow * 100;
             } else if (cmdEcho === 'SET_MAX_VOLTAGE') {
               updated[moduleId].maxVoltage = valueLow * 100;
-            } else if (cmdEcho === 'SET_SLEEP_MODE') {
-              updated[moduleId].sleepMode = valueLow;
+            } else if (cmdEcho === 'SET_BQ_MODE' || cmdEcho === CMD_SET_BQ_MODE) {
+              // SET BQ Mode ACK: Byte2=BMS1 actual, Byte3=BMS2 actual, Byte4=requested
+              updated[moduleId].bms1Mode = param; // Byte2 = BMS1 actual mode
+              updated[moduleId].bms2Mode = valueLow; // Byte3 = BMS2 actual mode
+              updated[moduleId].bqMode = param; // Use BMS1 as primary display
             }
             
             return updated;
@@ -217,8 +223,8 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
     setLoadingModules(prev => ({ ...prev, [moduleId]: true }));
     
     const canId = getConfigCmdId(moduleId);
-    const params = [PARAM_MODULE_ID, PARAM_MAX_TEMP, PARAM_MIN_TEMP, PARAM_MIN_VOLTAGE, PARAM_MAX_VOLTAGE, PARAM_SLEEP_MODE];
-    const paramNames = ['Module ID', 'Max Temp', 'Min Temp', 'Min Voltage', 'Max Voltage', 'Sleep Mode'];
+    const params = [PARAM_MODULE_ID, PARAM_MAX_TEMP, PARAM_MIN_TEMP, PARAM_MIN_VOLTAGE, PARAM_MAX_VOLTAGE, PARAM_BQ_MODE];
+    const paramNames = ['Module ID', 'Max Temp', 'Min Temp', 'Min Voltage', 'Max Voltage', 'BQ Mode'];
     
     console.log(`[ModuleConfig] Refreshing module ${moduleId}, CAN ID: 0x${canId.toString(16).toUpperCase()}`);
     
@@ -534,37 +540,46 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
                   </div>
                 </div>
 
-                {/* Sleep Mode */}
-                <div className="config-row sleep-mode-row">
-                  <label>Sleep Mode</label>
-                  <div className="config-value">
-                    <span className={`current-value ${config.sleepMode === undefined ? 'placeholder' : ''}`}>
-                      {config.sleepMode !== undefined ? (config.sleepMode === 0 ? 'Enabled' : 'Disabled') : '—'}
-                    </span>
+                {/* BQ Power Mode */}
+                <div className="config-row bq-mode-row">
+                  <label>BQ Power Mode</label>
+                  <div className="config-value bq-mode-value">
+                    {config.bqMode !== undefined ? (
+                      <span className="bq-mode-status">
+                        <span className={`chip-mode ${config.bms1Mode === 0 ? 'normal' : 'sleep'}`}>
+                          BMS1: {config.bms1Mode === 0 ? 'NORMAL' : 'SLEEP'}
+                        </span>
+                        <span className={`chip-mode ${config.bms2Mode === 0 ? 'normal' : 'sleep'}`}>
+                          BMS2: {config.bms2Mode === 0 ? 'NORMAL' : 'SLEEP'}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="current-value placeholder">—</span>
+                    )}
                   </div>
-                  <div className="config-input sleep-toggle">
+                  <div className="config-input bq-mode-toggle">
                     <button
-                      onClick={() => sendSetCommand(moduleId, CMD_SET_SLEEP_MODE, 0)}
+                      onClick={() => sendSetCommand(moduleId, CMD_SET_BQ_MODE, 0)}
                       disabled={!connected}
-                      className={`toggle-btn ${config.sleepMode === 0 ? 'active' : ''}`}
-                      title="Enable sleep mode (BQ chips can sleep)"
+                      className={`toggle-btn ${config.bqMode === 0 ? 'active normal' : ''}`}
+                      title="Set BQ chips to NORMAL mode (500ms read cycle)"
                     >
-                      Enable
+                      Normal
                     </button>
                     <button
-                      onClick={() => sendSetCommand(moduleId, CMD_SET_SLEEP_MODE, 1)}
+                      onClick={() => sendSetCommand(moduleId, CMD_SET_BQ_MODE, 1)}
                       disabled={!connected}
-                      className={`toggle-btn ${config.sleepMode === 1 ? 'active' : ''}`}
-                      title="Disable sleep mode (keep BQ chips awake)"
+                      className={`toggle-btn ${config.bqMode === 1 ? 'active sleep' : ''}`}
+                      title="Set BQ chips to SLEEP mode (5000ms read cycle)"
                     >
-                      Disable
+                      Sleep
                     </button>
                   </div>
                 </div>
               </div>
 
               <div className="config-note">
-                <small>Temp/voltage/sleep settings reset to defaults on power cycle</small>
+                <small>Temp/voltage/BQ mode settings reset to defaults on power cycle. Balancing forces NORMAL mode.</small>
               </div>
             </div>
           );
