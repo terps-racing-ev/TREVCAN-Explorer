@@ -23,6 +23,35 @@ const PARAM_MIN_TEMP = 0x03;
 const PARAM_MIN_VOLTAGE = 0x04;
 const PARAM_MAX_VOLTAGE = 0x05;
 const PARAM_BQ_MODE = 0x06;
+const PARAM_BQ_NORMAL_READ_INTERVAL = 0x07;
+const PARAM_BQ_NORMAL_CAN_INTERVAL = 0x08;
+const PARAM_BQ_SLEEP_READ_INTERVAL = 0x09;
+const PARAM_BQ_SLEEP_CAN_INTERVAL = 0x0A;
+const PARAM_I2C_TIMEOUT = 0x0B;
+const PARAM_BALANCE_CMD_TIMEOUT = 0x0C;
+const PARAM_BALANCE_REEVALUATE = 0x0D;
+const PARAM_BALANCE_REFRESH = 0x0E;
+const PARAM_BALANCE_OCV_SETTLE = 0x0F;
+const PARAM_BALANCE_STATUS_INTERVAL = 0x10;
+const PARAM_CAN_HEARTBEAT_INTERVAL = 0x11;
+const PARAM_TEMP_SUMMARY_INTERVAL = 0x12;
+const PARAM_CAN_TX_TIMEOUT = 0x13;
+
+const READBACK_PARAM_DEFINITIONS = [
+  { selector: PARAM_BQ_NORMAL_READ_INTERVAL, key: 'bqNormalReadInterval', label: 'BQ Normal Read', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BQ_NORMAL_CAN_INTERVAL, key: 'bqNormalCanInterval', label: 'BQ Normal CAN', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BQ_SLEEP_READ_INTERVAL, key: 'bqSleepReadInterval', label: 'BQ Sleep Read', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BQ_SLEEP_CAN_INTERVAL, key: 'bqSleepCanInterval', label: 'BQ Sleep CAN', unit: 'ms', is16Bit: true },
+  { selector: PARAM_I2C_TIMEOUT, key: 'i2cTimeout', label: 'I2C Timeout', unit: 'ms', is16Bit: false },
+  { selector: PARAM_BALANCE_CMD_TIMEOUT, key: 'balanceCmdTimeout', label: 'Balance Cmd Timeout', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BALANCE_REEVALUATE, key: 'balanceReevaluate', label: 'Balance Reevaluate', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BALANCE_REFRESH, key: 'balanceRefresh', label: 'Balance Refresh', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BALANCE_OCV_SETTLE, key: 'balanceOcvSettle', label: 'Balance OCV Settle', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BALANCE_STATUS_INTERVAL, key: 'balanceStatusInterval', label: 'Balance Status CAN', unit: 'ms', is16Bit: true },
+  { selector: PARAM_CAN_HEARTBEAT_INTERVAL, key: 'canHeartbeatInterval', label: 'CAN Heartbeat', unit: 'ms', is16Bit: true },
+  { selector: PARAM_TEMP_SUMMARY_INTERVAL, key: 'tempSummaryInterval', label: 'Temp Summary CAN', unit: 'ms', is16Bit: true },
+  { selector: PARAM_CAN_TX_TIMEOUT, key: 'canTxTimeout', label: 'CAN TX Timeout', unit: 'ms', is16Bit: false }
+];
 
 function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallback }) {
   // Module configurations (keyed by module ID 0-15)
@@ -65,6 +94,15 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
     return signal;
   }, []);
 
+  const isGetValueCommand = (cmdEcho) => cmdEcho === 'GET_VALUE' || cmdEcho === CMD_GET_VALUE || cmdEcho === 6;
+  const isSetBqModeCommand = (cmdEcho) => cmdEcho === 'SET_BQ_MODE' || cmdEcho === CMD_SET_BQ_MODE || cmdEcho === 7;
+  const isSuccessStatus = (status) => status === 'SUCCESS' || status === 0 || status === 'Success';
+  const isResetRequiredStatus = (status) =>
+    status === 'NEEDS_RESET' ||
+    status === 'SUCCESS_RESET_REQUIRED' ||
+    status === 'Reset_Required' ||
+    status === 2;
+
   // Process a single raw message (called for EVERY message, not aggregated)
   const processRawMessage = useCallback((msg) => {
     // Create unique key for this message
@@ -103,13 +141,16 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
       const param = getSignalValue(signals, 'Byte2_OldVal_or_Param');
       const valueLow = getSignalValue(signals, 'Byte3_NewVal_or_ValLo');
       const valueHigh = getSignalValue(signals, 'Byte4_ValHi') || 0;
+      const combined16Bit = ((valueHigh & 0xFF) << 8) | (valueLow & 0xFF);
+      const rawData = Array.isArray(msg.data) ? msg.data : [];
+      const byte5Value = rawData.length > 5 ? rawData[5] : undefined;
       
       console.log(`[ModuleConfig] ✓ MATCHED ACK for module ${moduleId}: cmd=${cmdEcho}, status=${status}, param=${param}, value=${valueLow}`);
       
       // Mark this module as responding
       setRespondingModules(prev => new Set([...prev, moduleId]));
       
-      if (cmdEcho === 'GET_VALUE') {
+      if (isGetValueCommand(cmdEcho)) {
         // GET response - update module config based on parameter
         setModuleConfigs(prev => {
           const updated = { ...prev };
@@ -136,12 +177,20 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
             updated[moduleId].maxVoltage = valueLow * 100; // Convert to mV
             console.log(`[ModuleConfig] Module ${moduleId}: maxVoltage = ${valueLow * 100}mV`);
           } else if (param === 'BQ_MODE' || param === PARAM_BQ_MODE) {
-            // GET BQ Mode response: Byte3=BMS1 actual, Byte4=BMS2 actual
-            // 0=NORMAL, 1=SLEEP
+            // GET BQ Mode response: Byte3=BMS1 actual, Byte4=BMS2 actual, Byte5=cached mode
             updated[moduleId].bms1Mode = valueLow;
             updated[moduleId].bms2Mode = valueHigh;
             updated[moduleId].bqMode = valueLow; // Use BMS1 as primary display
+            if (byte5Value !== undefined) {
+              updated[moduleId].bqModeCached = byte5Value;
+            }
             console.log(`[ModuleConfig] Module ${moduleId}: BQ Mode — BMS1=${valueLow === 0 ? 'NORMAL' : 'SLEEP'}, BMS2=${valueHigh === 0 ? 'NORMAL' : 'SLEEP'}`);
+          } else {
+            const readbackParam = READBACK_PARAM_DEFINITIONS.find((def) => def.selector === param);
+            if (readbackParam) {
+              updated[moduleId][readbackParam.key] = readbackParam.is16Bit ? combined16Bit : (valueLow & 0xFF);
+              console.log(`[ModuleConfig] Module ${moduleId}: ${readbackParam.label} = ${updated[moduleId][readbackParam.key]}${readbackParam.unit}`);
+            }
           }
           
           return updated;
@@ -150,7 +199,7 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
         // Update ACK status
         setAckStatus(prev => ({
           ...prev,
-          [moduleId]: { type: 'get', success: status === 'SUCCESS', param: param, timestamp: Date.now() }
+          [moduleId]: { type: 'get', success: isSuccessStatus(status), param: param, timestamp: Date.now() }
         }));
         
       } else {
@@ -160,8 +209,8 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
           [moduleId]: { 
             type: 'set', 
             cmd: cmdEcho, 
-            success: status === 'SUCCESS' || status === 'NEEDS_RESET',
-            needsReset: status === 'NEEDS_RESET',
+            success: isSuccessStatus(status) || isResetRequiredStatus(status),
+            needsReset: isResetRequiredStatus(status),
             oldValue: param, 
             newValue: valueLow, 
             timestamp: Date.now() 
@@ -169,7 +218,7 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
         }));
         
         // If successful, refresh to get updated value
-        if (status === 'SUCCESS' || status === 'NEEDS_RESET') {
+        if (isSuccessStatus(status) || isResetRequiredStatus(status)) {
           // The SET was successful, update the display
           setModuleConfigs(prev => {
             const updated = { ...prev };
@@ -188,11 +237,12 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
               updated[moduleId].minVoltage = valueLow * 100;
             } else if (cmdEcho === 'SET_MAX_VOLTAGE') {
               updated[moduleId].maxVoltage = valueLow * 100;
-            } else if (cmdEcho === 'SET_BQ_MODE' || cmdEcho === CMD_SET_BQ_MODE) {
+            } else if (isSetBqModeCommand(cmdEcho)) {
               // SET BQ Mode ACK: Byte2=BMS1 actual, Byte3=BMS2 actual, Byte4=requested
               updated[moduleId].bms1Mode = param; // Byte2 = BMS1 actual mode
               updated[moduleId].bms2Mode = valueLow; // Byte3 = BMS2 actual mode
               updated[moduleId].bqMode = param; // Use BMS1 as primary display
+              updated[moduleId].bqModeRequested = valueHigh;
             }
             
             return updated;
@@ -223,8 +273,9 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
     setLoadingModules(prev => ({ ...prev, [moduleId]: true }));
     
     const canId = getConfigCmdId(moduleId);
-    const params = [PARAM_MODULE_ID, PARAM_MAX_TEMP, PARAM_MIN_TEMP, PARAM_MIN_VOLTAGE, PARAM_MAX_VOLTAGE, PARAM_BQ_MODE];
-    const paramNames = ['Module ID', 'Max Temp', 'Min Temp', 'Min Voltage', 'Max Voltage', 'BQ Mode'];
+    const baseParams = [PARAM_MODULE_ID, PARAM_MAX_TEMP, PARAM_MIN_TEMP, PARAM_MIN_VOLTAGE, PARAM_MAX_VOLTAGE, PARAM_BQ_MODE];
+    const params = [...baseParams, ...READBACK_PARAM_DEFINITIONS.map((def) => def.selector)];
+    const paramNames = ['Module ID', 'Max Temp', 'Min Temp', 'Min Voltage', 'Max Voltage', 'BQ Mode', ...READBACK_PARAM_DEFINITIONS.map((def) => def.label)];
     
     console.log(`[ModuleConfig] Refreshing module ${moduleId}, CAN ID: 0x${canId.toString(16).toUpperCase()}`);
     
@@ -552,6 +603,11 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
                         <span className={`chip-mode ${config.bms2Mode === 0 ? 'normal' : 'sleep'}`}>
                           BMS2: {config.bms2Mode === 0 ? 'NORMAL' : 'SLEEP'}
                         </span>
+                        {config.bqModeCached !== undefined && (
+                          <span className={`chip-mode ${config.bqModeCached === 0 ? 'normal' : 'sleep'}`}>
+                            Cached: {config.bqModeCached === 0 ? 'NORMAL' : 'SLEEP'}
+                          </span>
+                        )}
                       </span>
                     ) : (
                       <span className="current-value placeholder">—</span>
@@ -575,6 +631,23 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
                       Sleep
                     </button>
                   </div>
+                </div>
+
+                <div className="readback-section">
+                  <div className="readback-title">Firmware Readback (Read Only)</div>
+                  {READBACK_PARAM_DEFINITIONS.map((field) => (
+                    <div className="config-row readback-row" key={field.key}>
+                      <label>{field.label}</label>
+                      <div className="config-value">
+                        <span className={`current-value ${config[field.key] === undefined ? 'placeholder' : ''}`}>
+                          {config[field.key] !== undefined ? `${config[field.key]}${field.unit}` : '—'}
+                        </span>
+                      </div>
+                      <div className="config-input read-only-input">
+                        <span className="read-only-pill">Read only</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
