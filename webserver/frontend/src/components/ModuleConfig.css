@@ -408,6 +408,23 @@
 }
 
 /* BQ Power Mode Toggle */
+.bq-mode-row {
+  grid-template-columns: 1fr !important;
+  grid-template-rows: auto auto;
+  gap: 6px !important;
+}
+
+.bq-mode-row label {
+  margin-bottom: 2px;
+}
+
+.bq-mode-row .bq-mode-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .bq-mode-row .bq-mode-toggle {
   display: flex;
   gap: 4px;
@@ -421,14 +438,16 @@
 .bq-mode-status {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .chip-mode {
   font-size: 10px;
   font-weight: 500;
-  padding: 1px 5px;
+  padding: 2px 6px;
   border-radius: 3px;
   border: 1px solid #333;
+  white-space: nowrap;
 }
 
 .chip-mode.normal {

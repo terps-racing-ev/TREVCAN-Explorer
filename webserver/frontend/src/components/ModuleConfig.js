@@ -602,42 +602,39 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
                 {/* BQ Power Mode */}
                 <div className="config-row bq-mode-row">
                   <label>BQ Power Mode</label>
-                  <div className="config-value bq-mode-value">
-                    {config.bqMode !== undefined ? (
-                      <span className="bq-mode-status">
-                        <span className={`chip-mode ${config.bms1Mode === 0 ? 'normal' : 'sleep'}`}>
-                          BMS1: {config.bms1Mode === 0 ? 'NORMAL' : 'SLEEP'}
-                        </span>
-                        <span className={`chip-mode ${config.bms2Mode === 0 ? 'normal' : 'sleep'}`}>
-                          BMS2: {config.bms2Mode === 0 ? 'NORMAL' : 'SLEEP'}
-                        </span>
-                        {config.bqModeCached !== undefined && (
-                          <span className={`chip-mode ${config.bqModeCached === 0 ? 'normal' : 'sleep'}`}>
-                            Cached: {config.bqModeCached === 0 ? 'NORMAL' : 'SLEEP'}
+                  <div className="bq-mode-controls">
+                    <div className="bq-mode-value">
+                      {config.bqMode !== undefined ? (
+                        <span className="bq-mode-status">
+                          <span className={`chip-mode ${config.bms1Mode === 0 ? 'normal' : 'sleep'}`}>
+                            BMS1: {config.bms1Mode === 0 ? 'NORMAL' : 'SLEEP'}
                           </span>
-                        )}
-                      </span>
-                    ) : (
-                      <span className="current-value placeholder">—</span>
-                    )}
-                  </div>
-                  <div className="config-input bq-mode-toggle">
-                    <button
-                      onClick={() => sendSetCommand(moduleId, CMD_SET_BQ_MODE, 0)}
-                      disabled={!connected}
-                      className={`toggle-btn ${config.bqMode === 0 ? 'active normal' : ''}`}
-                      title="Set BQ chips to NORMAL mode (500ms read cycle)"
-                    >
-                      Normal
-                    </button>
-                    <button
-                      onClick={() => sendSetCommand(moduleId, CMD_SET_BQ_MODE, 1)}
-                      disabled={!connected}
-                      className={`toggle-btn ${config.bqMode === 1 ? 'active sleep' : ''}`}
-                      title="Set BQ chips to SLEEP mode (5000ms read cycle)"
-                    >
-                      Sleep
-                    </button>
+                          <span className={`chip-mode ${config.bms2Mode === 0 ? 'normal' : 'sleep'}`}>
+                            BMS2: {config.bms2Mode === 0 ? 'NORMAL' : 'SLEEP'}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="current-value placeholder">—</span>
+                      )}
+                    </div>
+                    <div className="bq-mode-toggle">
+                      <button
+                        onClick={() => sendSetCommand(moduleId, CMD_SET_BQ_MODE, 0)}
+                        disabled={!connected}
+                        className={`toggle-btn ${config.bqMode === 0 ? 'active normal' : ''}`}
+                        title="Set BQ chips to NORMAL mode (500ms read cycle)"
+                      >
+                        Normal
+                      </button>
+                      <button
+                        onClick={() => sendSetCommand(moduleId, CMD_SET_BQ_MODE, 1)}
+                        disabled={!connected}
+                        className={`toggle-btn ${config.bqMode === 1 ? 'active sleep' : ''}`}
+                        title="Set BQ chips to SLEEP mode (5000ms read cycle)"
+                      >
+                        Sleep
+                      </button>
+                    </div>
                   </div>
                 </div>
 

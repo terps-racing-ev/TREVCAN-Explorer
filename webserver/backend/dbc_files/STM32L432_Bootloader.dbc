@@ -1,0 +1,143 @@
+VERSION ""
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_SGTYPE_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: CAN_Host Bootloader
+
+BA_DEF_ BO_  "VFrameFormat" ENUM  "StandardCAN","ExtendedCAN";
+BA_DEF_ BO_  "GenMsgCycleTime" INT 0 10000;
+BA_DEF_DEF_  "VFrameFormat" "StandardCAN";
+BA_DEF_DEF_  "GenMsgCycleTime" 0;
+
+BO_ 2550138625 BL_Host_Command: 8 CAN_Host
+ SG_ Command : 0|8@1+ (1,0) [0|255] "" Bootloader
+ SG_ Byte0 : 8|8@1+ (1,0) [0|255] "" Bootloader
+ SG_ Byte1 : 16|8@1+ (1,0) [0|255] "" Bootloader
+ SG_ Byte2 : 24|8@1+ (1,0) [0|255] "" Bootloader
+ SG_ Byte3 : 32|8@1+ (1,0) [0|255] "" Bootloader
+ SG_ Byte4 : 40|8@1+ (1,0) [0|255] "" Bootloader
+ SG_ Byte5 : 48|8@1+ (1,0) [0|255] "" Bootloader
+ SG_ Byte6 : 56|8@1+ (1,0) [0|255] "" Bootloader
+
+BO_ 2550138624 BL_Response: 8 Bootloader
+ SG_ ResponseCode M : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ AckLastError m16 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ NackErrorCode m17 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ ErrorCode m18 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BusyState m19 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ ReadyCode1 m20 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ HeartbeatBankACrcOk m20 : 16|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ HeartbeatBankBCrcOk m20 : 17|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ HeartbeatState m20 : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ HeartbeatLastError m20 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ HeartbeatActiveBankB m20 : 40|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ HeartbeatBankAValid m20 : 41|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ HeartbeatBankBValid m20 : 42|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ HeartbeatMetadataReady m20 : 43|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ HeartbeatCanCommandSeen m20 : 44|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ HeartbeatImageInfoValid m20 : 45|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ HeartbeatVerifiedBankValid m20 : 46|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ HeartbeatJumpPending m20 : 47|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ HeartbeatBytesWrittenHi m20 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ HeartbeatBytesWrittenLo m20 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ DataByte1 m21 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ DataByte2 m21 : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ DataByte3 m21 : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ DataByte4 m21 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ DataByte5 m21 : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ DataByte6 m21 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ DataByte7 m21 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ JumpStackPtrMsb m22 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ JumpStackPtrByte2 m22 : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ JumpStackPtrByte1 m22 : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ JumpStackPtrLsb m22 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ JumpResetVecByte2 m22 : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ JumpResetVecByte1 m22 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ JumpResetVecLsb m22 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+CM_ BO_ 2550138625 "Host command frame to bootloader. ID 0x18000701 (extended).";
+CM_ BO_ 2550138624 "Bootloader response frame. ID 0x18000700 (extended).";
+
+CM_ SG_ 2550138625 Command "ERASE(1), WRITE_FLASH(2), READ_FLASH(3), JUMP(4), STATUS(5), SET_ADDRESS(6), WRITE_DATA(7), GET_ACTIVE_BANK(8), SET_IMAGE_INFO(9), VERIFY_BANK(10).";
+CM_ SG_ 2550138624 ResponseCode "ACK(16), NACK(17), ERROR(18), BUSY(19), READY(20), DATA(21), JUMP_INFO(22).";
+CM_ SG_ 2550138624 AckLastError "ACK payload byte 1: last error code snapshot.";
+CM_ SG_ 2550138624 NackErrorCode "NACK payload byte 1: error code for the rejected command.";
+CM_ SG_ 2550138624 ErrorCode "ERROR payload byte 1.";
+CM_ SG_ 2550138624 BusyState "BUSY payload byte 1: current bootloader state.";
+CM_ SG_ 2550138624 ReadyCode1 "READY payload byte 1: version major or special marker.";
+CM_ SG_ 2550138624 HeartbeatBankACrcOk "1 = Bank A stored CRC matches computed CRC at startup.";
+CM_ SG_ 2550138624 HeartbeatBankBCrcOk "1 = Bank B stored CRC matches computed CRC at startup.";
+CM_ SG_ 2550138624 HeartbeatState "Bootloader state: IDLE/ERASING/WRITING/READING/VERIFYING/JUMPING.";
+CM_ SG_ 2550138624 HeartbeatLastError "Last bootloader error code.";
+CM_ SG_ 2550138624 HeartbeatActiveBankB "1 = active bank is B, 0 = active bank is A.";
+CM_ SG_ 2550138624 HeartbeatBankAValid "1 = metadata marks Bank A as valid.";
+CM_ SG_ 2550138624 HeartbeatBankBValid "1 = metadata marks Bank B as valid.";
+CM_ SG_ 2550138624 HeartbeatMetadataReady "1 = boot metadata read/initialized successfully.";
+CM_ SG_ 2550138624 HeartbeatCanCommandSeen "1 = at least one CAN command has been received since boot.";
+CM_ SG_ 2550138624 HeartbeatImageInfoValid "1 = image CRC/size info has been provided by host.";
+CM_ SG_ 2550138624 HeartbeatVerifiedBankValid "1 = a bank has been CRC-verified in this session.";
+CM_ SG_ 2550138624 HeartbeatJumpPending "1 = jump to application is pending.";
+CM_ SG_ 2550138624 HeartbeatBytesWrittenHi "bytes_written[15:8].";
+CM_ SG_ 2550138624 HeartbeatBytesWrittenLo "bytes_written[7:0].";
+CM_ SG_ 2550138624 DataByte1 "DATA payload byte 1 (command-dependent).";
+CM_ SG_ 2550138624 DataByte2 "DATA payload byte 2 (command-dependent).";
+CM_ SG_ 2550138624 DataByte3 "DATA payload byte 3 (command-dependent).";
+CM_ SG_ 2550138624 DataByte4 "DATA payload byte 4 (command-dependent).";
+CM_ SG_ 2550138624 DataByte5 "DATA payload byte 5 (command-dependent).";
+CM_ SG_ 2550138624 DataByte6 "DATA payload byte 6 (command-dependent).";
+CM_ SG_ 2550138624 DataByte7 "DATA payload byte 7 (command-dependent).";
+CM_ SG_ 2550138624 JumpStackPtrMsb "JUMP_INFO payload byte 1: stack pointer[31:24].";
+CM_ SG_ 2550138624 JumpStackPtrByte2 "JUMP_INFO payload byte 2: stack pointer[23:16].";
+CM_ SG_ 2550138624 JumpStackPtrByte1 "JUMP_INFO payload byte 3: stack pointer[15:8].";
+CM_ SG_ 2550138624 JumpStackPtrLsb "JUMP_INFO payload byte 4: stack pointer[7:0].";
+CM_ SG_ 2550138624 JumpResetVecByte2 "JUMP_INFO payload byte 5: reset vector[23:16].";
+CM_ SG_ 2550138624 JumpResetVecByte1 "JUMP_INFO payload byte 6: reset vector[15:8].";
+CM_ SG_ 2550138624 JumpResetVecLsb "JUMP_INFO payload byte 7: reset vector[7:0].";
+
+VAL_ 2550138625 Command 1 "CMD_ERASE_FLASH" 2 "CMD_WRITE_FLASH" 3 "CMD_READ_FLASH" 4 "CMD_JUMP_TO_APP" 5 "CMD_GET_STATUS" 6 "CMD_SET_ADDRESS" 7 "CMD_WRITE_DATA" 8 "CMD_GET_ACTIVE_BANK" 9 "CMD_SET_IMAGE_INFO" 10 "CMD_VERIFY_BANK" ;
+
+VAL_ 2550138624 ResponseCode 16 "RESP_ACK" 17 "RESP_NACK" 18 "RESP_ERROR" 19 "RESP_BUSY" 20 "RESP_READY" 21 "RESP_DATA" 22 "RESP_JUMP_INFO" ;
+VAL_ 2550138624 ReadyCode1 1 "READY_HEARTBEAT" 165 "READY_RECOVERY_PATH" 170 "READY_TIMEOUT_PATH" 255 "READY_JUMP_PENDING" ;
+VAL_ 2550138624 HeartbeatState 0 "BL_STATE_IDLE" 1 "BL_STATE_ERASING" 2 "BL_STATE_WRITING" 3 "BL_STATE_READING" 4 "BL_STATE_VERIFYING" 5 "BL_STATE_JUMPING" ;
+VAL_ 2550138624 HeartbeatLastError 0 "ERR_NONE" 1 "ERR_INVALID_COMMAND" 2 "ERR_INVALID_ADDRESS" 3 "ERR_FLASH_ERASE_FAILED" 4 "ERR_FLASH_WRITE_FAILED" 5 "ERR_INVALID_DATA_LENGTH" 6 "ERR_NO_VALID_APP" 7 "ERR_TIMEOUT" 8 "ERR_CRC_MISMATCH" ;
+VAL_ 2550138624 HeartbeatActiveBankB 0 "BANK_A_ACTIVE" 1 "BANK_B_ACTIVE" ;
+VAL_ 2550138624 HeartbeatBankAValid 0 "BANK_A_INVALID" 1 "BANK_A_VALID" ;
+VAL_ 2550138624 HeartbeatBankBValid 0 "BANK_B_INVALID" 1 "BANK_B_VALID" ;
+VAL_ 2550138624 HeartbeatMetadataReady 0 "METADATA_NOT_READY" 1 "METADATA_READY" ;
+VAL_ 2550138624 HeartbeatCanCommandSeen 0 "NO_COMMAND_SEEN" 1 "COMMAND_SEEN" ;
+VAL_ 2550138624 HeartbeatImageInfoValid 0 "IMAGE_INFO_INVALID" 1 "IMAGE_INFO_VALID" ;
+VAL_ 2550138624 HeartbeatVerifiedBankValid 0 "VERIFIED_BANK_INVALID" 1 "VERIFIED_BANK_VALID" ;
+VAL_ 2550138624 HeartbeatJumpPending 0 "JUMP_NOT_PENDING" 1 "JUMP_PENDING" ;
+VAL_ 2550138624 HeartbeatBankACrcOk 0 "BANK_A_CRC_FAIL" 1 "BANK_A_CRC_OK" ;
+VAL_ 2550138624 HeartbeatBankBCrcOk 0 "BANK_B_CRC_FAIL" 1 "BANK_B_CRC_OK" ;
+
+// Extended CAN ID markers
+BA_ "VFrameFormat" BO_ 2550138625 1;
+BA_ "VFrameFormat" BO_ 2550138624 1;

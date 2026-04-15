@@ -1,11 +1,11 @@
 {
   "files": [
     {
-      "filename": "brz_gr86_gen2_asc.dbc",
-      "enabled": false
+      "filename": "BMS-Firmware-RTOS-Complete.dbc",
+      "enabled": true
     },
     {
-      "filename": "BMS-Firmware-RTOS-Complete.dbc",
+      "filename": "STM32L432_Bootloader.dbc",
       "enabled": true
     }
   ]
