@@ -45,7 +45,7 @@ const READBACK_PARAM_DEFINITIONS = [
   { selector: PARAM_BQ_SLEEP_CAN_INTERVAL, dbcName: 'BQ_SLEEP_CAN_INT', key: 'bqSleepCanInterval', label: 'BQ Sleep CAN', unit: 'ms', is16Bit: true },
   { selector: PARAM_I2C_TIMEOUT, dbcName: 'I2C_TIMEOUT', key: 'i2cTimeout', label: 'I2C Timeout', unit: 'ms', is16Bit: false },
   { selector: PARAM_BALANCE_CMD_TIMEOUT, dbcName: 'BAL_CMD_TIMEOUT', key: 'balanceCmdTimeout', label: 'Balance Cmd Timeout', unit: 'ms', is16Bit: true },
-  { selector: PARAM_BALANCE_REEVALUATE, dbcName: 'BAL_REEVALUATE', key: 'balanceReevaluate', label: 'Balance Reevaluate', unit: 'ms', is16Bit: true },
+  { selector: PARAM_BALANCE_REEVALUATE, dbcName: 'BAL_REEVALUATE', key: 'balanceReevaluate', label: 'Balance Reevaluate', unit: 's', is16Bit: true },
   { selector: PARAM_BALANCE_REFRESH, dbcName: 'BAL_REFRESH', key: 'balanceRefresh', label: 'Balance Refresh', unit: 'ms', is16Bit: true },
   { selector: PARAM_BALANCE_OCV_SETTLE, dbcName: 'BAL_OCV_SETTLE', key: 'balanceOcvSettle', label: 'Balance OCV Settle', unit: 'ms', is16Bit: true },
   { selector: PARAM_BALANCE_STATUS_INTERVAL, dbcName: 'BAL_STATUS_INT', key: 'balanceStatusInterval', label: 'Balance Status CAN', unit: 'ms', is16Bit: true },
