@@ -552,3 +552,22 @@
     text-align: left;
   }
 }
+
+/* ===== Stale message indicator ===== */
+.module-config .module-card.stale {
+  filter: grayscale(80%) brightness(0.7);
+  opacity: 0.65;
+  position: relative;
+  transition: filter 0.3s ease, opacity 0.3s ease;
+}
+.module-config .stale-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: rgba(120, 120, 120, 0.85);
+  color: #f5f5f5;
+  border-radius: 3px;
+}

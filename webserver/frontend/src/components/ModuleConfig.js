@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Settings, Send, RefreshCw, Check, X, AlertTriangle } from 'lucide-react';
+import { useNowTick, isTimestampStale } from '../hooks/useStaleness';
 import './ModuleConfig.css';
 
 // CAN ID calculation for BMS configuration
@@ -53,7 +54,8 @@ const READBACK_PARAM_DEFINITIONS = [
   { selector: PARAM_CAN_TX_TIMEOUT, dbcName: 'CAN_TX_TIMEOUT', key: 'canTxTimeout', label: 'CAN TX Timeout', unit: 'ms', is16Bit: false }
 ];
 
-function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallback }) {
+function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallback, staleTimeoutMs = 30000 }) {
+  const nowMs = useNowTick(1000);
   // Module configurations (keyed by module ID 0-15)
   const [moduleConfigs, setModuleConfigs] = useState({});
   // Input field values (separate from confirmed values)
@@ -421,13 +423,31 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
           const isLoading = loadingModules[moduleId];
           const canIdHex = `0x${getConfigCmdId(moduleId).toString(16).toUpperCase()}`;
           const isResponding = respondingModules.has(moduleId);
-          
+
+          // Treat the module as stale when no message naming this module has
+          // arrived within the configured timeout. A module that has never
+          // responded is shown as "Offline" rather than "stale".
+          let lastTs = null;
+          if (messages) {
+            for (const msg of messages) {
+              const t = typeof msg?.timestamp === 'number' ? msg.timestamp : null;
+              if (t === null) continue;
+              const msgName = msg?.decoded?.message_name || '';
+              const suffixMatch = msgName.match(/_(\d)$/);
+              if (suffixMatch && parseInt(suffixMatch[1], 10) === moduleId) {
+                if (lastTs === null || t > lastTs) lastTs = t;
+              }
+            }
+          }
+          const isStale = isResponding && isTimestampStale(lastTs, nowMs, staleTimeoutMs);
+
           return (
-            <div key={moduleId} className={`module-card ${isResponding ? 'responding' : 'not-responding'}`}>
+            <div key={moduleId} className={`module-card ${isResponding ? 'responding' : 'not-responding'} ${isStale ? 'stale' : ''}`} title={isStale ? `Stale — no data received in the last ${Math.round(staleTimeoutMs / 1000)}s` : undefined}>
               <div className="module-card-header">
                 <h3>Module {moduleId}</h3>
                 <span className="can-id-badge">{canIdHex}</span>
                 {!isResponding && <span className="offline-badge">Offline</span>}
+                {isStale && <span className="stale-badge">Stale</span>}
                 <div className="module-actions">
                   <button 
                     onClick={() => refreshModule(moduleId)} 

@@ -584,6 +584,48 @@
   background: #252525;
 }
 
+/* Settings section */
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.settings-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-form label {
+  font-size: 12px;
+  color: #cbd5e0;
+  font-weight: 500;
+}
+
+.settings-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  color: #f5f5f5;
+  font-size: 13px;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: #dc2626;
+  background: #252525;
+}
+
+.settings-hint {
+  font-size: 11px;
+  color: #718096;
+  line-height: 1.4;
+}
+
 /* Main Content Area */
 .can-main-content {
   flex: 1;

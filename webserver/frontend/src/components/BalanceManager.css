@@ -462,3 +462,26 @@
     gap: 8px;
   }
 }
+
+/* ===== Stale message indicator ===== */
+.balance-manager .module-column.stale {
+  filter: grayscale(85%) brightness(0.6);
+  opacity: 0.55;
+  position: relative;
+  transition: filter 0.3s ease, opacity 0.3s ease;
+}
+.balance-manager .module-column.stale::after {
+  content: 'STALE';
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: rgba(120, 120, 120, 0.85);
+  color: #f5f5f5;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 1;
+}

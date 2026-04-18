@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { Battery, Thermometer, TrendingUp, TrendingDown, Zap, Scale } from 'lucide-react';
+import { useNowTick, isTimestampStale } from '../hooks/useStaleness';
 import './BalanceManager.css';
 
 // CAN IDs for balance messages (29-bit extended)
@@ -8,7 +9,35 @@ const CAN_BALANCE_CFG_BASE = 0x08F00F07;
 
 const SEND_INTERVAL_MS = 4000;
 
-function BalanceManager({ messages, onSendMessage }) {
+function BalanceManager({ messages, onSendMessage, staleTimeoutMs = 30000 }) {
+  const nowMs = useNowTick(1000);
+
+  // Per-module freshest CAN timestamp (in seconds) for stale detection.
+  const moduleFreshestTimestamp = useMemo(() => {
+    const timestamps = Array(6).fill(null);
+    if (!messages) return timestamps;
+    messages.forEach(msg => {
+      const t = typeof msg?.timestamp === 'number' ? msg.timestamp : null;
+      if (t === null) return;
+      const msgName = msg?.decoded?.message_name || '';
+      const ids = new Set();
+      const tempMatch = msgName.match(/Cell_Temp_(\d+)_/);
+      if (tempMatch) ids.add(Math.floor(parseInt(tempMatch[1], 10) / 56));
+      const voltMatch = msgName.match(/Cell_Voltage_(\d+)_/);
+      if (voltMatch) ids.add(Math.floor((parseInt(voltMatch[1], 10) - 1) / 18));
+      const suffixMatch = msgName.match(/_(\d)$/);
+      if (suffixMatch) ids.add(parseInt(suffixMatch[1], 10));
+      ids.forEach(id => {
+        if (id >= 0 && id < 6 && (timestamps[id] === null || t > timestamps[id])) {
+          timestamps[id] = t;
+        }
+      });
+    });
+    return timestamps;
+  }, [messages]);
+  const moduleStale = useMemo(() => (
+    moduleFreshestTimestamp.map(ts => isTimestampStale(ts, nowMs, staleTimeoutMs))
+  ), [moduleFreshestTimestamp, nowMs, staleTimeoutMs]);
   // Per-module balance config state
   const [moduleConfigs, setModuleConfigs] = useState(() =>
     Array(6).fill(null).map(() => ({
@@ -506,10 +535,10 @@ function BalanceManager({ messages, onSendMessage }) {
               const status = balanceStatus[moduleId];
 
               return (
-                <div key={moduleId} className="module-column">
+                <div key={moduleId} className={`module-column ${moduleStale[moduleId] ? 'stale' : ''}`} title={moduleStale[moduleId] ? `Stale — no data received in the last ${Math.round(staleTimeoutMs / 1000)}s` : undefined}>
                   <div className={`module-header ${config.active ? 'active-balancing' : ''}`}>
                     <div className="module-title">
-                      Module {moduleId} <span className="module-state">{moduleStates[moduleId]}</span>
+                      Module {moduleId} <span className="module-state">{moduleStale[moduleId] ? `${moduleStates[moduleId]} (stale)` : moduleStates[moduleId]}</span>
                     </div>
                     <div className="module-ambient">
                       ΔV {moduleVoltageStats[moduleId]?.delta !== null ? `${(moduleVoltageStats[moduleId].delta * 1000).toFixed(0)}mV` : '--'}

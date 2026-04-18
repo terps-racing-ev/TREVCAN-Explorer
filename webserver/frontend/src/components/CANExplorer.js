@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { Send, Trash2, FileText, Filter, Upload, ChevronDown, ChevronRight, ChevronLeft, Activity, Wifi, WifiOff, RefreshCw, List, PanelLeftClose, PanelLeft, Download, X, Eye, EyeOff, Flag, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
+import { Send, Trash2, FileText, Filter, Upload, ChevronDown, ChevronRight, ChevronLeft, Activity, Wifi, WifiOff, RefreshCw, List, PanelLeftClose, PanelLeft, Download, X, Eye, EyeOff, Flag, ArrowUp, ArrowDown, GripVertical, Settings as SettingsIcon } from 'lucide-react';
 import TransmitList from './TransmitList';
 import './CANExplorer.css';
 
@@ -27,6 +27,8 @@ function CANExplorer({
   simulationActive,
   onStartSimulation,
   onStopSimulation,
+  staleTimeoutMs,
+  onStaleTimeoutChange,
   children
 }) {
   const [filterText, setFilterText] = useState('');
@@ -37,6 +39,10 @@ function CANExplorer({
   const [connectionExpanded, setConnectionExpanded] = useState(true);
   const [dbcExpanded, setDbcExpanded] = useState(true);
   const [filterExpanded, setFilterExpanded] = useState(true);
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
+  const [staleTimeoutInput, setStaleTimeoutInput] = useState(() =>
+    String(Math.round((staleTimeoutMs ?? 30000) / 1000))
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [draggedDbcFile, setDraggedDbcFile] = useState(null);
   const fileInputRef = useRef(null);
@@ -85,6 +91,24 @@ function CANExplorer({
   useEffect(() => {
     localStorage.setItem('networkDevicePort', networkPort);
   }, [networkPort]);
+
+  // Keep the local stale-timeout input in sync if the underlying value changes elsewhere.
+  useEffect(() => {
+    setStaleTimeoutInput(String(Math.round((staleTimeoutMs ?? 30000) / 1000)));
+  }, [staleTimeoutMs]);
+
+  const commitStaleTimeout = useCallback((rawValue) => {
+    if (!onStaleTimeoutChange) return;
+    const seconds = parseFloat(rawValue);
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+      // Restore previous valid value in the input
+      setStaleTimeoutInput(String(Math.round((staleTimeoutMs ?? 30000) / 1000)));
+      return;
+    }
+    const clampedSeconds = Math.max(1, Math.min(600, seconds));
+    onStaleTimeoutChange(Math.round(clampedSeconds * 1000));
+    setStaleTimeoutInput(String(Math.round(clampedSeconds)));
+  }, [onStaleTimeoutChange, staleTimeoutMs]);
 
   // Save bluetooth settings to localStorage when they change
   useEffect(() => {
@@ -1251,6 +1275,41 @@ function CANExplorer({
             onChange={(e) => setFilterText(e.target.value)}
             className="filter-input-sidebar"
           />}
+        </div>
+
+        {/* Settings */}
+        <div className="sidebar-section">
+          <div className="sidebar-header collapsible" onClick={() => setSettingsExpanded(!settingsExpanded)}>
+            {settingsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            <SettingsIcon size={18} />
+            <span>Settings</span>
+          </div>
+          {settingsExpanded && (
+            <div className="settings-form">
+              <div className="form-group">
+                <label htmlFor="stale-timeout-input">Stale Message Timeout (s)</label>
+                <input
+                  id="stale-timeout-input"
+                  type="number"
+                  min="1"
+                  max="600"
+                  step="1"
+                  value={staleTimeoutInput}
+                  onChange={(e) => setStaleTimeoutInput(e.target.value)}
+                  onBlur={(e) => commitStaleTimeout(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.target.blur();
+                    }
+                  }}
+                  className="settings-input"
+                />
+                <div className="settings-hint">
+                  Data older than this is shown grayed-out on sub-pages. Default 30s.
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

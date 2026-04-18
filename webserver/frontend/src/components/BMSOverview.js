@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
 import { Battery, Thermometer, TrendingUp, TrendingDown, Zap } from 'lucide-react';
+import { useNowTick, isTimestampStale } from '../hooks/useStaleness';
 import './BMSOverview.css';
 
-function BMSOverview({ messages }) {
+function BMSOverview({ messages, staleTimeoutMs = 30000 }) {
   const isDisplayableTemp = (temp) => temp !== null && temp >= -30;
+  const nowMs = useNowTick(1000);
 
   // Extract cell voltage data from CAN messages
   const cellData = useMemo(() => {
@@ -220,6 +222,61 @@ function BMSOverview({ messages }) {
     return states;
   }, [messages]);
 
+  // Per-module freshest message timestamp (seconds). A module's data is
+  // considered stale when no message naming that module (e.g. *_0, Cell_X_*
+  // mapping to module 0, etc.) has been seen within the stale timeout window.
+  const moduleFreshestTimestamp = useMemo(() => {
+    const timestamps = Array(6).fill(null);
+    messages.forEach(msg => {
+      const t = typeof msg?.timestamp === 'number' ? msg.timestamp : null;
+      if (t === null) return;
+      const msgName = msg?.decoded?.message_name || '';
+
+      const moduleIds = new Set();
+
+      // Cell_Voltage_<cell>_<idx> — derive from cell number (1-based, 18 per module).
+      const cellVoltMatch = msgName.match(/Cell_Voltage_(\d+)_/);
+      if (cellVoltMatch) {
+        moduleIds.add(Math.floor((parseInt(cellVoltMatch[1], 10) - 1) / 18));
+      }
+      // Cell_Temp_<therm>_<idx> — derive from thermistor number (0-based, 56 per module).
+      const cellTempMatch = msgName.match(/Cell_Temp_(\d+)_/);
+      if (cellTempMatch) {
+        moduleIds.add(Math.floor(parseInt(cellTempMatch[1], 10) / 56));
+      }
+      // Generic module suffix (BMS_Heartbeat_0, BQ76952_Stack_Voltage_3, BMS1_Balance_Detail_2, ...).
+      const suffixMatch = msgName.match(/_(\d)$/);
+      if (suffixMatch) {
+        moduleIds.add(parseInt(suffixMatch[1], 10));
+      }
+
+      moduleIds.forEach(id => {
+        if (id >= 0 && id < 6) {
+          if (timestamps[id] === null || t > timestamps[id]) {
+            timestamps[id] = t;
+          }
+        }
+      });
+    });
+    return timestamps;
+  }, [messages]);
+
+  const moduleStale = useMemo(() => (
+    moduleFreshestTimestamp.map(ts => isTimestampStale(ts, nowMs, staleTimeoutMs))
+  ), [moduleFreshestTimestamp, nowMs, staleTimeoutMs]);
+
+  // Pack-level current message staleness (Current_Sensor_Data, ID 0xCC).
+  const currentSensorTimestamp = useMemo(() => {
+    let latest = null;
+    messages.forEach(msg => {
+      if (msg?.decoded?.message_name !== 'Current_Sensor_Data') return;
+      const t = typeof msg?.timestamp === 'number' ? msg.timestamp : null;
+      if (t !== null && (latest === null || t > latest)) latest = t;
+    });
+    return latest;
+  }, [messages]);
+  const currentSensorStale = isTimestampStale(currentSensorTimestamp, nowMs, staleTimeoutMs);
+
   // Calculate voltage statistics
   const voltageStats = useMemo(() => {
     const allVoltages = cellData.modules.flat().filter(v => v !== null);
@@ -399,11 +456,11 @@ function BMSOverview({ messages }) {
               <span className="stat-label">Cells:</span>
               <span className="stat-value">{voltageStats.active}/108</span>
             </div>
-            <div className="stat-item">
+            <div className={`stat-item ${currentSensorStale ? 'stale' : ''}`}>
               <span className="stat-label">LC Current:</span>
               <span className="stat-value">{packCurrents.lc !== null ? `${packCurrents.lc.toFixed(1)}A` : '--'}</span>
             </div>
-            <div className="stat-item">
+            <div className={`stat-item ${currentSensorStale ? 'stale' : ''}`}>
               <span className="stat-label">HC Current:</span>
               <span className="stat-value">{packCurrents.hc !== null ? `${packCurrents.hc.toFixed(1)}A` : '--'}</span>
             </div>
@@ -454,9 +511,9 @@ function BMSOverview({ messages }) {
         <div className="overview-grid-container">
           <div className="overview-grid">
             {cellData.modules.map((module, moduleId) => (
-              <div key={moduleId} className="module-column">
+              <div key={moduleId} className={`module-column ${moduleStale[moduleId] ? 'stale' : ''}`} title={moduleStale[moduleId] ? `Stale — no data received in the last ${Math.round(staleTimeoutMs / 1000)}s` : undefined}>
                 <div className="module-header">
-                  <div className="module-title">Module {moduleId} <span className="module-state">{moduleStates[moduleId]}</span></div>
+                  <div className="module-title">Module {moduleId} <span className="module-state">{moduleStale[moduleId] ? `${moduleStates[moduleId]} (stale)` : moduleStates[moduleId]}</span></div>
                   <div className="module-ambient">
                     Amb (MPlug Side) {isDisplayableTemp(thermistorData[moduleId]?.[54]) ? `${thermistorData[moduleId][54].toFixed(1)}°C` : '--'} / (STM Side) {isDisplayableTemp(thermistorData[moduleId]?.[55]) ? `${thermistorData[moduleId][55].toFixed(1)}°C` : '--'}
                     {' | '}

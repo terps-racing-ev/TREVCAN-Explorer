@@ -40,6 +40,18 @@ function App() {
   const [toast, setToast] = useState(null);
   const [simulationActive, setSimulationActive] = useState(false);
 
+  // Stale message timeout (ms) — controls when sub-pages gray out data whose
+  // source CAN message hasn't been seen recently. Persisted to localStorage.
+  const [staleTimeoutMs, setStaleTimeoutMsState] = useState(() => {
+    const stored = parseInt(localStorage.getItem('staleTimeoutMs'), 10);
+    return Number.isFinite(stored) && stored > 0 ? stored : 30000;
+  });
+  const setStaleTimeoutMs = useCallback((ms) => {
+    const clamped = Math.max(1000, Math.min(600000, Math.round(ms)));
+    setStaleTimeoutMsState(clamped);
+    localStorage.setItem('staleTimeoutMs', String(clamped));
+  }, []);
+
   // Performance: Batch incoming messages and aggregate by CAN ID
   const messageBufferRef = useRef([]);
   const flushIntervalRef = useRef(null);
@@ -568,6 +580,8 @@ function App() {
             simulationActive={simulationActive}
             onStartSimulation={handleStartSimulation}
             onStopSimulation={handleStopSimulation}
+            staleTimeoutMs={staleTimeoutMs}
+            onStaleTimeoutChange={setStaleTimeoutMs}
           />
         )}
         {activeTab === 'bms-status' && (
@@ -595,11 +609,14 @@ function App() {
             simulationActive={simulationActive}
             onStartSimulation={handleStartSimulation}
             onStopSimulation={handleStopSimulation}
+            staleTimeoutMs={staleTimeoutMs}
+            onStaleTimeoutChange={setStaleTimeoutMs}
           >
             <BMSStatus 
               messages={messages} 
               onSendMessage={handleSendMessage}
               dbcFile={dbcFile}
+              staleTimeoutMs={staleTimeoutMs}
             />
           </CANExplorer>
         )}
@@ -628,8 +645,10 @@ function App() {
             simulationActive={simulationActive}
             onStartSimulation={handleStartSimulation}
             onStopSimulation={handleStopSimulation}
+            staleTimeoutMs={staleTimeoutMs}
+            onStaleTimeoutChange={setStaleTimeoutMs}
           >
-            <BMSOverview messages={messages} />
+            <BMSOverview messages={messages} staleTimeoutMs={staleTimeoutMs} />
           </CANExplorer>
         )}
         {activeTab === 'balance-manager' && (
@@ -657,10 +676,13 @@ function App() {
             simulationActive={simulationActive}
             onStartSimulation={handleStartSimulation}
             onStopSimulation={handleStopSimulation}
+            staleTimeoutMs={staleTimeoutMs}
+            onStaleTimeoutChange={setStaleTimeoutMs}
           >
             <BalanceManager
               messages={messages}
               onSendMessage={handleSendMessage}
+              staleTimeoutMs={staleTimeoutMs}
             />
           </CANExplorer>
         )}
@@ -689,12 +711,15 @@ function App() {
             simulationActive={simulationActive}
             onStartSimulation={handleStartSimulation}
             onStopSimulation={handleStopSimulation}
+            staleTimeoutMs={staleTimeoutMs}
+            onStaleTimeoutChange={setStaleTimeoutMs}
           >
             <ModuleConfig 
               messages={messages} 
               onSendMessage={handleSendMessage}
               connected={connected}
               onRegisterRawCallback={registerRawMessageCallback}
+              staleTimeoutMs={staleTimeoutMs}
             />
           </CANExplorer>
         )}

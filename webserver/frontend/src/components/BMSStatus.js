@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Activity, AlertTriangle, Thermometer, Zap, TrendingUp, TrendingDown, Info, Send, CheckCircle, XCircle } from 'lucide-react';
 import { apiService } from '../services/api';
 import FirmwareFlasher from './FirmwareFlasher';
+import { useNowTick, isTimestampStale } from '../hooks/useStaleness';
 import './BMSStatus.css';
 
 // Helper function to extract numeric signal value - handles both local DBC decoding (object with .value/.raw)
@@ -41,11 +42,43 @@ const getSignalUnit = (signal, defaultUnit = '') => {
 
 const isValidThermistorTemp = (value) => value !== null && value !== undefined && value >= -30;
 
-function BMSStatus({ messages, onSendMessage, dbcFile }) {
+function BMSStatus({ messages, onSendMessage, dbcFile, staleTimeoutMs = 30000 }) {
   const [moduleData, setModuleData] = useState({});
   const [selectedModule, setSelectedModule] = useState('all'); // 'all' or 0-5
   const [commandStatus, setCommandStatus] = useState({}); // Track command responses
   const [faultHistory, setFaultHistory] = useState({}); // Track all faults with timestamps
+  const nowMs = useNowTick(1000);
+
+  // Per-module freshest CAN timestamp (in seconds). Used to gray out modules
+  // whose telemetry has gone silent for longer than the user-configured timeout.
+  const moduleFreshestTimestamp = useMemo(() => {
+    const timestamps = Array(6).fill(null);
+    if (!messages || messages.length === 0) return timestamps;
+    messages.forEach(msg => {
+      const t = typeof msg?.timestamp === 'number' ? msg.timestamp : null;
+      if (t === null) return;
+      const msgName = msg?.decoded?.message_name || '';
+      const ids = new Set();
+
+      const tempMatch = msgName.match(/Cell_Temp_(\d+)_/);
+      if (tempMatch) ids.add(Math.floor(parseInt(tempMatch[1], 10) / 56));
+      const voltMatch = msgName.match(/Cell_Voltage_(\d+)_/);
+      if (voltMatch) ids.add(Math.floor((parseInt(voltMatch[1], 10) - 1) / 18));
+      const suffixMatch = msgName.match(/_(\d)$/);
+      if (suffixMatch) ids.add(parseInt(suffixMatch[1], 10));
+
+      ids.forEach(id => {
+        if (id >= 0 && id < 6 && (timestamps[id] === null || t > timestamps[id])) {
+          timestamps[id] = t;
+        }
+      });
+    });
+    return timestamps;
+  }, [messages]);
+
+  const moduleStale = useMemo(() => (
+    moduleFreshestTimestamp.map(ts => isTimestampStale(ts, nowMs, staleTimeoutMs))
+  ), [moduleFreshestTimestamp, nowMs, staleTimeoutMs]);
 
   useEffect(() => {
     if (!messages || messages.length === 0) return;
@@ -555,7 +588,8 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
           {[0, 1, 2, 3, 4, 5].map(id => (
             <button
               key={id}
-              className={`module-btn ${selectedModule === id ? 'active' : ''} ${moduleData[id] ? 'has-data' : ''}`}
+              className={`module-btn ${selectedModule === id ? 'active' : ''} ${moduleData[id] ? 'has-data' : ''} ${moduleStale[id] ? 'stale' : ''}`}
+              title={moduleStale[id] ? `Stale — no data received in the last ${Math.round(staleTimeoutMs / 1000)}s` : undefined}
               onClick={() => setSelectedModule(id)}
             >
               Module {id}
@@ -573,7 +607,7 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
       )}
 
       {(isAllModulesView || moduleData[selectedModule]) && (
-        <div className="bms-dashboard">
+        <div className={`bms-dashboard ${!isAllModulesView && moduleStale[selectedModule] ? 'stale' : ''}`}>
           {/* Overview Cards */}
           <div className="overview-grid">
             {/* BMS State Card - Only for single module view */}
@@ -886,10 +920,10 @@ function BMSStatus({ messages, onSendMessage, dbcFile }) {
                   const canTxErr = getSignalValue(modData?.canStats?.TX_Error_Count, null);
 
                   return (
-                    <div key={moduleId} className={`module-column ${!modData ? 'offline' : hasFault ? 'has-fault' : 'active'}`}>
+                    <div key={moduleId} className={`module-column ${!modData ? 'offline' : hasFault ? 'has-fault' : 'active'} ${moduleStale[moduleId] ? 'stale' : ''}`} title={moduleStale[moduleId] ? `Stale — no data received in the last ${Math.round(staleTimeoutMs / 1000)}s` : undefined}>
                       <div className="module-header">
                         <span className="module-title">Module {moduleId}</span>
-                        <span className={`status-badge ${modState.toLowerCase()}`}>{modState}</span>
+                        <span className={`status-badge ${modState.toLowerCase()}`}>{moduleStale[moduleId] ? `${modState} (stale)` : modState}</span>
                       </div>
                       
                       <div className="module-content">

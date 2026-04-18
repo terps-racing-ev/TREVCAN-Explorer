@@ -1071,3 +1071,35 @@
   background: rgba(59, 130, 246, 0.2);
   color: #3b82f6;
 }
+
+/* ===== Stale message indicator ===== */
+.bms-status .module-column.stale,
+.bms-status .bms-dashboard.stale {
+  filter: grayscale(85%) brightness(0.65);
+  opacity: 0.6;
+  position: relative;
+  transition: filter 0.3s ease, opacity 0.3s ease;
+}
+.bms-status .module-column.stale::after {
+  content: 'STALE';
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: rgba(120, 120, 120, 0.9);
+  color: #f5f5f5;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 1;
+}
+.bms-status .module-btn.stale {
+  border-color: #6b7280 !important;
+  color: #9ca3af !important;
+  background: rgba(107, 114, 128, 0.15) !important;
+}
+.bms-status .module-btn.stale.active {
+  background: rgba(107, 114, 128, 0.35) !important;
+}
