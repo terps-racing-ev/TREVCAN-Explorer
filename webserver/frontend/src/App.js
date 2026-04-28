@@ -739,8 +739,16 @@ function App() {
         {activeTab === 'mobo' && (
           <CANExplorer
             connected={connected}
-            dbcFile={dbcFile}
+            messages={messages}
+            onClearMessages={handleClearMessages}
+            onSendMessage={handleSendMessage}
+            onLoadDBC={handleLoadDBC}
+            onUpdateDBCConfig={handleUpdateDBCConfig}
+            onDeleteDBC={handleDeleteDBC}
             dbcLoaded={dbcLoaded}
+            dbcFile={dbcFile}
+            dbcFiles={dbcFiles}
+            dbcContext={dbcContext}
             devices={devices}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
