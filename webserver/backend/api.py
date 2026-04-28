@@ -272,6 +272,25 @@ class FirmwareFlashResponse(BaseModel):
     error: Optional[str] = None
 
 
+class HVCTestModeToggleRequest(BaseModel):
+    """Request payload for toggling HVC summary test mode."""
+    enabled: bool
+
+
+class HVCTestModeConfigRequest(BaseModel):
+    """Request payload for all-module HVC summary override values."""
+    min_voltage_v: float
+    max_voltage_v: float
+    min_temp_c: float
+    max_temp_c: float
+    error_flags_byte0: int = 0
+    error_flags_byte1: int = 0
+    error_flags_byte2: int = 0
+    error_flags_byte3: int = 0
+    warning_summary: int = 0
+    fault_count: int = 0
+
+
 # ============================================================================
 # Backend Application State
 # ============================================================================
@@ -304,6 +323,22 @@ class CANBackend:
         self._simulation_current_task: Optional[asyncio.Task] = None
         self._simulation_active: bool = False
         self._simulation_started_monotonic: Optional[float] = None
+        self._hvc_test_mode_task: Optional[asyncio.Task] = None
+        self._hvc_test_mode_started_monotonic: Optional[float] = None
+        self.hvc_test_mode_enabled: bool = False
+        self.hvc_test_mode_interval_s: float = 0.5
+        self.hvc_test_mode_config: Dict[str, float] = {
+            'min_voltage_mv': 3200.0,
+            'max_voltage_mv': 4100.0,
+            'min_temp_c': 28.0,
+            'max_temp_c': 55.0,
+            'error_flags_byte0': 0,
+            'error_flags_byte1': 0,
+            'error_flags_byte2': 0,
+            'error_flags_byte3': 0,
+            'warning_summary': 0,
+            'fault_count': 0
+        }
         self._shutdown_called: bool = False
         self._recovery_in_progress: bool = False
         self._user_requested_disconnect: bool = False
@@ -736,6 +771,7 @@ class CANBackend:
             return
 
         self._shutdown_called = True
+        await self.stop_hvc_test_mode()
         await self.stop_simulation()
         await self.stop_health_monitor()
 
@@ -824,10 +860,12 @@ class CANBackend:
     def connect(self, device_type: DeviceType, channel: Union[str, int], baudrate: str) -> bool:
         """Connect to a CAN device"""
         if self._simulation_active:
+            self.connection_reason = "Simulation is active. Stop simulation before connecting to hardware."
             print("[Connect] Refusing real hardware connect while simulation is active")
             return False
 
         if self.is_connected:
+            self.connection_reason = "Already connected. Disconnect first."
             return False
 
         self.connection_reason = None
@@ -896,7 +934,10 @@ class CANBackend:
                     channel_index = int(channel)
                 
                 if not self.driver.connect(channel_index, canable_baudrate):
-                    return False
+                    driver_error = getattr(self.driver, 'last_error', None)
+                    if driver_error:
+                        raise Exception(driver_error)
+                    raise Exception(f"Failed to connect CANable device index {channel_index}")
             
             elif device_type == DeviceType.NETWORK:
                 if not NETWORK_CAN_AVAILABLE:
@@ -916,11 +957,11 @@ class CANBackend:
                 
                 # Test connection first
                 if not self.driver.test_connection():
-                    return False
+                    raise Exception(f"Cannot reach Network CAN server at {host}:{port}")
                 
                 # Connect with the specified baudrate and auto-connect to server
                 if not self.driver.connect(baudrate=network_baudrate, auto_connect_server=True):
-                    return False
+                    raise Exception(f"Failed to connect Network CAN server at {host}:{port}")
             
             elif device_type == DeviceType.BLUETOOTH:
                 if not BLUETOOTH_CAN_AVAILABLE:
@@ -945,7 +986,7 @@ class CANBackend:
                 
                 # Connect to the Bluetooth server
                 if not self.driver.connect(address=bt_address, channel=rfcomm_channel):
-                    return False
+                    raise Exception(f"Failed to connect Bluetooth device {bt_address} on channel {rfcomm_channel}")
             
             else:
                 raise Exception(f"Unknown device type: {device_type}")
@@ -969,6 +1010,7 @@ class CANBackend:
         except Exception as e:
             print(f"Connection error: {e}")
             self.connection_reason = str(e)
+            self.connection_state = 'disconnected'
             self.driver = None
             self.device_type = None
             self.is_connected = False
@@ -1066,6 +1108,235 @@ class CANBackend:
         """Return whether fake BMS simulation mode is active."""
         return self._simulation_active
 
+    def get_hvc_test_mode_status(self) -> Dict[str, Any]:
+        """Return current HVC summary test mode state and global override config."""
+        return {
+            'enabled': self.hvc_test_mode_enabled,
+            'interval_ms': int(self.hvc_test_mode_interval_s * 1000),
+            'all_modules': {
+                'min_voltage_v': round(self.hvc_test_mode_config['min_voltage_mv'] / 1000.0, 3),
+                'max_voltage_v': round(self.hvc_test_mode_config['max_voltage_mv'] / 1000.0, 3),
+                'min_temp_c': round(self.hvc_test_mode_config['min_temp_c'], 1),
+                'max_temp_c': round(self.hvc_test_mode_config['max_temp_c'], 1)
+            },
+            'heartbeat_errors': {
+                'error_flags_byte0': int(self.hvc_test_mode_config['error_flags_byte0']),
+                'error_flags_byte1': int(self.hvc_test_mode_config['error_flags_byte1']),
+                'error_flags_byte2': int(self.hvc_test_mode_config['error_flags_byte2']),
+                'error_flags_byte3': int(self.hvc_test_mode_config['error_flags_byte3']),
+                'warning_summary': int(self.hvc_test_mode_config['warning_summary']),
+                'fault_count': int(self.hvc_test_mode_config['fault_count'])
+            }
+        }
+
+    @staticmethod
+    def _clamp(value: float, minimum: float, maximum: float) -> float:
+        return max(minimum, min(maximum, value))
+
+    def _ensure_hvc_summary_messages_available(self) -> bool:
+        """Ensure required summary message definitions are available in enabled DBCs."""
+        required_names = [
+            "Cell_Temp_Summary_0",
+            "BMS1_Voltage_Summary_0",
+            "BMS2_Voltage_Summary_0",
+            "BMS_Heartbeat_0"
+        ]
+
+        missing = [name for name in required_names if not self._find_effective_message_by_name(name)]
+        if not missing:
+            return True
+
+        if not DBC_SUPPORT:
+            return False
+
+        bms_dbc_path = DBC_DIR / "BMS-Firmware-RTOS-Complete.dbc"
+        if not bms_dbc_path.exists():
+            return False
+
+        if not self.load_dbc_file(str(bms_dbc_path)):
+            return False
+
+        return all(self._find_effective_message_by_name(name) for name in required_names)
+
+    def update_hvc_test_mode_config(
+        self,
+        min_voltage_v: float,
+        max_voltage_v: float,
+        min_temp_c: float,
+        max_temp_c: float,
+        error_flags_byte0: int,
+        error_flags_byte1: int,
+        error_flags_byte2: int,
+        error_flags_byte3: int,
+        warning_summary: int,
+        fault_count: int
+    ):
+        """Persist override values used by HVC summary and heartbeat test mode for all modules."""
+        self.hvc_test_mode_config = {
+            'min_voltage_mv': min_voltage_v * 1000.0,
+            'max_voltage_mv': max_voltage_v * 1000.0,
+            'min_temp_c': min_temp_c,
+            'max_temp_c': max_temp_c,
+            'error_flags_byte0': int(error_flags_byte0),
+            'error_flags_byte1': int(error_flags_byte1),
+            'error_flags_byte2': int(error_flags_byte2),
+            'error_flags_byte3': int(error_flags_byte3),
+            'warning_summary': int(warning_summary),
+            'fault_count': int(fault_count)
+        }
+
+    def _build_hvc_test_summary_signals(
+        self,
+        module: int,
+        elapsed: float
+    ) -> Dict[str, Dict[str, Union[int, float]]]:
+        """Build one module's summary payloads using exact configured min/max values."""
+        _ = elapsed  # Reserved for future pacing logic.
+
+        configured_temp_min = self.hvc_test_mode_config['min_temp_c']
+        configured_temp_max = self.hvc_test_mode_config['max_temp_c']
+        configured_voltage_min = self.hvc_test_mode_config['min_voltage_mv']
+        configured_voltage_max = self.hvc_test_mode_config['max_voltage_mv']
+
+        temp_min = min(configured_temp_min, configured_temp_max)
+        temp_max = max(configured_temp_min, configured_temp_max)
+        voltage_min_i = int(round(min(configured_voltage_min, configured_voltage_max)))
+        voltage_max_i = int(round(max(configured_voltage_min, configured_voltage_max)))
+        temp_avg = (temp_min + temp_max) / 2.0
+        voltage_avg_i = int(round((voltage_min_i + voltage_max_i) / 2.0))
+
+        temp_min_id = 1 + ((module * 7) % 54)
+        temp_max_id = max(temp_min_id, min(54, temp_min_id + 13))
+
+        bms1_min_id = 1 + (module % 3)
+        bms1_max_id = 7 + (module % 3)
+        bms2_min_id = 10 + (module % 3)
+        bms2_max_id = 16 + (module % 3)
+
+        return {
+            'temp': {
+                'Min_Cell_Temp': round(temp_min, 1),
+                'Max_Cell_Temp': round(temp_max, 1),
+                'Avg_Cell_Temp': round(temp_avg, 1),
+                'Min_Cell_Temp_ID': temp_min_id,
+                'Max_Cell_Temp_ID': temp_max_id
+            },
+            'voltage_1': {
+                'BMS1_Voltage_Average': voltage_avg_i,
+                'BMS1_Voltage_Min': voltage_min_i,
+                'BMS1_Voltage_Max': voltage_max_i,
+                'BMS1_Min_Voltage_Cell_ID': bms1_min_id,
+                'BMS1_Max_Voltage_Cell_ID': bms1_max_id
+            },
+            'voltage_2': {
+                'BMS2_Voltage_Average': voltage_avg_i,
+                'BMS2_Voltage_Min': voltage_min_i,
+                'BMS2_Voltage_Max': voltage_max_i,
+                'BMS2_Min_Voltage_Cell_ID': bms2_min_id,
+                'BMS2_Max_Voltage_Cell_ID': bms2_max_id
+            }
+        }
+
+    def _build_hvc_test_heartbeat_signals(self) -> Dict[str, int]:
+        """Build BMS heartbeat payload using user-configurable error bytes."""
+        return {
+            "BMS_State": 1,
+            "Error_Flags_Byte0": int(self.hvc_test_mode_config['error_flags_byte0']),
+            "Error_Flags_Byte1": int(self.hvc_test_mode_config['error_flags_byte1']),
+            "Error_Flags_Byte2": int(self.hvc_test_mode_config['error_flags_byte2']),
+            "Error_Flags_Byte3": int(self.hvc_test_mode_config['error_flags_byte3']),
+            "Warning_Summary": int(self.hvc_test_mode_config['warning_summary']),
+            "Fault_Count": int(self.hvc_test_mode_config['fault_count'])
+        }
+
+    async def _send_hvc_test_message_on_bus(self, message_name: str, signals: Dict[str, Union[int, float]]) -> bool:
+        """Encode and transmit one HVC test message on the active CAN bus, then mirror it to websocket clients."""
+        if not self.is_connected or not self.driver:
+            return False
+
+        found = self._find_effective_message_by_name(message_name)
+        if not found:
+            return False
+
+        try:
+            _, message = found
+            payload = message.encode(signals)
+            can_id, is_extended = self._message_identity(message)
+            sent = await asyncio.to_thread(self.send_message, can_id, list(payload), is_extended, False)
+            if not sent:
+                return False
+
+            # Mirror outgoing test frames to UI in case the adapter does not loop TX frames back.
+            message_data = self._build_simulated_message(can_id, payload, is_extended)
+            message_data['source'] = 'hvc_test_mode_tx'
+            self.message_count += 1
+            await self.broadcast_message(message_data)
+            return True
+        except Exception as e:
+            print(f"[HVC TEST] Failed to send {message_name}: {e}")
+            return False
+
+    async def start_hvc_test_mode(self) -> bool:
+        """Enable HVC summary test mode and start periodic on-bus summary transmission."""
+        if self.hvc_test_mode_enabled:
+            return True
+
+        if self._simulation_active:
+            return False
+
+        if not self.is_connected or not self.driver:
+            return False
+
+        if not self._ensure_hvc_summary_messages_available():
+            return False
+
+        self.hvc_test_mode_enabled = True
+        self._hvc_test_mode_started_monotonic = time.perf_counter()
+        self._hvc_test_mode_task = asyncio.create_task(self._run_hvc_test_mode())
+        return True
+
+    async def stop_hvc_test_mode(self) -> bool:
+        """Disable HVC summary test mode and stop periodic summary transmission."""
+        self.hvc_test_mode_enabled = False
+
+        if self._hvc_test_mode_task and not self._hvc_test_mode_task.done():
+            self._hvc_test_mode_task.cancel()
+            try:
+                await self._hvc_test_mode_task
+            except asyncio.CancelledError:
+                pass
+
+        self._hvc_test_mode_task = None
+        self._hvc_test_mode_started_monotonic = None
+        return True
+
+    async def _run_hvc_test_mode(self):
+        """Transmit HVC temp/voltage summary messages for all modules at fixed cadence."""
+        print("[HVC TEST] On-bus summary mode started")
+        try:
+            while self.hvc_test_mode_enabled:
+                if not self.is_connected or not self.driver:
+                    print("[HVC TEST] Stopping because CAN connection is no longer active")
+                    break
+
+                started = self._hvc_test_mode_started_monotonic
+                elapsed = max(0.0, time.perf_counter() - started) if started is not None else 0.0
+
+                for module in range(6):
+                    signals = self._build_hvc_test_summary_signals(module, elapsed)
+                    await self._send_hvc_test_message_on_bus(f"Cell_Temp_Summary_{module}", signals['temp'])
+                    await self._send_hvc_test_message_on_bus(f"BMS1_Voltage_Summary_{module}", signals['voltage_1'])
+                    await self._send_hvc_test_message_on_bus(f"BMS2_Voltage_Summary_{module}", signals['voltage_2'])
+                    await self._send_hvc_test_message_on_bus(f"BMS_Heartbeat_{module}", self._build_hvc_test_heartbeat_signals())
+
+                await asyncio.sleep(self.hvc_test_mode_interval_s)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self.hvc_test_mode_enabled = False
+            self._hvc_test_mode_task = None
+            print("[HVC TEST] On-bus summary mode stopped")
+
     async def start_simulation(self) -> bool:
         """Start generating fake BMS CAN data from DBC definitions."""
         if self._simulation_active:
@@ -1154,14 +1425,14 @@ class CANBackend:
 
     async def _emit_simulated_message(self, message_name: str, signals: Dict[str, Union[int, float]]):
         """Encode and broadcast one simulated CAN message by DBC message name."""
-        if not self.dbc_database:
-            return
-
         try:
-            message = self.dbc_database.get_message_by_name(message_name)
+            found = self._find_effective_message_by_name(message_name)
+            if not found:
+                return
+
+            _, message = found
             payload = message.encode(signals)
-            is_extended = message.frame_id > 0x7FF
-            can_id = message.frame_id
+            can_id, is_extended = self._message_identity(message)
             message_data = self._build_simulated_message(can_id, payload, is_extended)
             self.message_count += 1
             await self.broadcast_message(message_data)
@@ -1780,6 +2051,9 @@ async def disconnect():
         await backend.broadcast_connection_status('disconnected', 'simulation_stopped')
         return DisconnectionResponse(success=True, message="Simulation stopped")
 
+    if backend.hvc_test_mode_enabled:
+        await backend.stop_hvc_test_mode()
+
     if not backend.is_connected and not backend._recovery_in_progress:
         raise HTTPException(status_code=400, detail="Not connected to any device")
     
@@ -2001,6 +2275,74 @@ async def simulation_status():
     return {
         "active": backend.is_simulation_active()
     }
+
+
+@app.get("/hvc/test_mode/status")
+async def get_hvc_test_mode_status():
+    """Return HVC summary test mode state and global override values."""
+    return backend.get_hvc_test_mode_status()
+
+
+@app.post("/hvc/test_mode/toggle")
+async def set_hvc_test_mode_toggle(request: HVCTestModeToggleRequest):
+    """Enable or disable backend-driven HVC summary test mode."""
+    if request.enabled:
+        success = await backend.start_hvc_test_mode()
+        if not success:
+            raise HTTPException(
+                status_code=400,
+                detail="Unable to enable HVC test mode (requires active CAN connection and required DBC messages)"
+            )
+    else:
+        success = await backend.stop_hvc_test_mode()
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to disable HVC test mode")
+
+    return backend.get_hvc_test_mode_status()
+
+
+@app.post("/hvc/test_mode/config")
+async def set_hvc_test_mode_config(request: HVCTestModeConfigRequest):
+    """Update all-module HVC summary and heartbeat overrides used by test mode."""
+    if request.min_voltage_v < 2.5 or request.min_voltage_v > 4.3:
+        raise HTTPException(status_code=422, detail="min_voltage_v must be between 2.5 and 4.3")
+    if request.max_voltage_v < 2.5 or request.max_voltage_v > 4.3:
+        raise HTTPException(status_code=422, detail="max_voltage_v must be between 2.5 and 4.3")
+    if request.min_temp_c < 20.0 or request.min_temp_c > 80.0:
+        raise HTTPException(status_code=422, detail="min_temp_c must be between 20 and 80")
+    if request.max_temp_c < 20.0 or request.max_temp_c > 80.0:
+        raise HTTPException(status_code=422, detail="max_temp_c must be between 20 and 80")
+    if request.min_voltage_v > request.max_voltage_v:
+        raise HTTPException(status_code=422, detail="min_voltage_v must be <= max_voltage_v")
+    if request.min_temp_c > request.max_temp_c:
+        raise HTTPException(status_code=422, detail="min_temp_c must be <= max_temp_c")
+
+    heartbeat_values = {
+        'error_flags_byte0': request.error_flags_byte0,
+        'error_flags_byte1': request.error_flags_byte1,
+        'error_flags_byte2': request.error_flags_byte2,
+        'error_flags_byte3': request.error_flags_byte3,
+        'warning_summary': request.warning_summary,
+        'fault_count': request.fault_count
+    }
+
+    for key, value in heartbeat_values.items():
+        if value < 0 or value > 255:
+            raise HTTPException(status_code=422, detail=f"{key} must be between 0 and 255")
+
+    backend.update_hvc_test_mode_config(
+        request.min_voltage_v,
+        request.max_voltage_v,
+        request.min_temp_c,
+        request.max_temp_c,
+        request.error_flags_byte0,
+        request.error_flags_byte1,
+        request.error_flags_byte2,
+        request.error_flags_byte3,
+        request.warning_summary,
+        request.fault_count
+    )
+    return backend.get_hvc_test_mode_status()
 
 
 # ============================================================================

@@ -1,11 +1,15 @@
 {
   "files": [
     {
-      "filename": "brz_gr86_gen2_asc.dbc",
-      "enabled": false
+      "filename": "BMS-Firmware-RTOS-Complete.dbc",
+      "enabled": true
     },
     {
-      "filename": "BMS-Firmware-RTOS-Complete.dbc",
+      "filename": "BMS-Inverter-Only.dbc",
+      "enabled": true
+    },
+    {
+      "filename": "hvc.dbc",
       "enabled": true
     }
   ]

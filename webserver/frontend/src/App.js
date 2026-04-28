@@ -7,6 +7,7 @@ import ModuleConfig from './components/ModuleConfig';
 import BMSOverview from './components/BMSOverview';
 import BalanceManager from './components/BalanceManager';
 import BMSStatus from './components/BMSStatus';
+import HVCDashboard from './components/HVCDashboard';
 import StatusBar from './components/StatusBar';
 import { apiService } from './services/api';
 import { websocketService } from './services/websocket';
@@ -301,8 +302,12 @@ function App() {
         }
       });
       
-      // Buffer incoming messages - they'll be flushed by the interval
-      messageBufferRef.current.push(message);
+      // Add a client-side receive timestamp so UI freshness can be computed
+      // even if driver-provided CAN timestamps use a different time base.
+      messageBufferRef.current.push({
+        ...message,
+        clientTimestamp: Date.now() / 1000
+      });
     }, () => {
       checkConnectionStatus();
     });
@@ -695,6 +700,38 @@ function App() {
               onSendMessage={handleSendMessage}
               connected={connected}
               onRegisterRawCallback={registerRawMessageCallback}
+            />
+          </CANExplorer>
+        )}
+        {activeTab === 'hvc-dashboard' && (
+          <CANExplorer
+            connected={connected}
+            messages={messages}
+            onClearMessages={handleClearMessages}
+            onSendMessage={handleSendMessage}
+            onLoadDBC={handleLoadDBC}
+            onUpdateDBCConfig={handleUpdateDBCConfig}
+            onDeleteDBC={handleDeleteDBC}
+            dbcLoaded={dbcLoaded}
+            dbcFile={dbcFile}
+            dbcFiles={dbcFiles}
+            dbcContext={dbcContext}
+            devices={devices}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onRefreshDevices={fetchDevices}
+            connectionStatus={connectionStatus}
+            stats={stats}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onRegisterRawCallback={registerRawMessageCallback}
+            simulationActive={simulationActive}
+            onStartSimulation={handleStartSimulation}
+            onStopSimulation={handleStopSimulation}
+          >
+            <HVCDashboard
+              messages={messages}
+              onSendMessage={handleSendMessage}
             />
           </CANExplorer>
         )}

@@ -126,7 +126,7 @@ function ConnectionPanel({ connected, devices, onConnect, onDisconnect, onRefres
         // If channel doesn't match expected format, try to use it as-is
         console.warn('[ConnectionPanel] Channel does not match expected format:', channel);
         // Assume it's just a number
-        channelToSend = channel.replace(/\\D/g, ''); // Extract only digits
+        channelToSend = channel.replace(/\D/g, ''); // Extract only digits
         if (!channelToSend) {
           alert('Invalid channel. Please select a CANable device.');
           setConnecting(false);
@@ -138,9 +138,7 @@ function ConnectionPanel({ connected, devices, onConnect, onDisconnect, onRefres
     console.log('[ConnectionPanel] Connecting with:', { deviceType, channelToSend, baudrate });
     const success = await onConnect(deviceType, channelToSend, baudrate);
     setConnecting(false);
-    if (!success) {
-      alert('Failed to connect. Check device and settings.');
-    }
+    return success;
   };
 
   const handleDisconnect = async () => {

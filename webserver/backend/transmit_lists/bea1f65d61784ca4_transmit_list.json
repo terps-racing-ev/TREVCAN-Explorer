@@ -1,0 +1,77 @@
+{
+  "dbc_file": "dbcset-dc87d33bf87e",
+  "items": [
+    {
+      "id": "1775940580826-0.10249524779784058",
+      "can_id": 149946880,
+      "data": [
+        16,
+        14,
+        16,
+        14,
+        16,
+        14
+      ],
+      "is_extended": true,
+      "message_name": "Cell_Voltage_1_3",
+      "signals": {
+        "Cell_001_Voltage": 3600,
+        "Cell_002_Voltage": 3600,
+        "Cell_003_Voltage": 3600
+      },
+      "description": "DBC: Cell_Voltage_1_3",
+      "cycle_time": null
+    },
+    {
+      "id": "1775940668180-0.03971842882739862",
+      "can_id": 149946368,
+      "data": [
+        44,
+        1,
+        44,
+        1,
+        44,
+        1,
+        44,
+        1
+      ],
+      "is_extended": true,
+      "message_name": "Cell_Temp_0_3",
+      "signals": {
+        "Temp_000": 30,
+        "Temp_001": 30,
+        "Temp_002": 30,
+        "Temp_003": 30
+      },
+      "description": "DBC: Cell_Temp_0_3",
+      "cycle_time": null
+    },
+    {
+      "id": "1775940725170-0.053853387180972656",
+      "can_id": 149947136,
+      "data": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "is_extended": true,
+      "message_name": "BMS_Heartbeat_0",
+      "signals": {
+        "BMS_State": 0,
+        "Error_Flags_Byte0": 0,
+        "Error_Flags_Byte1": 0,
+        "Error_Flags_Byte2": 0,
+        "Error_Flags_Byte3": 0,
+        "Warning_Summary": 0,
+        "Fault_Count": 0
+      },
+      "description": "DBC: BMS_Heartbeat_0",
+      "cycle_time": null
+    }
+  ]
+}
