@@ -106,6 +106,34 @@ class ApiService {
     return response.data;
   }
 
+  async getHVCTestModeStatus() {
+    const response = await this.client.get('/hvc/test_mode/status');
+    return response.data;
+  }
+
+  async setHVCTestModeEnabled(enabled) {
+    const response = await this.client.post('/hvc/test_mode/toggle', {
+      enabled,
+    });
+    return response.data;
+  }
+
+  async setHVCTestModeConfig(config) {
+    const response = await this.client.post('/hvc/test_mode/config', {
+      min_voltage_v: config.minVoltageV,
+      max_voltage_v: config.maxVoltageV,
+      min_temp_c: config.minTempC,
+      max_temp_c: config.maxTempC,
+      error_flags_byte0: config.errorFlagsByte0,
+      error_flags_byte1: config.errorFlagsByte1,
+      error_flags_byte2: config.errorFlagsByte2,
+      error_flags_byte3: config.errorFlagsByte3,
+      warning_summary: config.warningSummary,
+      fault_count: config.faultCount,
+    });
+    return response.data;
+  }
+
   async uploadDBC(file) {
     const formData = new FormData();
     formData.append('file', file);

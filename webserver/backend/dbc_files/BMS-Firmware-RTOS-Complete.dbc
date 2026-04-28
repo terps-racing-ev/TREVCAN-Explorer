@@ -1,0 +1,2069 @@
+VERSION ""
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_SGTYPE_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: BMS_Module_0 BMS_Module_1 BMS_Module_2 BMS_Module_3 BMS_Module_4 BMS_Module_5 CAN_Host Current_Sensor
+
+BA_DEF_ BO_  "VFrameFormat" ENUM  "StandardCAN","ExtendedCAN";
+BA_DEF_ BO_  "GenMsgCycleTime" INT 0 10000;
+BA_DEF_DEF_  "VFrameFormat" "StandardCAN";
+BA_DEF_DEF_  "GenMsgCycleTime" 0;
+
+BO_ 2297433872 BMS_Debug_Request: 8 CAN_Host
+ SG_ Request_Type : 0|8@1+ (1,0) [0|255] "" BMS_Module_0,BMS_Module_1,BMS_Module_2,BMS_Module_3,BMS_Module_4,BMS_Module_5
+
+BO_ 204 Current_Sensor_Data: 8 Current_Sensor
+ SG_ LC_Current : 0|16@1- (0.1,0) [-3276.8|3276.7] "A" CAN_Host
+ SG_ HC_Current : 16|16@1- (0.1,0) [-3276.8|3276.7] "A" CAN_Host
+ SG_ Reserved_4 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_5 : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_6 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_7 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+// ============== Module 0 (Thermistors 0-55) ==============
+
+BO_ 2297433856 BMS_Config_Command_0: 8 CAN_Host
+ SG_ Command : 0|8@1+ (1,0) [0|255] "" BMS_Module_0
+ SG_ Value : 8|8@1+ (1,0) [0|255] "" BMS_Module_0
+
+BO_ 2297433857 BMS_Config_ACK_0: 8 BMS_Module_0
+ SG_ Command_Echo : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Status : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte2_OldVal_or_Param : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte3_NewVal_or_ValLo : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte4_ValHi : 32|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297433858 BMS_Reset_Command_0: 1 CAN_Host
+ SG_ Reset_Magic : 0|8@1+ (1,0) [0|255] "" BMS_Module_0
+
+BO_ 2297433859 BMS_Chip_Reset_Command_0: 1 CAN_Host
+ SG_ Reset_Request : 0|8@1+ (1,0) [0|255] "" BMS_Module_0
+
+BO_ 2297433860 BMS_Chip_Reset_ACK_0: 8 BMS_Module_0
+ SG_ Status : 0|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297433873 BMS_Debug_Response_0: 8 BMS_Module_0
+ SG_ Module_ID : 0|8@1+ (1,0) [0|15] "" CAN_Host
+ SG_ Free_Heap_KB : 8|8@1+ (0.25,0) [0|63.75] "KB" CAN_Host
+ SG_ Min_Free_Heap_KB : 16|8@1+ (0.25,0) [0|63.75] "KB" CAN_Host
+ SG_ Boot_Valid : 24|8@1+ (1,0) [0|1] "" CAN_Host
+ SG_ Uptime_Seconds : 32|32@1+ (1,0) [0|4294967295] "s" CAN_Host
+
+BO_ 2297433874 BMS_I2C_Diagnostics_0: 8 BMS_Module_0
+ SG_ I2C1_Error_Code : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C3_Error_Code : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C1_State : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C3_State : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_1 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_3 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_4 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297433861 BMS_Balance_Command_0: 2 CAN_Host
+ SG_ BMS1_Balance_Enable : 0|8@1+ (1,0) [0|1] "" BMS_Module_0
+ SG_ BMS2_Balance_Enable : 8|8@1+ (1,0) [0|1] "" BMS_Module_0
+
+BO_ 2297433862 BMS_Balance_ACK_0: 8 BMS_Module_0
+ SG_ Balance_Status : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Time_Remaining_ms : 8|16@1+ (1,0) [0|65535] "ms" CAN_Host
+
+BO_ 2297433863 BMS_Balance_Config_0: 8 CAN_Host
+ SG_ Target_Voltage_mV : 0|16@1+ (1,0) [0|5000] "mV" BMS_Module_0
+ SG_ Max_Cells_Per_Chip : 16|8@1+ (1,0) [1|9] "" BMS_Module_0
+
+BO_ 2297433864 BMS_Balance_Status_0: 8 BMS_Module_0
+ SG_ Target_Voltage_mV : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Max_Cells_Per_Chip : 16|8@1+ (1,0) [1|9] "" CAN_Host
+ SG_ BMS1_Cell_Count : 24|4@1+ (1,0) [0|9] "" CAN_Host
+ SG_ BMS2_Cell_Count : 28|4@1+ (1,0) [0|9] "" CAN_Host
+ SG_ BMS1_IC_Temp : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ BMS2_IC_Temp : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297433865 BMS1_Balance_Detail_0: 8 BMS_Module_0
+ SG_ BMS1_Cell1_Bal : 0|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell2_Bal : 1|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell3_Bal : 2|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell4_Bal : 3|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell5_Bal : 4|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell6_Bal : 5|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell7_Bal : 6|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell8_Bal : 7|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell9_Bal : 8|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_CB_Status : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BMS1_Alarm_Raw : 24|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297433866 BMS2_Balance_Detail_0: 8 BMS_Module_0
+ SG_ BMS2_Cell10_Bal : 0|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell11_Bal : 1|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell12_Bal : 2|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell13_Bal : 3|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell14_Bal : 4|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell15_Bal : 5|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell16_Bal : 6|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell17_Bal : 7|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell18_Bal : 8|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_CB_Status : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BMS2_Alarm_Raw : 24|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297430784 BMS_Heartbeat_0: 8 BMS_Module_0
+ SG_ BMS_State : 0|8@1+ (1,0) [0|7] "" CAN_Host
+ SG_ Error_Flags_Byte0 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte1 : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte2 : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte3 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Warning_Summary : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Fault_Count : 48|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297430785 BMS_CAN_Stats_0: 8 BMS_Module_0
+ SG_ RX_Message_Count : 0|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ TX_Success_Count : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ TX_Error_Count : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ RX_Queue_Full_Count : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Bus_Off_Count : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ TX_Queue_Full_Count : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297430016 Cell_Temp_0_3: 8 BMS_Module_0
+ SG_ Temp_000 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_001 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_002 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_003 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430017 Cell_Temp_4_7: 8 BMS_Module_0
+ SG_ Temp_004 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_005 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_006 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_007 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430018 Cell_Temp_8_11: 8 BMS_Module_0
+ SG_ Temp_008 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_009 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_010 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_011 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430019 Cell_Temp_12_15: 8 BMS_Module_0
+ SG_ Temp_012 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_013 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_014 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_015 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430020 Cell_Temp_16_19: 8 BMS_Module_0
+ SG_ Temp_016 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_017 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_018 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_019 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430021 Cell_Temp_20_23: 8 BMS_Module_0
+ SG_ Temp_020 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_021 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_022 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_023 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430022 Cell_Temp_24_27: 8 BMS_Module_0
+ SG_ Temp_024 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_025 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_026 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_027 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430023 Cell_Temp_28_31: 8 BMS_Module_0
+ SG_ Temp_028 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_029 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_030 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_031 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430024 Cell_Temp_32_35: 8 BMS_Module_0
+ SG_ Temp_032 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_033 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_034 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_035 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430025 Cell_Temp_36_39: 8 BMS_Module_0
+ SG_ Temp_036 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_037 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_038 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_039 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430026 Cell_Temp_40_43: 8 BMS_Module_0
+ SG_ Temp_040 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_041 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_042 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_043 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430027 Cell_Temp_44_47: 8 BMS_Module_0
+ SG_ Temp_044 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_045 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_046 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_047 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430028 Cell_Temp_48_51: 8 BMS_Module_0
+ SG_ Temp_048 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_049 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_050 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_051 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430029 Cell_Temp_52_55: 8 BMS_Module_0
+ SG_ Temp_052 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_053 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Ambient_Temp_1_054 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Ambient_Temp_2_055 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297430273 Cell_Temp_Summary_0: 8 BMS_Module_0
+ SG_ Min_Cell_Temp : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Max_Cell_Temp : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Avg_Cell_Temp : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Min_Cell_Temp_ID : 48|8@1+ (1,0) [1|54] "" CAN_Host
+ SG_ Max_Cell_Temp_ID : 56|8@1+ (1,0) [1|54] "" CAN_Host
+
+BO_ 2297430528 Cell_Voltage_1_3: 6 BMS_Module_0
+ SG_ Cell_001_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_002_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_003_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297430529 Cell_Voltage_4_6: 6 BMS_Module_0
+ SG_ Cell_004_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_005_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_006_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297430530 Cell_Voltage_7_9: 6 BMS_Module_0
+ SG_ Cell_007_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_008_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_009_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297430531 Cell_Voltage_10_12: 6 BMS_Module_0
+ SG_ Cell_010_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_011_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_012_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297430532 Cell_Voltage_13_15: 6 BMS_Module_0
+ SG_ Cell_013_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_014_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_015_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297430533 Cell_Voltage_16_18: 6 BMS_Module_0
+ SG_ Cell_016_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_017_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_018_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297430534 BMS1_Chip_Status_0: 8 BMS_Module_0
+ SG_ BMS1_Stack_Voltage : 0|16@1+ (10,0) [0|655350] "mV" CAN_Host
+ SG_ BMS1_Alarm_Status : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ BMS1_TS2_Temperature : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Reserved_1 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297430535 BMS2_Chip_Status_0: 8 BMS_Module_0
+ SG_ BMS2_Stack_Voltage : 0|16@1+ (10,0) [0|655350] "mV" CAN_Host
+ SG_ BMS2_Alarm_Status : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ BMS2_TS2_Temperature : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Reserved_1 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297430536 BMS1_Voltage_Summary_0: 8 BMS_Module_0
+ SG_ BMS1_Voltage_Average : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Voltage_Min : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Voltage_Max : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Min_Voltage_Cell_ID : 48|8@1+ (1,0) [1|9] "" CAN_Host
+ SG_ BMS1_Max_Voltage_Cell_ID : 56|8@1+ (1,0) [1|9] "" CAN_Host
+
+BO_ 2297430537 BMS2_Voltage_Summary_0: 8 BMS_Module_0
+ SG_ BMS2_Voltage_Average : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Voltage_Min : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Voltage_Max : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Min_Voltage_Cell_ID : 48|8@1+ (1,0) [10|18] "" CAN_Host
+ SG_ BMS2_Max_Voltage_Cell_ID : 56|8@1+ (1,0) [10|18] "" CAN_Host
+
+// ============== Module 1 (Thermistors 56-111) ==============
+
+BO_ 2297437952 BMS_Config_Command_1: 8 CAN_Host
+ SG_ Command : 0|8@1+ (1,0) [0|255] "" BMS_Module_1
+ SG_ Value : 8|8@1+ (1,0) [0|255] "" BMS_Module_1
+
+BO_ 2297437953 BMS_Config_ACK_1: 8 BMS_Module_1
+ SG_ Command_Echo : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Status : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte2_OldVal_or_Param : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte3_NewVal_or_ValLo : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte4_ValHi : 32|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297437954 BMS_Reset_Command_1: 1 CAN_Host
+ SG_ Reset_Magic : 0|8@1+ (1,0) [0|255] "" BMS_Module_1
+
+BO_ 2297437955 BMS_Chip_Reset_Command_1: 1 CAN_Host
+ SG_ Reset_Request : 0|8@1+ (1,0) [0|255] "" BMS_Module_1
+
+BO_ 2297437956 BMS_Chip_Reset_ACK_1: 8 BMS_Module_1
+ SG_ Status : 0|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297437969 BMS_Debug_Response_1: 8 BMS_Module_1
+ SG_ Module_ID : 0|8@1+ (1,0) [0|15] "" CAN_Host
+ SG_ Free_Heap_KB : 8|8@1+ (0.25,0) [0|63.75] "KB" CAN_Host
+ SG_ Min_Free_Heap_KB : 16|8@1+ (0.25,0) [0|63.75] "KB" CAN_Host
+ SG_ Boot_Valid : 24|8@1+ (1,0) [0|1] "" CAN_Host
+ SG_ Uptime_Seconds : 32|32@1+ (1,0) [0|4294967295] "s" CAN_Host
+
+BO_ 2297437970 BMS_I2C_Diagnostics_1: 8 BMS_Module_1
+ SG_ I2C1_Error_Code : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C3_Error_Code : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C1_State : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C3_State : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_1 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_3 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_4 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297437957 BMS_Balance_Command_1: 2 CAN_Host
+ SG_ BMS1_Balance_Enable : 0|8@1+ (1,0) [0|1] "" BMS_Module_1
+ SG_ BMS2_Balance_Enable : 8|8@1+ (1,0) [0|1] "" BMS_Module_1
+
+BO_ 2297437958 BMS_Balance_ACK_1: 8 BMS_Module_1
+ SG_ Balance_Status : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Time_Remaining_ms : 8|16@1+ (1,0) [0|65535] "ms" CAN_Host
+
+BO_ 2297437959 BMS_Balance_Config_1: 8 CAN_Host
+ SG_ Target_Voltage_mV : 0|16@1+ (1,0) [0|5000] "mV" BMS_Module_1
+ SG_ Max_Cells_Per_Chip : 16|8@1+ (1,0) [1|9] "" BMS_Module_1
+
+BO_ 2297437960 BMS_Balance_Status_1: 8 BMS_Module_1
+ SG_ Target_Voltage_mV : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Max_Cells_Per_Chip : 16|8@1+ (1,0) [1|9] "" CAN_Host
+ SG_ BMS1_Cell_Count : 24|4@1+ (1,0) [0|9] "" CAN_Host
+ SG_ BMS2_Cell_Count : 28|4@1+ (1,0) [0|9] "" CAN_Host
+ SG_ BMS1_IC_Temp : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ BMS2_IC_Temp : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297437961 BMS1_Balance_Detail_1: 8 BMS_Module_1
+ SG_ BMS1_Cell1_Bal : 0|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell2_Bal : 1|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell3_Bal : 2|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell4_Bal : 3|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell5_Bal : 4|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell6_Bal : 5|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell7_Bal : 6|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell8_Bal : 7|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell9_Bal : 8|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_CB_Status : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BMS1_Alarm_Raw : 24|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297437962 BMS2_Balance_Detail_1: 8 BMS_Module_1
+ SG_ BMS2_Cell10_Bal : 0|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell11_Bal : 1|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell12_Bal : 2|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell13_Bal : 3|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell14_Bal : 4|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell15_Bal : 5|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell16_Bal : 6|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell17_Bal : 7|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell18_Bal : 8|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_CB_Status : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BMS2_Alarm_Raw : 24|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297434880 BMS_Heartbeat_1: 8 BMS_Module_1
+ SG_ BMS_State : 0|8@1+ (1,0) [0|7] "" CAN_Host
+ SG_ Error_Flags_Byte0 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte1 : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte2 : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte3 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Warning_Summary : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Fault_Count : 48|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297434881 BMS_CAN_Stats_1: 8 BMS_Module_1
+ SG_ RX_Message_Count : 0|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ TX_Success_Count : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ TX_Error_Count : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ RX_Queue_Full_Count : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Bus_Off_Count : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ TX_Queue_Full_Count : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297434112 Cell_Temp_56_59: 8 BMS_Module_1
+ SG_ Temp_056 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_057 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_058 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_059 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434113 Cell_Temp_60_63: 8 BMS_Module_1
+ SG_ Temp_060 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_061 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_062 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_063 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434114 Cell_Temp_64_67: 8 BMS_Module_1
+ SG_ Temp_064 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_065 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_066 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_067 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434115 Cell_Temp_68_71: 8 BMS_Module_1
+ SG_ Temp_068 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_069 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_070 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_071 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434116 Cell_Temp_72_75: 8 BMS_Module_1
+ SG_ Temp_072 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_073 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_074 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_075 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434117 Cell_Temp_76_79: 8 BMS_Module_1
+ SG_ Temp_076 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_077 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_078 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_079 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434118 Cell_Temp_80_83: 8 BMS_Module_1
+ SG_ Temp_080 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_081 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_082 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_083 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434119 Cell_Temp_84_87: 8 BMS_Module_1
+ SG_ Temp_084 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_085 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_086 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_087 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434120 Cell_Temp_88_91: 8 BMS_Module_1
+ SG_ Temp_088 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_089 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_090 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_091 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434121 Cell_Temp_92_95: 8 BMS_Module_1
+ SG_ Temp_092 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_093 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_094 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_095 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434122 Cell_Temp_96_99: 8 BMS_Module_1
+ SG_ Temp_096 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_097 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_098 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_099 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434123 Cell_Temp_100_103: 8 BMS_Module_1
+ SG_ Temp_100 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_101 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_102 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_103 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434124 Cell_Temp_104_107: 8 BMS_Module_1
+ SG_ Temp_104 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_105 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_106 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_107 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434125 Cell_Temp_108_111: 8 BMS_Module_1
+ SG_ Temp_108 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_109 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Ambient_Temp_1_110 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Ambient_Temp_2_111 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297434369 Cell_Temp_Summary_1: 8 BMS_Module_1
+ SG_ Min_Cell_Temp : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Max_Cell_Temp : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Avg_Cell_Temp : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Min_Cell_Temp_ID : 48|8@1+ (1,0) [1|54] "" CAN_Host
+ SG_ Max_Cell_Temp_ID : 56|8@1+ (1,0) [1|54] "" CAN_Host
+
+BO_ 2297434624 Cell_Voltage_19_21: 6 BMS_Module_1
+ SG_ Cell_019_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_020_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_021_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297434625 Cell_Voltage_22_24: 6 BMS_Module_1
+ SG_ Cell_022_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_023_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_024_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297434626 Cell_Voltage_25_27: 6 BMS_Module_1
+ SG_ Cell_025_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_026_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_027_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297434627 Cell_Voltage_28_30: 6 BMS_Module_1
+ SG_ Cell_028_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_029_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_030_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297434628 Cell_Voltage_31_33: 6 BMS_Module_1
+ SG_ Cell_031_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_032_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_033_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297434629 Cell_Voltage_34_36: 6 BMS_Module_1
+ SG_ Cell_034_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_035_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_036_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297434630 BMS1_Chip_Status_1: 8 BMS_Module_1
+ SG_ BMS1_Stack_Voltage : 0|16@1+ (10,0) [0|655350] "mV" CAN_Host
+ SG_ BMS1_Alarm_Status : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ BMS1_TS2_Temperature : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Reserved_1 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297434631 BMS2_Chip_Status_1: 8 BMS_Module_1
+ SG_ BMS2_Stack_Voltage : 0|16@1+ (10,0) [0|655350] "mV" CAN_Host
+ SG_ BMS2_Alarm_Status : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ BMS2_TS2_Temperature : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Reserved_1 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297434632 BMS1_Voltage_Summary_1: 8 BMS_Module_1
+ SG_ BMS1_Voltage_Average : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Voltage_Min : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Voltage_Max : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Min_Voltage_Cell_ID : 48|8@1+ (1,0) [1|9] "" CAN_Host
+ SG_ BMS1_Max_Voltage_Cell_ID : 56|8@1+ (1,0) [1|9] "" CAN_Host
+
+BO_ 2297434633 BMS2_Voltage_Summary_1: 8 BMS_Module_1
+ SG_ BMS2_Voltage_Average : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Voltage_Min : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Voltage_Max : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Min_Voltage_Cell_ID : 48|8@1+ (1,0) [10|18] "" CAN_Host
+ SG_ BMS2_Max_Voltage_Cell_ID : 56|8@1+ (1,0) [10|18] "" CAN_Host
+
+// ============== Module 2 (Thermistors 112-167) ==============
+
+BO_ 2297442048 BMS_Config_Command_2: 8 CAN_Host
+ SG_ Command : 0|8@1+ (1,0) [0|255] "" BMS_Module_2
+ SG_ Value : 8|8@1+ (1,0) [0|255] "" BMS_Module_2
+
+BO_ 2297442049 BMS_Config_ACK_2: 8 BMS_Module_2
+ SG_ Command_Echo : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Status : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte2_OldVal_or_Param : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte3_NewVal_or_ValLo : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte4_ValHi : 32|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297442050 BMS_Reset_Command_2: 1 CAN_Host
+ SG_ Reset_Magic : 0|8@1+ (1,0) [0|255] "" BMS_Module_2
+
+BO_ 2297442051 BMS_Chip_Reset_Command_2: 1 CAN_Host
+ SG_ Reset_Request : 0|8@1+ (1,0) [0|255] "" BMS_Module_2
+
+BO_ 2297442052 BMS_Chip_Reset_ACK_2: 8 BMS_Module_2
+ SG_ Status : 0|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297442065 BMS_Debug_Response_2: 8 BMS_Module_2
+ SG_ Module_ID : 0|8@1+ (1,0) [0|15] "" CAN_Host
+ SG_ Free_Heap_KB : 8|8@1+ (0.25,0) [0|63.75] "KB" CAN_Host
+ SG_ Min_Free_Heap_KB : 16|8@1+ (0.25,0) [0|63.75] "KB" CAN_Host
+ SG_ Boot_Valid : 24|8@1+ (1,0) [0|1] "" CAN_Host
+ SG_ Uptime_Seconds : 32|32@1+ (1,0) [0|4294967295] "s" CAN_Host
+
+BO_ 2297442066 BMS_I2C_Diagnostics_2: 8 BMS_Module_2
+ SG_ I2C1_Error_Code : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C3_Error_Code : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C1_State : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C3_State : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_1 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_3 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_4 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297442053 BMS_Balance_Command_2: 2 CAN_Host
+ SG_ BMS1_Balance_Enable : 0|8@1+ (1,0) [0|1] "" BMS_Module_2
+ SG_ BMS2_Balance_Enable : 8|8@1+ (1,0) [0|1] "" BMS_Module_2
+
+BO_ 2297442054 BMS_Balance_ACK_2: 8 BMS_Module_2
+ SG_ Balance_Status : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Time_Remaining_ms : 8|16@1+ (1,0) [0|65535] "ms" CAN_Host
+
+BO_ 2297442055 BMS_Balance_Config_2: 8 CAN_Host
+ SG_ Target_Voltage_mV : 0|16@1+ (1,0) [0|5000] "mV" BMS_Module_2
+ SG_ Max_Cells_Per_Chip : 16|8@1+ (1,0) [1|9] "" BMS_Module_2
+
+BO_ 2297442056 BMS_Balance_Status_2: 8 BMS_Module_2
+ SG_ Target_Voltage_mV : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Max_Cells_Per_Chip : 16|8@1+ (1,0) [1|9] "" CAN_Host
+ SG_ BMS1_Cell_Count : 24|4@1+ (1,0) [0|9] "" CAN_Host
+ SG_ BMS2_Cell_Count : 28|4@1+ (1,0) [0|9] "" CAN_Host
+ SG_ BMS1_IC_Temp : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ BMS2_IC_Temp : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442057 BMS1_Balance_Detail_2: 8 BMS_Module_2
+ SG_ BMS1_Cell1_Bal : 0|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell2_Bal : 1|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell3_Bal : 2|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell4_Bal : 3|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell5_Bal : 4|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell6_Bal : 5|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell7_Bal : 6|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell8_Bal : 7|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell9_Bal : 8|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_CB_Status : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BMS1_Alarm_Raw : 24|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297442058 BMS2_Balance_Detail_2: 8 BMS_Module_2
+ SG_ BMS2_Cell10_Bal : 0|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell11_Bal : 1|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell12_Bal : 2|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell13_Bal : 3|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell14_Bal : 4|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell15_Bal : 5|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell16_Bal : 6|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell17_Bal : 7|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell18_Bal : 8|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_CB_Status : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BMS2_Alarm_Raw : 24|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297438976 BMS_Heartbeat_2: 8 BMS_Module_2
+ SG_ BMS_State : 0|8@1+ (1,0) [0|7] "" CAN_Host
+ SG_ Error_Flags_Byte0 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte1 : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte2 : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte3 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Warning_Summary : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Fault_Count : 48|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297438977 BMS_CAN_Stats_2: 8 BMS_Module_2
+ SG_ RX_Message_Count : 0|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ TX_Success_Count : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ TX_Error_Count : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ RX_Queue_Full_Count : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Bus_Off_Count : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ TX_Queue_Full_Count : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297438208 Cell_Temp_112_115: 8 BMS_Module_2
+ SG_ Temp_112 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_113 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_114 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_115 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438209 Cell_Temp_116_119: 8 BMS_Module_2
+ SG_ Temp_116 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_117 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_118 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_119 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438210 Cell_Temp_120_123: 8 BMS_Module_2
+ SG_ Temp_120 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_121 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_122 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_123 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438211 Cell_Temp_124_127: 8 BMS_Module_2
+ SG_ Temp_124 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_125 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_126 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_127 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438212 Cell_Temp_128_131: 8 BMS_Module_2
+ SG_ Temp_128 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_129 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_130 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_131 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438213 Cell_Temp_132_135: 8 BMS_Module_2
+ SG_ Temp_132 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_133 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_134 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_135 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438214 Cell_Temp_136_139: 8 BMS_Module_2
+ SG_ Temp_136 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_137 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_138 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_139 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438215 Cell_Temp_140_143: 8 BMS_Module_2
+ SG_ Temp_140 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_141 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_142 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_143 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438216 Cell_Temp_144_147: 8 BMS_Module_2
+ SG_ Temp_144 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_145 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_146 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_147 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438217 Cell_Temp_148_151: 8 BMS_Module_2
+ SG_ Temp_148 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_149 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_150 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_151 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438218 Cell_Temp_152_155: 8 BMS_Module_2
+ SG_ Temp_152 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_153 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_154 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_155 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438219 Cell_Temp_156_159: 8 BMS_Module_2
+ SG_ Temp_156 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_157 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_158 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_159 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438220 Cell_Temp_160_163: 8 BMS_Module_2
+ SG_ Temp_160 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_161 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_162 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_163 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438221 Cell_Temp_164_167: 8 BMS_Module_2
+ SG_ Temp_164 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_165 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Ambient_Temp_1_166 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Ambient_Temp_2_167 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297438465 Cell_Temp_Summary_2: 8 BMS_Module_2
+ SG_ Min_Cell_Temp : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Max_Cell_Temp : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Avg_Cell_Temp : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Min_Cell_Temp_ID : 48|8@1+ (1,0) [1|54] "" CAN_Host
+ SG_ Max_Cell_Temp_ID : 56|8@1+ (1,0) [1|54] "" CAN_Host
+
+BO_ 2297438720 Cell_Voltage_37_39: 6 BMS_Module_2
+ SG_ Cell_037_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_038_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_039_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297438721 Cell_Voltage_40_42: 6 BMS_Module_2
+ SG_ Cell_040_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_041_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_042_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297438722 Cell_Voltage_43_45: 6 BMS_Module_2
+ SG_ Cell_043_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_044_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_045_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297438723 Cell_Voltage_46_48: 6 BMS_Module_2
+ SG_ Cell_046_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_047_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_048_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297438724 Cell_Voltage_49_51: 6 BMS_Module_2
+ SG_ Cell_049_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_050_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_051_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297438725 Cell_Voltage_52_54: 6 BMS_Module_2
+ SG_ Cell_052_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_053_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_054_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297438726 BMS1_Chip_Status_2: 8 BMS_Module_2
+ SG_ BMS1_Stack_Voltage : 0|16@1+ (10,0) [0|655350] "mV" CAN_Host
+ SG_ BMS1_Alarm_Status : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ BMS1_TS2_Temperature : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Reserved_1 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297438727 BMS2_Chip_Status_2: 8 BMS_Module_2
+ SG_ BMS2_Stack_Voltage : 0|16@1+ (10,0) [0|655350] "mV" CAN_Host
+ SG_ BMS2_Alarm_Status : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ BMS2_TS2_Temperature : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Reserved_1 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297438728 BMS1_Voltage_Summary_2: 8 BMS_Module_2
+ SG_ BMS1_Voltage_Average : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Voltage_Min : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Voltage_Max : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Min_Voltage_Cell_ID : 48|8@1+ (1,0) [1|9] "" CAN_Host
+ SG_ BMS1_Max_Voltage_Cell_ID : 56|8@1+ (1,0) [1|9] "" CAN_Host
+
+BO_ 2297438729 BMS2_Voltage_Summary_2: 8 BMS_Module_2
+ SG_ BMS2_Voltage_Average : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Voltage_Min : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Voltage_Max : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Min_Voltage_Cell_ID : 48|8@1+ (1,0) [10|18] "" CAN_Host
+ SG_ BMS2_Max_Voltage_Cell_ID : 56|8@1+ (1,0) [10|18] "" CAN_Host
+
+// ============== Module 3 (Thermistors 168-223) ==============
+
+BO_ 2297446144 BMS_Config_Command_3: 8 CAN_Host
+ SG_ Command : 0|8@1+ (1,0) [0|255] "" BMS_Module_3
+ SG_ Value : 8|8@1+ (1,0) [0|255] "" BMS_Module_3
+
+BO_ 2297446145 BMS_Config_ACK_3: 8 BMS_Module_3
+ SG_ Command_Echo : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Status : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte2_OldVal_or_Param : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte3_NewVal_or_ValLo : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte4_ValHi : 32|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297446146 BMS_Reset_Command_3: 1 CAN_Host
+ SG_ Reset_Magic : 0|8@1+ (1,0) [0|255] "" BMS_Module_3
+
+BO_ 2297446147 BMS_Chip_Reset_Command_3: 1 CAN_Host
+ SG_ Reset_Request : 0|8@1+ (1,0) [0|255] "" BMS_Module_3
+
+BO_ 2297446148 BMS_Chip_Reset_ACK_3: 8 BMS_Module_3
+ SG_ Status : 0|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297446161 BMS_Debug_Response_3: 8 BMS_Module_3
+ SG_ Module_ID : 0|8@1+ (1,0) [0|15] "" CAN_Host
+ SG_ Free_Heap_KB : 8|8@1+ (0.25,0) [0|63.75] "KB" CAN_Host
+ SG_ Min_Free_Heap_KB : 16|8@1+ (0.25,0) [0|63.75] "KB" CAN_Host
+ SG_ Boot_Valid : 24|8@1+ (1,0) [0|1] "" CAN_Host
+ SG_ Uptime_Seconds : 32|32@1+ (1,0) [0|4294967295] "s" CAN_Host
+
+BO_ 2297446162 BMS_I2C_Diagnostics_3: 8 BMS_Module_3
+ SG_ I2C1_Error_Code : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C3_Error_Code : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C1_State : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C3_State : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_1 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_3 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_4 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297446149 BMS_Balance_Command_3: 2 CAN_Host
+ SG_ BMS1_Balance_Enable : 0|8@1+ (1,0) [0|1] "" BMS_Module_3
+ SG_ BMS2_Balance_Enable : 8|8@1+ (1,0) [0|1] "" BMS_Module_3
+
+BO_ 2297446150 BMS_Balance_ACK_3: 8 BMS_Module_3
+ SG_ Balance_Status : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Time_Remaining_ms : 8|16@1+ (1,0) [0|65535] "ms" CAN_Host
+
+BO_ 2297446151 BMS_Balance_Config_3: 8 CAN_Host
+ SG_ Target_Voltage_mV : 0|16@1+ (1,0) [0|5000] "mV" BMS_Module_3
+ SG_ Max_Cells_Per_Chip : 16|8@1+ (1,0) [1|9] "" BMS_Module_3
+
+BO_ 2297446152 BMS_Balance_Status_3: 8 BMS_Module_3
+ SG_ Target_Voltage_mV : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Max_Cells_Per_Chip : 16|8@1+ (1,0) [1|9] "" CAN_Host
+ SG_ BMS1_Cell_Count : 24|4@1+ (1,0) [0|9] "" CAN_Host
+ SG_ BMS2_Cell_Count : 28|4@1+ (1,0) [0|9] "" CAN_Host
+ SG_ BMS1_IC_Temp : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ BMS2_IC_Temp : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446153 BMS1_Balance_Detail_3: 8 BMS_Module_3
+ SG_ BMS1_Cell1_Bal : 0|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell2_Bal : 1|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell3_Bal : 2|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell4_Bal : 3|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell5_Bal : 4|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell6_Bal : 5|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell7_Bal : 6|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell8_Bal : 7|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell9_Bal : 8|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_CB_Status : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BMS1_Alarm_Raw : 24|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297446154 BMS2_Balance_Detail_3: 8 BMS_Module_3
+ SG_ BMS2_Cell10_Bal : 0|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell11_Bal : 1|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell12_Bal : 2|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell13_Bal : 3|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell14_Bal : 4|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell15_Bal : 5|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell16_Bal : 6|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell17_Bal : 7|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell18_Bal : 8|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_CB_Status : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BMS2_Alarm_Raw : 24|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297443072 BMS_Heartbeat_3: 8 BMS_Module_3
+ SG_ BMS_State : 0|8@1+ (1,0) [0|7] "" CAN_Host
+ SG_ Error_Flags_Byte0 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte1 : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte2 : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte3 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Warning_Summary : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Fault_Count : 48|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297443073 BMS_CAN_Stats_3: 8 BMS_Module_3
+ SG_ RX_Message_Count : 0|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ TX_Success_Count : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ TX_Error_Count : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ RX_Queue_Full_Count : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Bus_Off_Count : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ TX_Queue_Full_Count : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297442304 Cell_Temp_168_171: 8 BMS_Module_3
+ SG_ Temp_168 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_169 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_170 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_171 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442305 Cell_Temp_172_175: 8 BMS_Module_3
+ SG_ Temp_172 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_173 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_174 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_175 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442306 Cell_Temp_176_179: 8 BMS_Module_3
+ SG_ Temp_176 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_177 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_178 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_179 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442307 Cell_Temp_180_183: 8 BMS_Module_3
+ SG_ Temp_180 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_181 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_182 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_183 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442308 Cell_Temp_184_187: 8 BMS_Module_3
+ SG_ Temp_184 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_185 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_186 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_187 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442309 Cell_Temp_188_191: 8 BMS_Module_3
+ SG_ Temp_188 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_189 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_190 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_191 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442310 Cell_Temp_192_195: 8 BMS_Module_3
+ SG_ Temp_192 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_193 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_194 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_195 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442311 Cell_Temp_196_199: 8 BMS_Module_3
+ SG_ Temp_196 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_197 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_198 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_199 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442312 Cell_Temp_200_203: 8 BMS_Module_3
+ SG_ Temp_200 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_201 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_202 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_203 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442313 Cell_Temp_204_207: 8 BMS_Module_3
+ SG_ Temp_204 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_205 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_206 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_207 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442314 Cell_Temp_208_211: 8 BMS_Module_3
+ SG_ Temp_208 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_209 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_210 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_211 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442315 Cell_Temp_212_215: 8 BMS_Module_3
+ SG_ Temp_212 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_213 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_214 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_215 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442316 Cell_Temp_216_219: 8 BMS_Module_3
+ SG_ Temp_216 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_217 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_218 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_219 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442317 Cell_Temp_220_223: 8 BMS_Module_3
+ SG_ Temp_220 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_221 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Ambient_Temp_1_222 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Ambient_Temp_2_223 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297442561 Cell_Temp_Summary_3: 8 BMS_Module_3
+ SG_ Min_Cell_Temp : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Max_Cell_Temp : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Avg_Cell_Temp : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Min_Cell_Temp_ID : 48|8@1+ (1,0) [1|54] "" CAN_Host
+ SG_ Max_Cell_Temp_ID : 56|8@1+ (1,0) [1|54] "" CAN_Host
+
+BO_ 2297442816 Cell_Voltage_55_57: 6 BMS_Module_3
+ SG_ Cell_055_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_056_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_057_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297442817 Cell_Voltage_58_60: 6 BMS_Module_3
+ SG_ Cell_058_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_059_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_060_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297442818 Cell_Voltage_61_63: 6 BMS_Module_3
+ SG_ Cell_061_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_062_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_063_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297442819 Cell_Voltage_64_66: 6 BMS_Module_3
+ SG_ Cell_064_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_065_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_066_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297442820 Cell_Voltage_67_69: 6 BMS_Module_3
+ SG_ Cell_067_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_068_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_069_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297442821 Cell_Voltage_70_72: 6 BMS_Module_3
+ SG_ Cell_070_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_071_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_072_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297442822 BMS1_Chip_Status_3: 8 BMS_Module_3
+ SG_ BMS1_Stack_Voltage : 0|16@1+ (10,0) [0|655350] "mV" CAN_Host
+ SG_ BMS1_Alarm_Status : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ BMS1_TS2_Temperature : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Reserved_1 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297442823 BMS2_Chip_Status_3: 8 BMS_Module_3
+ SG_ BMS2_Stack_Voltage : 0|16@1+ (10,0) [0|655350] "mV" CAN_Host
+ SG_ BMS2_Alarm_Status : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ BMS2_TS2_Temperature : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Reserved_1 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297442824 BMS1_Voltage_Summary_3: 8 BMS_Module_3
+ SG_ BMS1_Voltage_Average : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Voltage_Min : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Voltage_Max : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Min_Voltage_Cell_ID : 48|8@1+ (1,0) [1|9] "" CAN_Host
+ SG_ BMS1_Max_Voltage_Cell_ID : 56|8@1+ (1,0) [1|9] "" CAN_Host
+
+BO_ 2297442825 BMS2_Voltage_Summary_3: 8 BMS_Module_3
+ SG_ BMS2_Voltage_Average : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Voltage_Min : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Voltage_Max : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Min_Voltage_Cell_ID : 48|8@1+ (1,0) [10|18] "" CAN_Host
+ SG_ BMS2_Max_Voltage_Cell_ID : 56|8@1+ (1,0) [10|18] "" CAN_Host
+
+// ============== Module 4 (Thermistors 224-279) ==============
+
+BO_ 2297450240 BMS_Config_Command_4: 8 CAN_Host
+ SG_ Command : 0|8@1+ (1,0) [0|255] "" BMS_Module_4
+ SG_ Value : 8|8@1+ (1,0) [0|255] "" BMS_Module_4
+
+BO_ 2297450241 BMS_Config_ACK_4: 8 BMS_Module_4
+ SG_ Command_Echo : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Status : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte2_OldVal_or_Param : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte3_NewVal_or_ValLo : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte4_ValHi : 32|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297450242 BMS_Reset_Command_4: 1 CAN_Host
+ SG_ Reset_Magic : 0|8@1+ (1,0) [0|255] "" BMS_Module_4
+
+BO_ 2297450243 BMS_Chip_Reset_Command_4: 1 CAN_Host
+ SG_ Reset_Request : 0|8@1+ (1,0) [0|255] "" BMS_Module_4
+
+BO_ 2297450244 BMS_Chip_Reset_ACK_4: 8 BMS_Module_4
+ SG_ Status : 0|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297450257 BMS_Debug_Response_4: 8 BMS_Module_4
+ SG_ Module_ID : 0|8@1+ (1,0) [0|15] "" CAN_Host
+ SG_ Free_Heap_KB : 8|8@1+ (0.25,0) [0|63.75] "KB" CAN_Host
+ SG_ Min_Free_Heap_KB : 16|8@1+ (0.25,0) [0|63.75] "KB" CAN_Host
+ SG_ Boot_Valid : 24|8@1+ (1,0) [0|1] "" CAN_Host
+ SG_ Uptime_Seconds : 32|32@1+ (1,0) [0|4294967295] "s" CAN_Host
+
+BO_ 2297450258 BMS_I2C_Diagnostics_4: 8 BMS_Module_4
+ SG_ I2C1_Error_Code : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C3_Error_Code : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C1_State : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C3_State : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_1 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_3 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_4 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297450245 BMS_Balance_Command_4: 2 CAN_Host
+ SG_ BMS1_Balance_Enable : 0|8@1+ (1,0) [0|1] "" BMS_Module_4
+ SG_ BMS2_Balance_Enable : 8|8@1+ (1,0) [0|1] "" BMS_Module_4
+
+BO_ 2297450246 BMS_Balance_ACK_4: 8 BMS_Module_4
+ SG_ Balance_Status : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Time_Remaining_ms : 8|16@1+ (1,0) [0|65535] "ms" CAN_Host
+
+BO_ 2297450247 BMS_Balance_Config_4: 8 CAN_Host
+ SG_ Target_Voltage_mV : 0|16@1+ (1,0) [0|5000] "mV" BMS_Module_4
+ SG_ Max_Cells_Per_Chip : 16|8@1+ (1,0) [1|9] "" BMS_Module_4
+
+BO_ 2297450248 BMS_Balance_Status_4: 8 BMS_Module_4
+ SG_ Target_Voltage_mV : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Max_Cells_Per_Chip : 16|8@1+ (1,0) [1|9] "" CAN_Host
+ SG_ BMS1_Cell_Count : 24|4@1+ (1,0) [0|9] "" CAN_Host
+ SG_ BMS2_Cell_Count : 28|4@1+ (1,0) [0|9] "" CAN_Host
+ SG_ BMS1_IC_Temp : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ BMS2_IC_Temp : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450249 BMS1_Balance_Detail_4: 8 BMS_Module_4
+ SG_ BMS1_Cell1_Bal : 0|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell2_Bal : 1|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell3_Bal : 2|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell4_Bal : 3|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell5_Bal : 4|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell6_Bal : 5|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell7_Bal : 6|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell8_Bal : 7|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell9_Bal : 8|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_CB_Status : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BMS1_Alarm_Raw : 24|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297450250 BMS2_Balance_Detail_4: 8 BMS_Module_4
+ SG_ BMS2_Cell10_Bal : 0|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell11_Bal : 1|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell12_Bal : 2|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell13_Bal : 3|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell14_Bal : 4|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell15_Bal : 5|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell16_Bal : 6|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell17_Bal : 7|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell18_Bal : 8|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_CB_Status : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BMS2_Alarm_Raw : 24|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297447168 BMS_Heartbeat_4: 8 BMS_Module_4
+ SG_ BMS_State : 0|8@1+ (1,0) [0|7] "" CAN_Host
+ SG_ Error_Flags_Byte0 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte1 : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte2 : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte3 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Warning_Summary : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Fault_Count : 48|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297447169 BMS_CAN_Stats_4: 8 BMS_Module_4
+ SG_ RX_Message_Count : 0|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ TX_Success_Count : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ TX_Error_Count : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ RX_Queue_Full_Count : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Bus_Off_Count : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ TX_Queue_Full_Count : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297446400 Cell_Temp_224_227: 8 BMS_Module_4
+ SG_ Temp_224 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_225 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_226 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_227 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446401 Cell_Temp_228_231: 8 BMS_Module_4
+ SG_ Temp_228 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_229 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_230 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_231 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446402 Cell_Temp_232_235: 8 BMS_Module_4
+ SG_ Temp_232 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_233 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_234 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_235 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446403 Cell_Temp_236_239: 8 BMS_Module_4
+ SG_ Temp_236 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_237 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_238 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_239 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446404 Cell_Temp_240_243: 8 BMS_Module_4
+ SG_ Temp_240 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_241 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_242 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_243 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446405 Cell_Temp_244_247: 8 BMS_Module_4
+ SG_ Temp_244 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_245 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_246 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_247 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446406 Cell_Temp_248_251: 8 BMS_Module_4
+ SG_ Temp_248 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_249 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_250 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_251 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446407 Cell_Temp_252_255: 8 BMS_Module_4
+ SG_ Temp_252 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_253 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_254 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_255 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446408 Cell_Temp_256_259: 8 BMS_Module_4
+ SG_ Temp_256 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_257 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_258 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_259 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446409 Cell_Temp_260_263: 8 BMS_Module_4
+ SG_ Temp_260 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_261 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_262 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_263 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446410 Cell_Temp_264_267: 8 BMS_Module_4
+ SG_ Temp_264 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_265 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_266 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_267 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446411 Cell_Temp_268_271: 8 BMS_Module_4
+ SG_ Temp_268 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_269 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_270 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_271 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446412 Cell_Temp_272_275: 8 BMS_Module_4
+ SG_ Temp_272 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_273 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_274 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_275 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446413 Cell_Temp_276_279: 8 BMS_Module_4
+ SG_ Temp_276 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_277 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Ambient_Temp_1_278 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Ambient_Temp_2_279 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297446657 Cell_Temp_Summary_4: 8 BMS_Module_4
+ SG_ Min_Cell_Temp : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Max_Cell_Temp : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Avg_Cell_Temp : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Min_Cell_Temp_ID : 48|8@1+ (1,0) [1|54] "" CAN_Host
+ SG_ Max_Cell_Temp_ID : 56|8@1+ (1,0) [1|54] "" CAN_Host
+
+BO_ 2297446912 Cell_Voltage_73_75: 6 BMS_Module_4
+ SG_ Cell_073_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_074_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_075_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297446913 Cell_Voltage_76_78: 6 BMS_Module_4
+ SG_ Cell_076_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_077_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_078_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297446914 Cell_Voltage_79_81: 6 BMS_Module_4
+ SG_ Cell_079_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_080_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_081_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297446915 Cell_Voltage_82_84: 6 BMS_Module_4
+ SG_ Cell_082_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_083_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_084_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297446916 Cell_Voltage_85_87: 6 BMS_Module_4
+ SG_ Cell_085_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_086_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_087_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297446917 Cell_Voltage_88_90: 6 BMS_Module_4
+ SG_ Cell_088_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_089_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_090_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297446918 BMS1_Chip_Status_4: 8 BMS_Module_4
+ SG_ BMS1_Stack_Voltage : 0|16@1+ (10,0) [0|655350] "mV" CAN_Host
+ SG_ BMS1_Alarm_Status : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ BMS1_TS2_Temperature : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Reserved_1 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297446919 BMS2_Chip_Status_4: 8 BMS_Module_4
+ SG_ BMS2_Stack_Voltage : 0|16@1+ (10,0) [0|655350] "mV" CAN_Host
+ SG_ BMS2_Alarm_Status : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ BMS2_TS2_Temperature : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Reserved_1 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297446920 BMS1_Voltage_Summary_4: 8 BMS_Module_4
+ SG_ BMS1_Voltage_Average : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Voltage_Min : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Voltage_Max : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Min_Voltage_Cell_ID : 48|8@1+ (1,0) [1|9] "" CAN_Host
+ SG_ BMS1_Max_Voltage_Cell_ID : 56|8@1+ (1,0) [1|9] "" CAN_Host
+
+BO_ 2297446921 BMS2_Voltage_Summary_4: 8 BMS_Module_4
+ SG_ BMS2_Voltage_Average : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Voltage_Min : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Voltage_Max : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Min_Voltage_Cell_ID : 48|8@1+ (1,0) [10|18] "" CAN_Host
+ SG_ BMS2_Max_Voltage_Cell_ID : 56|8@1+ (1,0) [10|18] "" CAN_Host
+
+// ============== Module 5 (Thermistors 280-335) ==============
+
+BO_ 2297454336 BMS_Config_Command_5: 8 CAN_Host
+ SG_ Command : 0|8@1+ (1,0) [0|255] "" BMS_Module_5
+ SG_ Value : 8|8@1+ (1,0) [0|255] "" BMS_Module_5
+
+BO_ 2297454337 BMS_Config_ACK_5: 8 BMS_Module_5
+ SG_ Command_Echo : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Status : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte2_OldVal_or_Param : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte3_NewVal_or_ValLo : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Byte4_ValHi : 32|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297454338 BMS_Reset_Command_5: 1 CAN_Host
+ SG_ Reset_Magic : 0|8@1+ (1,0) [0|255] "" BMS_Module_5
+
+BO_ 2297454339 BMS_Chip_Reset_Command_5: 1 CAN_Host
+ SG_ Reset_Request : 0|8@1+ (1,0) [0|255] "" BMS_Module_5
+
+BO_ 2297454340 BMS_Chip_Reset_ACK_5: 8 BMS_Module_5
+ SG_ Status : 0|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297454353 BMS_Debug_Response_5: 8 BMS_Module_5
+ SG_ Module_ID : 0|8@1+ (1,0) [0|15] "" CAN_Host
+ SG_ Free_Heap_KB : 8|8@1+ (0.25,0) [0|63.75] "KB" CAN_Host
+ SG_ Min_Free_Heap_KB : 16|8@1+ (0.25,0) [0|63.75] "KB" CAN_Host
+ SG_ Boot_Valid : 24|8@1+ (1,0) [0|1] "" CAN_Host
+ SG_ Uptime_Seconds : 32|32@1+ (1,0) [0|4294967295] "s" CAN_Host
+
+BO_ 2297454354 BMS_I2C_Diagnostics_5: 8 BMS_Module_5
+ SG_ I2C1_Error_Code : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C3_Error_Code : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C1_State : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ I2C3_State : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_1 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_3 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_4 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297454341 BMS_Balance_Command_5: 2 CAN_Host
+ SG_ BMS1_Balance_Enable : 0|8@1+ (1,0) [0|1] "" BMS_Module_5
+ SG_ BMS2_Balance_Enable : 8|8@1+ (1,0) [0|1] "" BMS_Module_5
+
+BO_ 2297454342 BMS_Balance_ACK_5: 8 BMS_Module_5
+ SG_ Balance_Status : 0|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Time_Remaining_ms : 8|16@1+ (1,0) [0|65535] "ms" CAN_Host
+
+BO_ 2297454343 BMS_Balance_Config_5: 8 CAN_Host
+ SG_ Target_Voltage_mV : 0|16@1+ (1,0) [0|5000] "mV" BMS_Module_5
+ SG_ Max_Cells_Per_Chip : 16|8@1+ (1,0) [1|9] "" BMS_Module_5
+
+BO_ 2297454344 BMS_Balance_Status_5: 8 BMS_Module_5
+ SG_ Target_Voltage_mV : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Max_Cells_Per_Chip : 16|8@1+ (1,0) [1|9] "" CAN_Host
+ SG_ BMS1_Cell_Count : 24|4@1+ (1,0) [0|9] "" CAN_Host
+ SG_ BMS2_Cell_Count : 28|4@1+ (1,0) [0|9] "" CAN_Host
+ SG_ BMS1_IC_Temp : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ BMS2_IC_Temp : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297454345 BMS1_Balance_Detail_5: 8 BMS_Module_5
+ SG_ BMS1_Cell1_Bal : 0|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell2_Bal : 1|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell3_Bal : 2|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell4_Bal : 3|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell5_Bal : 4|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell6_Bal : 5|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell7_Bal : 6|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell8_Bal : 7|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_Cell9_Bal : 8|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS1_CB_Status : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BMS1_Alarm_Raw : 24|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297454346 BMS2_Balance_Detail_5: 8 BMS_Module_5
+ SG_ BMS2_Cell10_Bal : 0|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell11_Bal : 1|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell12_Bal : 2|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell13_Bal : 3|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell14_Bal : 4|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell15_Bal : 5|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell16_Bal : 6|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell17_Bal : 7|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_Cell18_Bal : 8|1@1+ (1,0) [0|1] "" CAN_Host
+ SG_ BMS2_CB_Status : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ BMS2_Alarm_Raw : 24|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297451264 BMS_Heartbeat_5: 8 BMS_Module_5
+ SG_ BMS_State : 0|8@1+ (1,0) [0|7] "" CAN_Host
+ SG_ Error_Flags_Byte0 : 8|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte1 : 16|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte2 : 24|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Error_Flags_Byte3 : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Warning_Summary : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Fault_Count : 48|16@1+ (1,0) [0|65535] "" CAN_Host
+
+BO_ 2297451265 BMS_CAN_Stats_5: 8 BMS_Module_5
+ SG_ RX_Message_Count : 0|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ TX_Success_Count : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ TX_Error_Count : 32|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ RX_Queue_Full_Count : 40|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Bus_Off_Count : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ TX_Queue_Full_Count : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297450496 Cell_Temp_280_283: 8 BMS_Module_5
+ SG_ Temp_280 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_281 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_282 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_283 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450497 Cell_Temp_284_287: 8 BMS_Module_5
+ SG_ Temp_284 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_285 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_286 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_287 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450498 Cell_Temp_288_291: 8 BMS_Module_5
+ SG_ Temp_288 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_289 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_290 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_291 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450499 Cell_Temp_292_295: 8 BMS_Module_5
+ SG_ Temp_292 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_293 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_294 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_295 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450500 Cell_Temp_296_299: 8 BMS_Module_5
+ SG_ Temp_296 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_297 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_298 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_299 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450501 Cell_Temp_300_303: 8 BMS_Module_5
+ SG_ Temp_300 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_301 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_302 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_303 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450502 Cell_Temp_304_307: 8 BMS_Module_5
+ SG_ Temp_304 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_305 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_306 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_307 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450503 Cell_Temp_308_311: 8 BMS_Module_5
+ SG_ Temp_308 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_309 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_310 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_311 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450504 Cell_Temp_312_315: 8 BMS_Module_5
+ SG_ Temp_312 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_313 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_314 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_315 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450505 Cell_Temp_316_319: 8 BMS_Module_5
+ SG_ Temp_316 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_317 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_318 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_319 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450506 Cell_Temp_320_323: 8 BMS_Module_5
+ SG_ Temp_320 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_321 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_322 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_323 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450507 Cell_Temp_324_327: 8 BMS_Module_5
+ SG_ Temp_324 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_325 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_326 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_327 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450508 Cell_Temp_328_331: 8 BMS_Module_5
+ SG_ Temp_328 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_329 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_330 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_331 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450509 Cell_Temp_332_335: 8 BMS_Module_5
+ SG_ Temp_332 : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Temp_333 : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Ambient_Temp_1_334 : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Ambient_Temp_2_335 : 48|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+
+BO_ 2297450753 Cell_Temp_Summary_5: 8 BMS_Module_5
+ SG_ Min_Cell_Temp : 0|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Max_Cell_Temp : 16|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Avg_Cell_Temp : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Min_Cell_Temp_ID : 48|8@1+ (1,0) [1|54] "" CAN_Host
+ SG_ Max_Cell_Temp_ID : 56|8@1+ (1,0) [1|54] "" CAN_Host
+
+BO_ 2297451008 Cell_Voltage_91_93: 6 BMS_Module_5
+ SG_ Cell_091_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_092_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_093_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297451009 Cell_Voltage_94_96: 6 BMS_Module_5
+ SG_ Cell_094_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_095_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_096_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297451010 Cell_Voltage_97_99: 6 BMS_Module_5
+ SG_ Cell_097_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_098_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_099_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297451011 Cell_Voltage_100_102: 6 BMS_Module_5
+ SG_ Cell_100_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_101_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_102_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297451012 Cell_Voltage_103_105: 6 BMS_Module_5
+ SG_ Cell_103_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_104_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_105_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297451013 Cell_Voltage_106_108: 6 BMS_Module_5
+ SG_ Cell_106_Voltage : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_107_Voltage : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ Cell_108_Voltage : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+
+BO_ 2297451014 BMS1_Chip_Status_5: 8 BMS_Module_5
+ SG_ BMS1_Stack_Voltage : 0|16@1+ (10,0) [0|655350] "mV" CAN_Host
+ SG_ BMS1_Alarm_Status : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ BMS1_TS2_Temperature : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Reserved_1 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297451015 BMS2_Chip_Status_5: 8 BMS_Module_5
+ SG_ BMS2_Stack_Voltage : 0|16@1+ (10,0) [0|655350] "mV" CAN_Host
+ SG_ BMS2_Alarm_Status : 16|16@1+ (1,0) [0|65535] "" CAN_Host
+ SG_ BMS2_TS2_Temperature : 32|16@1- (0.1,0) [-40|125] "degC" CAN_Host
+ SG_ Reserved_1 : 48|8@1+ (1,0) [0|255] "" CAN_Host
+ SG_ Reserved_2 : 56|8@1+ (1,0) [0|255] "" CAN_Host
+
+BO_ 2297451016 BMS1_Voltage_Summary_5: 8 BMS_Module_5
+ SG_ BMS1_Voltage_Average : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Voltage_Min : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Voltage_Max : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS1_Min_Voltage_Cell_ID : 48|8@1+ (1,0) [1|9] "" CAN_Host
+ SG_ BMS1_Max_Voltage_Cell_ID : 56|8@1+ (1,0) [1|9] "" CAN_Host
+
+BO_ 2297451017 BMS2_Voltage_Summary_5: 8 BMS_Module_5
+ SG_ BMS2_Voltage_Average : 0|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Voltage_Min : 16|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Voltage_Max : 32|16@1+ (1,0) [0|5000] "mV" CAN_Host
+ SG_ BMS2_Min_Voltage_Cell_ID : 48|8@1+ (1,0) [10|18] "" CAN_Host
+ SG_ BMS2_Max_Voltage_Cell_ID : 56|8@1+ (1,0) [10|18] "" CAN_Host
+
+CM_ BO_ 2297433872 "Debug info request broadcast to all modules";
+CM_ BO_ 204 "Current sensor node data: LC/HC currents, 0.1A signed little-endian";
+
+// Extended CAN ID markers
+BA_ "VFrameFormat" BO_ 204 0;
+BA_ "VFrameFormat" BO_ 2297433872 1;
+BA_ "VFrameFormat" BO_ 2297433856 1;
+BA_ "VFrameFormat" BO_ 2297433857 1;
+BA_ "VFrameFormat" BO_ 2297433858 1;
+BA_ "VFrameFormat" BO_ 2297433859 1;
+BA_ "VFrameFormat" BO_ 2297433860 1;
+BA_ "VFrameFormat" BO_ 2297433873 1;
+BA_ "VFrameFormat" BO_ 2297433874 1;
+BA_ "VFrameFormat" BO_ 2297433861 1;
+BA_ "VFrameFormat" BO_ 2297433862 1;
+BA_ "VFrameFormat" BO_ 2297433863 1;
+BA_ "VFrameFormat" BO_ 2297433864 1;
+BA_ "VFrameFormat" BO_ 2297433865 1;
+BA_ "VFrameFormat" BO_ 2297433866 1;
+BA_ "VFrameFormat" BO_ 2297430784 1;
+BA_ "VFrameFormat" BO_ 2297430785 1;
+BA_ "VFrameFormat" BO_ 2297430016 1;
+BA_ "VFrameFormat" BO_ 2297430017 1;
+BA_ "VFrameFormat" BO_ 2297430018 1;
+BA_ "VFrameFormat" BO_ 2297430019 1;
+BA_ "VFrameFormat" BO_ 2297430020 1;
+BA_ "VFrameFormat" BO_ 2297430021 1;
+BA_ "VFrameFormat" BO_ 2297430022 1;
+BA_ "VFrameFormat" BO_ 2297430023 1;
+BA_ "VFrameFormat" BO_ 2297430024 1;
+BA_ "VFrameFormat" BO_ 2297430025 1;
+BA_ "VFrameFormat" BO_ 2297430026 1;
+BA_ "VFrameFormat" BO_ 2297430027 1;
+BA_ "VFrameFormat" BO_ 2297430028 1;
+BA_ "VFrameFormat" BO_ 2297430029 1;
+BA_ "VFrameFormat" BO_ 2297430273 1;
+BA_ "VFrameFormat" BO_ 2297430528 1;
+BA_ "VFrameFormat" BO_ 2297430529 1;
+BA_ "VFrameFormat" BO_ 2297430530 1;
+BA_ "VFrameFormat" BO_ 2297430531 1;
+BA_ "VFrameFormat" BO_ 2297430532 1;
+BA_ "VFrameFormat" BO_ 2297430533 1;
+BA_ "VFrameFormat" BO_ 2297430534 1;
+BA_ "VFrameFormat" BO_ 2297430535 1;
+BA_ "VFrameFormat" BO_ 2297430536 1;
+BA_ "VFrameFormat" BO_ 2297430537 1;
+BA_ "VFrameFormat" BO_ 2297437952 1;
+BA_ "VFrameFormat" BO_ 2297437953 1;
+BA_ "VFrameFormat" BO_ 2297437954 1;
+BA_ "VFrameFormat" BO_ 2297437955 1;
+BA_ "VFrameFormat" BO_ 2297437956 1;
+BA_ "VFrameFormat" BO_ 2297437969 1;
+BA_ "VFrameFormat" BO_ 2297437970 1;
+BA_ "VFrameFormat" BO_ 2297437957 1;
+BA_ "VFrameFormat" BO_ 2297437958 1;
+BA_ "VFrameFormat" BO_ 2297437959 1;
+BA_ "VFrameFormat" BO_ 2297437960 1;
+BA_ "VFrameFormat" BO_ 2297437961 1;
+BA_ "VFrameFormat" BO_ 2297437962 1;
+BA_ "VFrameFormat" BO_ 2297434880 1;
+BA_ "VFrameFormat" BO_ 2297434881 1;
+BA_ "VFrameFormat" BO_ 2297434112 1;
+BA_ "VFrameFormat" BO_ 2297434113 1;
+BA_ "VFrameFormat" BO_ 2297434114 1;
+BA_ "VFrameFormat" BO_ 2297434115 1;
+BA_ "VFrameFormat" BO_ 2297434116 1;
+BA_ "VFrameFormat" BO_ 2297434117 1;
+BA_ "VFrameFormat" BO_ 2297434118 1;
+BA_ "VFrameFormat" BO_ 2297434119 1;
+BA_ "VFrameFormat" BO_ 2297434120 1;
+BA_ "VFrameFormat" BO_ 2297434121 1;
+BA_ "VFrameFormat" BO_ 2297434122 1;
+BA_ "VFrameFormat" BO_ 2297434123 1;
+BA_ "VFrameFormat" BO_ 2297434124 1;
+BA_ "VFrameFormat" BO_ 2297434125 1;
+BA_ "VFrameFormat" BO_ 2297434369 1;
+BA_ "VFrameFormat" BO_ 2297434624 1;
+BA_ "VFrameFormat" BO_ 2297434625 1;
+BA_ "VFrameFormat" BO_ 2297434626 1;
+BA_ "VFrameFormat" BO_ 2297434627 1;
+BA_ "VFrameFormat" BO_ 2297434628 1;
+BA_ "VFrameFormat" BO_ 2297434629 1;
+BA_ "VFrameFormat" BO_ 2297434630 1;
+BA_ "VFrameFormat" BO_ 2297434631 1;
+BA_ "VFrameFormat" BO_ 2297434632 1;
+BA_ "VFrameFormat" BO_ 2297434633 1;
+BA_ "VFrameFormat" BO_ 2297442048 1;
+BA_ "VFrameFormat" BO_ 2297442049 1;
+BA_ "VFrameFormat" BO_ 2297442050 1;
+BA_ "VFrameFormat" BO_ 2297442051 1;
+BA_ "VFrameFormat" BO_ 2297442052 1;
+BA_ "VFrameFormat" BO_ 2297442065 1;
+BA_ "VFrameFormat" BO_ 2297442066 1;
+BA_ "VFrameFormat" BO_ 2297442053 1;
+BA_ "VFrameFormat" BO_ 2297442054 1;
+BA_ "VFrameFormat" BO_ 2297442055 1;
+BA_ "VFrameFormat" BO_ 2297442056 1;
+BA_ "VFrameFormat" BO_ 2297442057 1;
+BA_ "VFrameFormat" BO_ 2297442058 1;
+BA_ "VFrameFormat" BO_ 2297438976 1;
+BA_ "VFrameFormat" BO_ 2297438977 1;
+BA_ "VFrameFormat" BO_ 2297438208 1;
+BA_ "VFrameFormat" BO_ 2297438209 1;
+BA_ "VFrameFormat" BO_ 2297438210 1;
+BA_ "VFrameFormat" BO_ 2297438211 1;
+BA_ "VFrameFormat" BO_ 2297438212 1;
+BA_ "VFrameFormat" BO_ 2297438213 1;
+BA_ "VFrameFormat" BO_ 2297438214 1;
+BA_ "VFrameFormat" BO_ 2297438215 1;
+BA_ "VFrameFormat" BO_ 2297438216 1;
+BA_ "VFrameFormat" BO_ 2297438217 1;
+BA_ "VFrameFormat" BO_ 2297438218 1;
+BA_ "VFrameFormat" BO_ 2297438219 1;
+BA_ "VFrameFormat" BO_ 2297438220 1;
+BA_ "VFrameFormat" BO_ 2297438221 1;
+BA_ "VFrameFormat" BO_ 2297438465 1;
+BA_ "VFrameFormat" BO_ 2297438720 1;
+BA_ "VFrameFormat" BO_ 2297438721 1;
+BA_ "VFrameFormat" BO_ 2297438722 1;
+BA_ "VFrameFormat" BO_ 2297438723 1;
+BA_ "VFrameFormat" BO_ 2297438724 1;
+BA_ "VFrameFormat" BO_ 2297438725 1;
+BA_ "VFrameFormat" BO_ 2297438726 1;
+BA_ "VFrameFormat" BO_ 2297438727 1;
+BA_ "VFrameFormat" BO_ 2297438728 1;
+BA_ "VFrameFormat" BO_ 2297438729 1;
+BA_ "VFrameFormat" BO_ 2297446144 1;
+BA_ "VFrameFormat" BO_ 2297446145 1;
+BA_ "VFrameFormat" BO_ 2297446146 1;
+BA_ "VFrameFormat" BO_ 2297446147 1;
+BA_ "VFrameFormat" BO_ 2297446148 1;
+BA_ "VFrameFormat" BO_ 2297446161 1;
+BA_ "VFrameFormat" BO_ 2297446162 1;
+BA_ "VFrameFormat" BO_ 2297446149 1;
+BA_ "VFrameFormat" BO_ 2297446150 1;
+BA_ "VFrameFormat" BO_ 2297446151 1;
+BA_ "VFrameFormat" BO_ 2297446152 1;
+BA_ "VFrameFormat" BO_ 2297446153 1;
+BA_ "VFrameFormat" BO_ 2297446154 1;
+BA_ "VFrameFormat" BO_ 2297443072 1;
+BA_ "VFrameFormat" BO_ 2297443073 1;
+BA_ "VFrameFormat" BO_ 2297442304 1;
+BA_ "VFrameFormat" BO_ 2297442305 1;
+BA_ "VFrameFormat" BO_ 2297442306 1;
+BA_ "VFrameFormat" BO_ 2297442307 1;
+BA_ "VFrameFormat" BO_ 2297442308 1;
+BA_ "VFrameFormat" BO_ 2297442309 1;
+BA_ "VFrameFormat" BO_ 2297442310 1;
+BA_ "VFrameFormat" BO_ 2297442311 1;
+BA_ "VFrameFormat" BO_ 2297442312 1;
+BA_ "VFrameFormat" BO_ 2297442313 1;
+BA_ "VFrameFormat" BO_ 2297442314 1;
+BA_ "VFrameFormat" BO_ 2297442315 1;
+BA_ "VFrameFormat" BO_ 2297442316 1;
+BA_ "VFrameFormat" BO_ 2297442317 1;
+BA_ "VFrameFormat" BO_ 2297442561 1;
+BA_ "VFrameFormat" BO_ 2297442816 1;
+BA_ "VFrameFormat" BO_ 2297442817 1;
+BA_ "VFrameFormat" BO_ 2297442818 1;
+BA_ "VFrameFormat" BO_ 2297442819 1;
+BA_ "VFrameFormat" BO_ 2297442820 1;
+BA_ "VFrameFormat" BO_ 2297442821 1;
+BA_ "VFrameFormat" BO_ 2297442822 1;
+BA_ "VFrameFormat" BO_ 2297442823 1;
+BA_ "VFrameFormat" BO_ 2297442824 1;
+BA_ "VFrameFormat" BO_ 2297442825 1;
+BA_ "VFrameFormat" BO_ 2297450240 1;
+BA_ "VFrameFormat" BO_ 2297450241 1;
+BA_ "VFrameFormat" BO_ 2297450242 1;
+BA_ "VFrameFormat" BO_ 2297450243 1;
+BA_ "VFrameFormat" BO_ 2297450244 1;
+BA_ "VFrameFormat" BO_ 2297450257 1;
+BA_ "VFrameFormat" BO_ 2297450258 1;
+BA_ "VFrameFormat" BO_ 2297450245 1;
+BA_ "VFrameFormat" BO_ 2297450246 1;
+BA_ "VFrameFormat" BO_ 2297450247 1;
+BA_ "VFrameFormat" BO_ 2297450248 1;
+BA_ "VFrameFormat" BO_ 2297450249 1;
+BA_ "VFrameFormat" BO_ 2297450250 1;
+BA_ "VFrameFormat" BO_ 2297447168 1;
+BA_ "VFrameFormat" BO_ 2297447169 1;
+BA_ "VFrameFormat" BO_ 2297446400 1;
+BA_ "VFrameFormat" BO_ 2297446401 1;
+BA_ "VFrameFormat" BO_ 2297446402 1;
+BA_ "VFrameFormat" BO_ 2297446403 1;
+BA_ "VFrameFormat" BO_ 2297446404 1;
+BA_ "VFrameFormat" BO_ 2297446405 1;
+BA_ "VFrameFormat" BO_ 2297446406 1;
+BA_ "VFrameFormat" BO_ 2297446407 1;
+BA_ "VFrameFormat" BO_ 2297446408 1;
+BA_ "VFrameFormat" BO_ 2297446409 1;
+BA_ "VFrameFormat" BO_ 2297446410 1;
+BA_ "VFrameFormat" BO_ 2297446411 1;
+BA_ "VFrameFormat" BO_ 2297446412 1;
+BA_ "VFrameFormat" BO_ 2297446413 1;
+BA_ "VFrameFormat" BO_ 2297446657 1;
+BA_ "VFrameFormat" BO_ 2297446912 1;
+BA_ "VFrameFormat" BO_ 2297446913 1;
+BA_ "VFrameFormat" BO_ 2297446914 1;
+BA_ "VFrameFormat" BO_ 2297446915 1;
+BA_ "VFrameFormat" BO_ 2297446916 1;
+BA_ "VFrameFormat" BO_ 2297446917 1;
+BA_ "VFrameFormat" BO_ 2297446918 1;
+BA_ "VFrameFormat" BO_ 2297446919 1;
+BA_ "VFrameFormat" BO_ 2297446920 1;
+BA_ "VFrameFormat" BO_ 2297446921 1;
+BA_ "VFrameFormat" BO_ 2297454336 1;
+BA_ "VFrameFormat" BO_ 2297454337 1;
+BA_ "VFrameFormat" BO_ 2297454338 1;
+BA_ "VFrameFormat" BO_ 2297454339 1;
+BA_ "VFrameFormat" BO_ 2297454340 1;
+BA_ "VFrameFormat" BO_ 2297454353 1;
+BA_ "VFrameFormat" BO_ 2297454354 1;
+BA_ "VFrameFormat" BO_ 2297454341 1;
+BA_ "VFrameFormat" BO_ 2297454342 1;
+BA_ "VFrameFormat" BO_ 2297454343 1;
+BA_ "VFrameFormat" BO_ 2297454344 1;
+BA_ "VFrameFormat" BO_ 2297454345 1;
+BA_ "VFrameFormat" BO_ 2297454346 1;
+BA_ "VFrameFormat" BO_ 2297451264 1;
+BA_ "VFrameFormat" BO_ 2297451265 1;
+BA_ "VFrameFormat" BO_ 2297450496 1;
+BA_ "VFrameFormat" BO_ 2297450497 1;
+BA_ "VFrameFormat" BO_ 2297450498 1;
+BA_ "VFrameFormat" BO_ 2297450499 1;
+BA_ "VFrameFormat" BO_ 2297450500 1;
+BA_ "VFrameFormat" BO_ 2297450501 1;
+BA_ "VFrameFormat" BO_ 2297450502 1;
+BA_ "VFrameFormat" BO_ 2297450503 1;
+BA_ "VFrameFormat" BO_ 2297450504 1;
+BA_ "VFrameFormat" BO_ 2297450505 1;
+BA_ "VFrameFormat" BO_ 2297450506 1;
+BA_ "VFrameFormat" BO_ 2297450507 1;
+BA_ "VFrameFormat" BO_ 2297450508 1;
+BA_ "VFrameFormat" BO_ 2297450509 1;
+BA_ "VFrameFormat" BO_ 2297450753 1;
+BA_ "VFrameFormat" BO_ 2297451008 1;
+BA_ "VFrameFormat" BO_ 2297451009 1;
+BA_ "VFrameFormat" BO_ 2297451010 1;
+BA_ "VFrameFormat" BO_ 2297451011 1;
+BA_ "VFrameFormat" BO_ 2297451012 1;
+BA_ "VFrameFormat" BO_ 2297451013 1;
+BA_ "VFrameFormat" BO_ 2297451014 1;
+BA_ "VFrameFormat" BO_ 2297451015 1;
+BA_ "VFrameFormat" BO_ 2297451016 1;
+BA_ "VFrameFormat" BO_ 2297451017 1;
+
+// Message cycle times (ms)
+BA_ "GenMsgCycleTime" BO_ 2297433861 5000;
+BA_ "GenMsgCycleTime" BO_ 2297437957 5000;
+BA_ "GenMsgCycleTime" BO_ 2297442053 5000;
+BA_ "GenMsgCycleTime" BO_ 2297446149 5000;
+BA_ "GenMsgCycleTime" BO_ 2297450245 5000;
+BA_ "GenMsgCycleTime" BO_ 2297454341 5000;
+
+// Enumerations
+VAL_ 2297433857 Status 0 "Success" 1 "Invalid_Value" 2 "Flash_Error" 3 "Reset_Required";
+VAL_ 2297437953 Status 0 "Success" 1 "Invalid_Value" 2 "Flash_Error" 3 "Reset_Required";
+VAL_ 2297442049 Status 0 "Success" 1 "Invalid_Value" 2 "Flash_Error" 3 "Reset_Required";
+VAL_ 2297446145 Status 0 "Success" 1 "Invalid_Value" 2 "Flash_Error" 3 "Reset_Required";
+VAL_ 2297450241 Status 0 "Success" 1 "Invalid_Value" 2 "Flash_Error" 3 "Reset_Required";
+VAL_ 2297454337 Status 0 "Success" 1 "Invalid_Value" 2 "Flash_Error" 3 "Reset_Required";
+VAL_ 2297433860 Status 0 "Success" 1 "Failed";
+VAL_ 2297437956 Status 0 "Success" 1 "Failed";
+VAL_ 2297442052 Status 0 "Success" 1 "Failed";
+VAL_ 2297446148 Status 0 "Success" 1 "Failed";
+VAL_ 2297450244 Status 0 "Success" 1 "Failed";
+VAL_ 2297454340 Status 0 "Success" 1 "Failed";
+VAL_ 2297433861 BMS1_Balance_Enable 0 "Disable" 1 "Enable";
+VAL_ 2297433861 BMS2_Balance_Enable 0 "Disable" 1 "Enable";
+VAL_ 2297437957 BMS1_Balance_Enable 0 "Disable" 1 "Enable";
+VAL_ 2297437957 BMS2_Balance_Enable 0 "Disable" 1 "Enable";
+VAL_ 2297442053 BMS1_Balance_Enable 0 "Disable" 1 "Enable";
+VAL_ 2297442053 BMS2_Balance_Enable 0 "Disable" 1 "Enable";
+VAL_ 2297446149 BMS1_Balance_Enable 0 "Disable" 1 "Enable";
+VAL_ 2297446149 BMS2_Balance_Enable 0 "Disable" 1 "Enable";
+VAL_ 2297450245 BMS1_Balance_Enable 0 "Disable" 1 "Enable";
+VAL_ 2297450245 BMS2_Balance_Enable 0 "Disable" 1 "Enable";
+VAL_ 2297454341 BMS1_Balance_Enable 0 "Disable" 1 "Enable";
+VAL_ 2297454341 BMS2_Balance_Enable 0 "Disable" 1 "Enable";
+VAL_ 2297430784 BMS_State 0 "INIT" 1 "IDLE" 2 "CHARGING" 3 "DISCHARGING" 4 "BALANCING" 5 "FAULT" 6 "RESERVED";
+VAL_ 2297434880 BMS_State 0 "INIT" 1 "IDLE" 2 "CHARGING" 3 "DISCHARGING" 4 "BALANCING" 5 "FAULT" 6 "RESERVED";
+VAL_ 2297438976 BMS_State 0 "INIT" 1 "IDLE" 2 "CHARGING" 3 "DISCHARGING" 4 "BALANCING" 5 "FAULT" 6 "RESERVED";
+VAL_ 2297443072 BMS_State 0 "INIT" 1 "IDLE" 2 "CHARGING" 3 "DISCHARGING" 4 "BALANCING" 5 "FAULT" 6 "RESERVED";
+VAL_ 2297447168 BMS_State 0 "INIT" 1 "IDLE" 2 "CHARGING" 3 "DISCHARGING" 4 "BALANCING" 5 "FAULT" 6 "RESERVED";
+VAL_ 2297451264 BMS_State 0 "INIT" 1 "IDLE" 2 "CHARGING" 3 "DISCHARGING" 4 "BALANCING" 5 "FAULT" 6 "RESERVED";
+
+// Error Flags Byte 0 - Temperature Errors (bit flags)
+VAL_ 2297430784 Error_Flags_Byte0 1 "OVER_TEMP" 2 "UNDER_TEMP" 4 "TEMP_SENSOR_FAULT" 8 "TEMP_GRADIENT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297434880 Error_Flags_Byte0 1 "OVER_TEMP" 2 "UNDER_TEMP" 4 "TEMP_SENSOR_FAULT" 8 "TEMP_GRADIENT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297438976 Error_Flags_Byte0 1 "OVER_TEMP" 2 "UNDER_TEMP" 4 "TEMP_SENSOR_FAULT" 8 "TEMP_GRADIENT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297443072 Error_Flags_Byte0 1 "OVER_TEMP" 2 "UNDER_TEMP" 4 "TEMP_SENSOR_FAULT" 8 "TEMP_GRADIENT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297447168 Error_Flags_Byte0 1 "OVER_TEMP" 2 "UNDER_TEMP" 4 "TEMP_SENSOR_FAULT" 8 "TEMP_GRADIENT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297451264 Error_Flags_Byte0 1 "OVER_TEMP" 2 "UNDER_TEMP" 4 "TEMP_SENSOR_FAULT" 8 "TEMP_GRADIENT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+
+// Error Flags Byte 1 - Voltage Errors (bit flags)
+VAL_ 2297430784 Error_Flags_Byte1 1 "OVER_VOLTAGE" 2 "UNDER_VOLTAGE" 4 "VOLTAGE_IMBALANCE" 8 "VOLTAGE_SENSOR_FAULT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297434880 Error_Flags_Byte1 1 "OVER_VOLTAGE" 2 "UNDER_VOLTAGE" 4 "VOLTAGE_IMBALANCE" 8 "VOLTAGE_SENSOR_FAULT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297438976 Error_Flags_Byte1 1 "OVER_VOLTAGE" 2 "UNDER_VOLTAGE" 4 "VOLTAGE_IMBALANCE" 8 "VOLTAGE_SENSOR_FAULT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297443072 Error_Flags_Byte1 1 "OVER_VOLTAGE" 2 "UNDER_VOLTAGE" 4 "VOLTAGE_IMBALANCE" 8 "VOLTAGE_SENSOR_FAULT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297447168 Error_Flags_Byte1 1 "OVER_VOLTAGE" 2 "UNDER_VOLTAGE" 4 "VOLTAGE_IMBALANCE" 8 "VOLTAGE_SENSOR_FAULT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297451264 Error_Flags_Byte1 1 "OVER_VOLTAGE" 2 "UNDER_VOLTAGE" 4 "VOLTAGE_IMBALANCE" 8 "VOLTAGE_SENSOR_FAULT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+
+// Error Flags Byte 2 - Current Errors (bit flags)
+VAL_ 2297430784 Error_Flags_Byte2 1 "OVER_CURRENT_CHARGE" 2 "OVER_CURRENT_DISCHARGE" 4 "CURRENT_SENSOR_FAULT" 8 "SHORT_CIRCUIT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297434880 Error_Flags_Byte2 1 "OVER_CURRENT_CHARGE" 2 "OVER_CURRENT_DISCHARGE" 4 "CURRENT_SENSOR_FAULT" 8 "SHORT_CIRCUIT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297438976 Error_Flags_Byte2 1 "OVER_CURRENT_CHARGE" 2 "OVER_CURRENT_DISCHARGE" 4 "CURRENT_SENSOR_FAULT" 8 "SHORT_CIRCUIT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297443072 Error_Flags_Byte2 1 "OVER_CURRENT_CHARGE" 2 "OVER_CURRENT_DISCHARGE" 4 "CURRENT_SENSOR_FAULT" 8 "SHORT_CIRCUIT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297447168 Error_Flags_Byte2 1 "OVER_CURRENT_CHARGE" 2 "OVER_CURRENT_DISCHARGE" 4 "CURRENT_SENSOR_FAULT" 8 "SHORT_CIRCUIT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+VAL_ 2297451264 Error_Flags_Byte2 1 "OVER_CURRENT_CHARGE" 2 "OVER_CURRENT_DISCHARGE" 4 "CURRENT_SENSOR_FAULT" 8 "SHORT_CIRCUIT" 16 "RESERVED_4" 32 "RESERVED_5" 64 "RESERVED_6" 128 "RESERVED_7";
+
+// Error Flags Byte 3 - Communication Errors (bit flags)
+VAL_ 2297430784 Error_Flags_Byte3 1 "CAN_BUS_OFF" 2 "CAN_TX_TIMEOUT" 4 "CAN_RX_OVERFLOW" 8 "I2C1_BMS1" 16 "I2C3_BMS2" 32 "I2C_TIMEOUT" 64 "I2C_FAULT" 128 "WATCHDOG";
+VAL_ 2297434880 Error_Flags_Byte3 1 "CAN_BUS_OFF" 2 "CAN_TX_TIMEOUT" 4 "CAN_RX_OVERFLOW" 8 "I2C1_BMS1" 16 "I2C3_BMS2" 32 "I2C_TIMEOUT" 64 "I2C_FAULT" 128 "WATCHDOG";
+VAL_ 2297438976 Error_Flags_Byte3 1 "CAN_BUS_OFF" 2 "CAN_TX_TIMEOUT" 4 "CAN_RX_OVERFLOW" 8 "I2C1_BMS1" 16 "I2C3_BMS2" 32 "I2C_TIMEOUT" 64 "I2C_FAULT" 128 "WATCHDOG";
+VAL_ 2297443072 Error_Flags_Byte3 1 "CAN_BUS_OFF" 2 "CAN_TX_TIMEOUT" 4 "CAN_RX_OVERFLOW" 8 "I2C1_BMS1" 16 "I2C3_BMS2" 32 "I2C_TIMEOUT" 64 "I2C_FAULT" 128 "WATCHDOG";
+VAL_ 2297447168 Error_Flags_Byte3 1 "CAN_BUS_OFF" 2 "CAN_TX_TIMEOUT" 4 "CAN_RX_OVERFLOW" 8 "I2C1_BMS1" 16 "I2C3_BMS2" 32 "I2C_TIMEOUT" 64 "I2C_FAULT" 128 "WATCHDOG";
+VAL_ 2297451264 Error_Flags_Byte3 1 "CAN_BUS_OFF" 2 "CAN_TX_TIMEOUT" 4 "CAN_RX_OVERFLOW" 8 "I2C1_BMS1" 16 "I2C3_BMS2" 32 "I2C_TIMEOUT" 64 "I2C_FAULT" 128 "WATCHDOG";
+
+// I2C Error Codes (HAL_I2C_ERROR_*)
+VAL_ 2297433874 I2C1_Error_Code 0 "NONE" 1 "BERR" 2 "ARLO" 4 "AF" 8 "OVR" 16 "DMA" 32 "TIMEOUT";
+VAL_ 2297433874 I2C3_Error_Code 0 "NONE" 1 "BERR" 2 "ARLO" 4 "AF" 8 "OVR" 16 "DMA" 32 "TIMEOUT";
+VAL_ 2297437970 I2C1_Error_Code 0 "NONE" 1 "BERR" 2 "ARLO" 4 "AF" 8 "OVR" 16 "DMA" 32 "TIMEOUT";
+VAL_ 2297437970 I2C3_Error_Code 0 "NONE" 1 "BERR" 2 "ARLO" 4 "AF" 8 "OVR" 16 "DMA" 32 "TIMEOUT";
+VAL_ 2297442066 I2C1_Error_Code 0 "NONE" 1 "BERR" 2 "ARLO" 4 "AF" 8 "OVR" 16 "DMA" 32 "TIMEOUT";
+VAL_ 2297442066 I2C3_Error_Code 0 "NONE" 1 "BERR" 2 "ARLO" 4 "AF" 8 "OVR" 16 "DMA" 32 "TIMEOUT";
+VAL_ 2297446162 I2C1_Error_Code 0 "NONE" 1 "BERR" 2 "ARLO" 4 "AF" 8 "OVR" 16 "DMA" 32 "TIMEOUT";
+VAL_ 2297446162 I2C3_Error_Code 0 "NONE" 1 "BERR" 2 "ARLO" 4 "AF" 8 "OVR" 16 "DMA" 32 "TIMEOUT";
+VAL_ 2297450258 I2C1_Error_Code 0 "NONE" 1 "BERR" 2 "ARLO" 4 "AF" 8 "OVR" 16 "DMA" 32 "TIMEOUT";
+VAL_ 2297450258 I2C3_Error_Code 0 "NONE" 1 "BERR" 2 "ARLO" 4 "AF" 8 "OVR" 16 "DMA" 32 "TIMEOUT";
+VAL_ 2297454354 I2C1_Error_Code 0 "NONE" 1 "BERR" 2 "ARLO" 4 "AF" 8 "OVR" 16 "DMA" 32 "TIMEOUT";
+VAL_ 2297454354 I2C3_Error_Code 0 "NONE" 1 "BERR" 2 "ARLO" 4 "AF" 8 "OVR" 16 "DMA" 32 "TIMEOUT";
+
+// I2C States (HAL_I2C_STATE_*)
+VAL_ 2297433874 I2C1_State 0 "RESET" 32 "READY" 36 "BUSY" 33 "BUSY_TX" 34 "BUSY_RX" 40 "LISTEN" 41 "BUSY_TX_LISTEN" 42 "BUSY_RX_LISTEN" 96 "ABORT";
+VAL_ 2297433874 I2C3_State 0 "RESET" 32 "READY" 36 "BUSY" 33 "BUSY_TX" 34 "BUSY_RX" 40 "LISTEN" 41 "BUSY_TX_LISTEN" 42 "BUSY_RX_LISTEN" 96 "ABORT";
+VAL_ 2297437970 I2C1_State 0 "RESET" 32 "READY" 36 "BUSY" 33 "BUSY_TX" 34 "BUSY_RX" 40 "LISTEN" 41 "BUSY_TX_LISTEN" 42 "BUSY_RX_LISTEN" 96 "ABORT";
+VAL_ 2297437970 I2C3_State 0 "RESET" 32 "READY" 36 "BUSY" 33 "BUSY_TX" 34 "BUSY_RX" 40 "LISTEN" 41 "BUSY_TX_LISTEN" 42 "BUSY_RX_LISTEN" 96 "ABORT";
+VAL_ 2297442066 I2C1_State 0 "RESET" 32 "READY" 36 "BUSY" 33 "BUSY_TX" 34 "BUSY_RX" 40 "LISTEN" 41 "BUSY_TX_LISTEN" 42 "BUSY_RX_LISTEN" 96 "ABORT";
+VAL_ 2297442066 I2C3_State 0 "RESET" 32 "READY" 36 "BUSY" 33 "BUSY_TX" 34 "BUSY_RX" 40 "LISTEN" 41 "BUSY_TX_LISTEN" 42 "BUSY_RX_LISTEN" 96 "ABORT";
+VAL_ 2297446162 I2C1_State 0 "RESET" 32 "READY" 36 "BUSY" 33 "BUSY_TX" 34 "BUSY_RX" 40 "LISTEN" 41 "BUSY_TX_LISTEN" 42 "BUSY_RX_LISTEN" 96 "ABORT";
+VAL_ 2297446162 I2C3_State 0 "RESET" 32 "READY" 36 "BUSY" 33 "BUSY_TX" 34 "BUSY_RX" 40 "LISTEN" 41 "BUSY_TX_LISTEN" 42 "BUSY_RX_LISTEN" 96 "ABORT";
+VAL_ 2297450258 I2C1_State 0 "RESET" 32 "READY" 36 "BUSY" 33 "BUSY_TX" 34 "BUSY_RX" 40 "LISTEN" 41 "BUSY_TX_LISTEN" 42 "BUSY_RX_LISTEN" 96 "ABORT";
+VAL_ 2297450258 I2C3_State 0 "RESET" 32 "READY" 36 "BUSY" 33 "BUSY_TX" 34 "BUSY_RX" 40 "LISTEN" 41 "BUSY_TX_LISTEN" 42 "BUSY_RX_LISTEN" 96 "ABORT";
+VAL_ 2297454354 I2C1_State 0 "RESET" 32 "READY" 36 "BUSY" 33 "BUSY_TX" 34 "BUSY_RX" 40 "LISTEN" 41 "BUSY_TX_LISTEN" 42 "BUSY_RX_LISTEN" 96 "ABORT";
+VAL_ 2297454354 I2C3_State 0 "RESET" 32 "READY" 36 "BUSY" 33 "BUSY_TX" 34 "BUSY_RX" 40 "LISTEN" 41 "BUSY_TX_LISTEN" 42 "BUSY_RX_LISTEN" 96 "ABORT";
+
+// Config Command values
+VAL_ 2297433856 Command 1 "SET_MODULE_ID" 2 "SET_MAX_TEMP" 3 "SET_MIN_TEMP" 4 "SET_MIN_VOLTAGE" 5 "SET_MAX_VOLTAGE" 6 "GET_VALUE";
+VAL_ 2297437952 Command 1 "SET_MODULE_ID" 2 "SET_MAX_TEMP" 3 "SET_MIN_TEMP" 4 "SET_MIN_VOLTAGE" 5 "SET_MAX_VOLTAGE" 6 "GET_VALUE";
+VAL_ 2297442048 Command 1 "SET_MODULE_ID" 2 "SET_MAX_TEMP" 3 "SET_MIN_TEMP" 4 "SET_MIN_VOLTAGE" 5 "SET_MAX_VOLTAGE" 6 "GET_VALUE";
+VAL_ 2297446144 Command 1 "SET_MODULE_ID" 2 "SET_MAX_TEMP" 3 "SET_MIN_TEMP" 4 "SET_MIN_VOLTAGE" 5 "SET_MAX_VOLTAGE" 6 "GET_VALUE";
+VAL_ 2297450240 Command 1 "SET_MODULE_ID" 2 "SET_MAX_TEMP" 3 "SET_MIN_TEMP" 4 "SET_MIN_VOLTAGE" 5 "SET_MAX_VOLTAGE" 6 "GET_VALUE";
+VAL_ 2297454336 Command 1 "SET_MODULE_ID" 2 "SET_MAX_TEMP" 3 "SET_MIN_TEMP" 4 "SET_MIN_VOLTAGE" 5 "SET_MAX_VOLTAGE" 6 "GET_VALUE";
+
+// Config ACK Command Echo values
+VAL_ 2297433857 Command_Echo 1 "SET_MODULE_ID" 2 "SET_MAX_TEMP" 3 "SET_MIN_TEMP" 4 "SET_MIN_VOLTAGE" 5 "SET_MAX_VOLTAGE" 6 "GET_VALUE";
+VAL_ 2297433857 Status 0 "SUCCESS" 1 "FAIL" 2 "SUCCESS_RESET_REQUIRED";
+VAL_ 2297437953 Command_Echo 1 "SET_MODULE_ID" 2 "SET_MAX_TEMP" 3 "SET_MIN_TEMP" 4 "SET_MIN_VOLTAGE" 5 "SET_MAX_VOLTAGE" 6 "GET_VALUE";
+VAL_ 2297437953 Status 0 "SUCCESS" 1 "FAIL" 2 "SUCCESS_RESET_REQUIRED";
+VAL_ 2297442049 Command_Echo 1 "SET_MODULE_ID" 2 "SET_MAX_TEMP" 3 "SET_MIN_TEMP" 4 "SET_MIN_VOLTAGE" 5 "SET_MAX_VOLTAGE" 6 "GET_VALUE";
+VAL_ 2297442049 Status 0 "SUCCESS" 1 "FAIL" 2 "SUCCESS_RESET_REQUIRED";
+VAL_ 2297446145 Command_Echo 1 "SET_MODULE_ID" 2 "SET_MAX_TEMP" 3 "SET_MIN_TEMP" 4 "SET_MIN_VOLTAGE" 5 "SET_MAX_VOLTAGE" 6 "GET_VALUE";
+VAL_ 2297446145 Status 0 "SUCCESS" 1 "FAIL" 2 "SUCCESS_RESET_REQUIRED";
+VAL_ 2297450241 Command_Echo 1 "SET_MODULE_ID" 2 "SET_MAX_TEMP" 3 "SET_MIN_TEMP" 4 "SET_MIN_VOLTAGE" 5 "SET_MAX_VOLTAGE" 6 "GET_VALUE";
+VAL_ 2297450241 Status 0 "SUCCESS" 1 "FAIL" 2 "SUCCESS_RESET_REQUIRED";
+VAL_ 2297454337 Command_Echo 1 "SET_MODULE_ID" 2 "SET_MAX_TEMP" 3 "SET_MIN_TEMP" 4 "SET_MIN_VOLTAGE" 5 "SET_MAX_VOLTAGE" 6 "GET_VALUE";
+VAL_ 2297454337 Status 0 "SUCCESS" 1 "FAIL" 2 "SUCCESS_RESET_REQUIRED";
+
+// Config GET_VALUE parameter selectors (Byte2 when Command_Echo=0x06)
+VAL_ 2297433857 Byte2_OldVal_or_Param 1 "MODULE_ID" 2 "MAX_TEMP" 3 "MIN_TEMP" 4 "MIN_VOLTAGE" 5 "MAX_VOLTAGE";
+VAL_ 2297437953 Byte2_OldVal_or_Param 1 "MODULE_ID" 2 "MAX_TEMP" 3 "MIN_TEMP" 4 "MIN_VOLTAGE" 5 "MAX_VOLTAGE";
+VAL_ 2297442049 Byte2_OldVal_or_Param 1 "MODULE_ID" 2 "MAX_TEMP" 3 "MIN_TEMP" 4 "MIN_VOLTAGE" 5 "MAX_VOLTAGE";
+VAL_ 2297446145 Byte2_OldVal_or_Param 1 "MODULE_ID" 2 "MAX_TEMP" 3 "MIN_TEMP" 4 "MIN_VOLTAGE" 5 "MAX_VOLTAGE";
+VAL_ 2297450241 Byte2_OldVal_or_Param 1 "MODULE_ID" 2 "MAX_TEMP" 3 "MIN_TEMP" 4 "MIN_VOLTAGE" 5 "MAX_VOLTAGE";
+VAL_ 2297454337 Byte2_OldVal_or_Param 1 "MODULE_ID" 2 "MAX_TEMP" 3 "MIN_TEMP" 4 "MIN_VOLTAGE" 5 "MAX_VOLTAGE";
+
+// Cell balancing status values - ACTUAL cells balancing (read from CBSTATUS1/2)
+VAL_ 2297433865 BMS1_Cell1_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433865 BMS1_Cell2_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433865 BMS1_Cell3_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433865 BMS1_Cell4_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433865 BMS1_Cell5_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433865 BMS1_Cell6_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433865 BMS1_Cell7_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433865 BMS1_Cell8_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433865 BMS1_Cell9_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433866 BMS2_Cell10_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433866 BMS2_Cell11_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433866 BMS2_Cell12_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433866 BMS2_Cell13_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433866 BMS2_Cell14_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433866 BMS2_Cell15_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433866 BMS2_Cell16_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433866 BMS2_Cell17_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297433866 BMS2_Cell18_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437961 BMS1_Cell1_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437961 BMS1_Cell2_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437961 BMS1_Cell3_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437961 BMS1_Cell4_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437961 BMS1_Cell5_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437961 BMS1_Cell6_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437961 BMS1_Cell7_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437961 BMS1_Cell8_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437961 BMS1_Cell9_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437962 BMS2_Cell10_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437962 BMS2_Cell11_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437962 BMS2_Cell12_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437962 BMS2_Cell13_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437962 BMS2_Cell14_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437962 BMS2_Cell15_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437962 BMS2_Cell16_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437962 BMS2_Cell17_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297437962 BMS2_Cell18_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442057 BMS1_Cell1_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442057 BMS1_Cell2_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442057 BMS1_Cell3_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442057 BMS1_Cell4_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442057 BMS1_Cell5_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442057 BMS1_Cell6_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442057 BMS1_Cell7_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442057 BMS1_Cell8_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442057 BMS1_Cell9_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442058 BMS2_Cell10_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442058 BMS2_Cell11_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442058 BMS2_Cell12_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442058 BMS2_Cell13_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442058 BMS2_Cell14_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442058 BMS2_Cell15_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442058 BMS2_Cell16_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442058 BMS2_Cell17_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297442058 BMS2_Cell18_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446153 BMS1_Cell1_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446153 BMS1_Cell2_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446153 BMS1_Cell3_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446153 BMS1_Cell4_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446153 BMS1_Cell5_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446153 BMS1_Cell6_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446153 BMS1_Cell7_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446153 BMS1_Cell8_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446153 BMS1_Cell9_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446154 BMS2_Cell10_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446154 BMS2_Cell11_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446154 BMS2_Cell12_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446154 BMS2_Cell13_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446154 BMS2_Cell14_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446154 BMS2_Cell15_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446154 BMS2_Cell16_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446154 BMS2_Cell17_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297446154 BMS2_Cell18_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450249 BMS1_Cell1_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450249 BMS1_Cell2_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450249 BMS1_Cell3_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450249 BMS1_Cell4_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450249 BMS1_Cell5_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450249 BMS1_Cell6_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450249 BMS1_Cell7_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450249 BMS1_Cell8_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450249 BMS1_Cell9_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450250 BMS2_Cell10_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450250 BMS2_Cell11_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450250 BMS2_Cell12_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450250 BMS2_Cell13_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450250 BMS2_Cell14_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450250 BMS2_Cell15_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450250 BMS2_Cell16_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450250 BMS2_Cell17_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297450250 BMS2_Cell18_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454345 BMS1_Cell1_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454345 BMS1_Cell2_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454345 BMS1_Cell3_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454345 BMS1_Cell4_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454345 BMS1_Cell5_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454345 BMS1_Cell6_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454345 BMS1_Cell7_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454345 BMS1_Cell8_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454345 BMS1_Cell9_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454346 BMS2_Cell10_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454346 BMS2_Cell11_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454346 BMS2_Cell12_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454346 BMS2_Cell13_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454346 BMS2_Cell14_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454346 BMS2_Cell15_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454346 BMS2_Cell16_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454346 BMS2_Cell17_Bal 0 "Off" 1 "Balancing";
+VAL_ 2297454346 BMS2_Cell18_Bal 0 "Off" 1 "Balancing";
+
+// CBSTATUS3 Cell Balance Status flags
+VAL_ 2297433865 BMS1_CB_Status 0 "OK" 1 "OT_PreWarn" 2 "OverTemp" 4 "UnderTemp" 8 "Paused" 3 "OT_PreWarn+OverTemp" 9 "OT_PreWarn+Paused" 10 "OverTemp+Paused" 12 "UnderTemp+Paused";
+VAL_ 2297433866 BMS2_CB_Status 0 "OK" 1 "OT_PreWarn" 2 "OverTemp" 4 "UnderTemp" 8 "Paused" 3 "OT_PreWarn+OverTemp" 9 "OT_PreWarn+Paused" 10 "OverTemp+Paused" 12 "UnderTemp+Paused";
+VAL_ 2297437961 BMS1_CB_Status 0 "OK" 1 "OT_PreWarn" 2 "OverTemp" 4 "UnderTemp" 8 "Paused" 3 "OT_PreWarn+OverTemp" 9 "OT_PreWarn+Paused" 10 "OverTemp+Paused" 12 "UnderTemp+Paused";
+VAL_ 2297437962 BMS2_CB_Status 0 "OK" 1 "OT_PreWarn" 2 "OverTemp" 4 "UnderTemp" 8 "Paused" 3 "OT_PreWarn+OverTemp" 9 "OT_PreWarn+Paused" 10 "OverTemp+Paused" 12 "UnderTemp+Paused";
+VAL_ 2297442057 BMS1_CB_Status 0 "OK" 1 "OT_PreWarn" 2 "OverTemp" 4 "UnderTemp" 8 "Paused" 3 "OT_PreWarn+OverTemp" 9 "OT_PreWarn+Paused" 10 "OverTemp+Paused" 12 "UnderTemp+Paused";
+VAL_ 2297442058 BMS2_CB_Status 0 "OK" 1 "OT_PreWarn" 2 "OverTemp" 4 "UnderTemp" 8 "Paused" 3 "OT_PreWarn+OverTemp" 9 "OT_PreWarn+Paused" 10 "OverTemp+Paused" 12 "UnderTemp+Paused";
+VAL_ 2297446153 BMS1_CB_Status 0 "OK" 1 "OT_PreWarn" 2 "OverTemp" 4 "UnderTemp" 8 "Paused" 3 "OT_PreWarn+OverTemp" 9 "OT_PreWarn+Paused" 10 "OverTemp+Paused" 12 "UnderTemp+Paused";
+VAL_ 2297446154 BMS2_CB_Status 0 "OK" 1 "OT_PreWarn" 2 "OverTemp" 4 "UnderTemp" 8 "Paused" 3 "OT_PreWarn+OverTemp" 9 "OT_PreWarn+Paused" 10 "OverTemp+Paused" 12 "UnderTemp+Paused";
+VAL_ 2297450249 BMS1_CB_Status 0 "OK" 1 "OT_PreWarn" 2 "OverTemp" 4 "UnderTemp" 8 "Paused" 3 "OT_PreWarn+OverTemp" 9 "OT_PreWarn+Paused" 10 "OverTemp+Paused" 12 "UnderTemp+Paused";
+VAL_ 2297450250 BMS2_CB_Status 0 "OK" 1 "OT_PreWarn" 2 "OverTemp" 4 "UnderTemp" 8 "Paused" 3 "OT_PreWarn+OverTemp" 9 "OT_PreWarn+Paused" 10 "OverTemp+Paused" 12 "UnderTemp+Paused";
+VAL_ 2297454345 BMS1_CB_Status 0 "OK" 1 "OT_PreWarn" 2 "OverTemp" 4 "UnderTemp" 8 "Paused" 3 "OT_PreWarn+OverTemp" 9 "OT_PreWarn+Paused" 10 "OverTemp+Paused" 12 "UnderTemp+Paused";
+VAL_ 2297454346 BMS2_CB_Status 0 "OK" 1 "OT_PreWarn" 2 "OverTemp" 4 "UnderTemp" 8 "Paused" 3 "OT_PreWarn+OverTemp" 9 "OT_PreWarn+Paused" 10 "OverTemp+Paused" 12 "UnderTemp+Paused";
+
+// AlarmRawStatus common values (bit flags: SSA=1, SSB=2, CB=4, PFA=8, etc.)
+VAL_ 2297433865 BMS1_Alarm_Raw 0 "None" 4 "CB_Active" 1 "SafetyA" 2 "SafetyB" 3 "SafetyA+B" 5 "CB+SafetyA" 6 "CB+SafetyB" 7 "CB+SafetyA+B" 8 "PermFailA" 16 "PermFailB" 32 "PermFailC" 64 "PermFailD" 256 "Charging" 512 "Discharging" 260 "CB+Charging" 516 "CB+Discharging";
+VAL_ 2297433866 BMS2_Alarm_Raw 0 "None" 4 "CB_Active" 1 "SafetyA" 2 "SafetyB" 3 "SafetyA+B" 5 "CB+SafetyA" 6 "CB+SafetyB" 7 "CB+SafetyA+B" 8 "PermFailA" 16 "PermFailB" 32 "PermFailC" 64 "PermFailD" 256 "Charging" 512 "Discharging" 260 "CB+Charging" 516 "CB+Discharging";
+VAL_ 2297437961 BMS1_Alarm_Raw 0 "None" 4 "CB_Active" 1 "SafetyA" 2 "SafetyB" 3 "SafetyA+B" 5 "CB+SafetyA" 6 "CB+SafetyB" 7 "CB+SafetyA+B" 8 "PermFailA" 16 "PermFailB" 32 "PermFailC" 64 "PermFailD" 256 "Charging" 512 "Discharging" 260 "CB+Charging" 516 "CB+Discharging";
+VAL_ 2297437962 BMS2_Alarm_Raw 0 "None" 4 "CB_Active" 1 "SafetyA" 2 "SafetyB" 3 "SafetyA+B" 5 "CB+SafetyA" 6 "CB+SafetyB" 7 "CB+SafetyA+B" 8 "PermFailA" 16 "PermFailB" 32 "PermFailC" 64 "PermFailD" 256 "Charging" 512 "Discharging" 260 "CB+Charging" 516 "CB+Discharging";
+VAL_ 2297442057 BMS1_Alarm_Raw 0 "None" 4 "CB_Active" 1 "SafetyA" 2 "SafetyB" 3 "SafetyA+B" 5 "CB+SafetyA" 6 "CB+SafetyB" 7 "CB+SafetyA+B" 8 "PermFailA" 16 "PermFailB" 32 "PermFailC" 64 "PermFailD" 256 "Charging" 512 "Discharging" 260 "CB+Charging" 516 "CB+Discharging";
+VAL_ 2297442058 BMS2_Alarm_Raw 0 "None" 4 "CB_Active" 1 "SafetyA" 2 "SafetyB" 3 "SafetyA+B" 5 "CB+SafetyA" 6 "CB+SafetyB" 7 "CB+SafetyA+B" 8 "PermFailA" 16 "PermFailB" 32 "PermFailC" 64 "PermFailD" 256 "Charging" 512 "Discharging" 260 "CB+Charging" 516 "CB+Discharging";
+VAL_ 2297446153 BMS1_Alarm_Raw 0 "None" 4 "CB_Active" 1 "SafetyA" 2 "SafetyB" 3 "SafetyA+B" 5 "CB+SafetyA" 6 "CB+SafetyB" 7 "CB+SafetyA+B" 8 "PermFailA" 16 "PermFailB" 32 "PermFailC" 64 "PermFailD" 256 "Charging" 512 "Discharging" 260 "CB+Charging" 516 "CB+Discharging";
+VAL_ 2297446154 BMS2_Alarm_Raw 0 "None" 4 "CB_Active" 1 "SafetyA" 2 "SafetyB" 3 "SafetyA+B" 5 "CB+SafetyA" 6 "CB+SafetyB" 7 "CB+SafetyA+B" 8 "PermFailA" 16 "PermFailB" 32 "PermFailC" 64 "PermFailD" 256 "Charging" 512 "Discharging" 260 "CB+Charging" 516 "CB+Discharging";
+VAL_ 2297450249 BMS1_Alarm_Raw 0 "None" 4 "CB_Active" 1 "SafetyA" 2 "SafetyB" 3 "SafetyA+B" 5 "CB+SafetyA" 6 "CB+SafetyB" 7 "CB+SafetyA+B" 8 "PermFailA" 16 "PermFailB" 32 "PermFailC" 64 "PermFailD" 256 "Charging" 512 "Discharging" 260 "CB+Charging" 516 "CB+Discharging";
+VAL_ 2297450250 BMS2_Alarm_Raw 0 "None" 4 "CB_Active" 1 "SafetyA" 2 "SafetyB" 3 "SafetyA+B" 5 "CB+SafetyA" 6 "CB+SafetyB" 7 "CB+SafetyA+B" 8 "PermFailA" 16 "PermFailB" 32 "PermFailC" 64 "PermFailD" 256 "Charging" 512 "Discharging" 260 "CB+Charging" 516 "CB+Discharging";
+VAL_ 2297454345 BMS1_Alarm_Raw 0 "None" 4 "CB_Active" 1 "SafetyA" 2 "SafetyB" 3 "SafetyA+B" 5 "CB+SafetyA" 6 "CB+SafetyB" 7 "CB+SafetyA+B" 8 "PermFailA" 16 "PermFailB" 32 "PermFailC" 64 "PermFailD" 256 "Charging" 512 "Discharging" 260 "CB+Charging" 516 "CB+Discharging";
+VAL_ 2297454346 BMS2_Alarm_Raw 0 "None" 4 "CB_Active" 1 "SafetyA" 2 "SafetyB" 3 "SafetyA+B" 5 "CB+SafetyA" 6 "CB+SafetyB" 7 "CB+SafetyA+B" 8 "PermFailA" 16 "PermFailB" 32 "PermFailC" 64 "PermFailD" 256 "Charging" 512 "Discharging" 260 "CB+Charging" 516 "CB+Discharging";
