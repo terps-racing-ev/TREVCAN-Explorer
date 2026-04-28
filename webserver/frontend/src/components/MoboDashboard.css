@@ -94,30 +94,32 @@
 
 .mobo-custom-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.75fr);
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.78fr);
   gap: 18px;
+  align-items: stretch;
 }
 
 .mobo-main-column {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
 .mobo-top-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 14px;
 }
 
 .mobo-bottom-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.72fr) minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.72fr);
+  gap: 14px;
 }
 
 .mobo-value-card,
-.mobo-sdc-panel {
+.mobo-sdc-panel,
+.mobo-fault-panel {
   border: 1px solid #26303d;
   border-radius: 16px;
   background: linear-gradient(180deg, #121821 0%, #0e131a 100%);
@@ -125,11 +127,11 @@
 }
 
 .mobo-value-card {
-  padding: 22px;
+  padding: 18px;
 }
 
 .mobo-value-card.battery {
-  min-height: 180px;
+  min-height: 164px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -160,7 +162,7 @@
 }
 
 .mobo-value-card.current {
-  min-height: 150px;
+  min-height: 134px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -253,7 +255,7 @@
 }
 
 .mobo-status-card {
-  min-height: 128px;
+  min-height: 148px;
   border-radius: 16px;
   border: 1px solid transparent;
   display: flex;
@@ -289,56 +291,88 @@
   font-weight: 800;
 }
 
+.mobo-right-rail {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(136px, 1fr));
+  gap: 12px;
+  align-content: stretch;
+  align-self: stretch;
+  height: 100%;
+}
+
+.mobo-fault-panel,
+.mobo-sdc-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.mobo-fault-stack,
 .mobo-sdc-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 18px 16px;
+  gap: 10px;
+  padding: 14px 12px;
+  flex: 1;
+  justify-content: space-between;
 }
 
+.mobo-fault-node,
 .mobo-sdc-node {
   display: flex;
   justify-content: center;
 }
 
+.mobo-fault-block,
 .mobo-sdc-block {
   width: 100%;
-  min-height: 112px;
-  border-radius: 16px;
+  border-radius: 14px;
   border: 1px solid transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 10px;
-  padding: 18px 14px;
+  gap: 8px;
+  padding: 14px 10px;
 }
 
+.mobo-fault-block {
+  min-height: 86px;
+}
+
+.mobo-sdc-block {
+  min-height: 66px;
+}
+
+.mobo-fault-block.active,
 .mobo-sdc-block.active {
   background: linear-gradient(180deg, rgba(20, 83, 45, 0.9) 0%, rgba(20, 83, 45, 0.55) 100%);
   border-color: rgba(34, 197, 94, 0.55);
   box-shadow: inset 0 0 0 1px rgba(134, 239, 172, 0.18);
 }
 
+.mobo-fault-block.inactive,
 .mobo-sdc-block.inactive {
   background: linear-gradient(180deg, rgba(127, 29, 29, 0.92) 0%, rgba(127, 29, 29, 0.56) 100%);
   border-color: rgba(239, 68, 68, 0.55);
   box-shadow: inset 0 0 0 1px rgba(252, 165, 165, 0.16);
 }
 
+.mobo-fault-label,
 .mobo-sdc-label {
   color: #f9fafb;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
+.mobo-fault-value,
 .mobo-sdc-value {
   color: #f9fafb;
   font-weight: 700;
-  font-size: 24px;
+  font-size: 19px;
 }
 
 .mobo-control-strip {
@@ -448,11 +482,11 @@
 }
 
 .mobo-heartbeat-graph {
-  height: 160px;
+  height: 144px;
   border-radius: 14px;
   border: 1px solid #2d3948;
   background: linear-gradient(180deg, #0d131a 0%, #101821 100%);
-  padding: 10px;
+  padding: 8px;
 }
 
 .mobo-heartbeat-graph svg {
@@ -492,6 +526,10 @@
   .mobo-custom-layout {
     grid-template-columns: 1fr;
   }
+
+  .mobo-right-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -506,7 +544,7 @@
 
   .mobo-top-grid,
   .mobo-bottom-grid,
-  .mobo-status-row,
+  .mobo-right-rail,
   .mobo-control-row,
   .mobo-control-status-list,
   .mobo-control-actions {

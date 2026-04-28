@@ -412,49 +412,51 @@ function MoboDashboard({ messages, dbcFiles = [], onRegisterRawCallback, onSendM
                       </div>
                     </div>
                   </section>
-
-                  <section className="mobo-status-panel">
-                    <div className="mobo-panel-header">Faults</div>
-                    <div className="mobo-status-row">
-                      {[
-                        { label: 'IMD', signal: imdSignal },
-                        { label: 'BSPD', signal: bspdSignal },
-                        { label: 'BMS', signal: bmsSignal },
-                      ].map(({ label, signal }) => {
-                        const tone = getStatusTone(signal);
-
-                        return (
-                          <div key={label} className="mobo-status-node">
-                            <section className={`mobo-status-card ${tone === 'good' ? 'active' : 'inactive'}`}>
-                              <div className="mobo-status-card-label">{label}</div>
-                              <div className="mobo-status-card-value">{formatSignalValue(signal)}</div>
-                            </section>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
                 </div>
               </div>
 
-              <aside className="mobo-sdc-panel">
-                <div className="mobo-panel-header">SDC</div>
-                <div className="mobo-sdc-stack">
-                  {SDC_SIGNAL_LAYOUT.map(({ name, label }) => {
-                    const entry = latestSignals.get(name);
-                    const tone = getStatusTone(entry?.signal);
+              <div className="mobo-right-rail">
+                <aside className="mobo-fault-panel">
+                  <div className="mobo-panel-header">Faults</div>
+                  <div className="mobo-fault-stack">
+                    {[
+                      { label: 'IMD', signal: imdSignal },
+                      { label: 'BSPD', signal: bspdSignal },
+                      { label: 'BMS', signal: bmsSignal },
+                    ].map(({ label, signal }) => {
+                      const tone = getStatusTone(signal);
 
-                    return (
-                      <div key={name} className="mobo-sdc-node">
-                        <div className={`mobo-sdc-block ${tone === 'good' ? 'active' : 'inactive'}`}>
-                          <span className="mobo-sdc-label">{label}</span>
-                          <span className="mobo-sdc-value">{entry ? formatSignalValue(entry.signal) : '--'}</span>
+                      return (
+                        <div key={label} className="mobo-fault-node">
+                          <div className={`mobo-fault-block ${tone === 'good' ? 'active' : 'inactive'}`}>
+                            <span className="mobo-fault-label">{label}</span>
+                            <span className="mobo-fault-value">{formatSignalValue(signal)}</span>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </aside>
+                      );
+                    })}
+                  </div>
+                </aside>
+
+                <aside className="mobo-sdc-panel">
+                  <div className="mobo-panel-header">SDC</div>
+                  <div className="mobo-sdc-stack">
+                    {SDC_SIGNAL_LAYOUT.map(({ name, label }) => {
+                      const entry = latestSignals.get(name);
+                      const tone = getStatusTone(entry?.signal);
+
+                      return (
+                        <div key={name} className="mobo-sdc-node">
+                          <div className={`mobo-sdc-block ${tone === 'good' ? 'active' : 'inactive'}`}>
+                            <span className="mobo-sdc-label">{label}</span>
+                            <span className="mobo-sdc-value">{entry ? formatSignalValue(entry.signal) : '--'}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </aside>
+              </div>
             </div>
 
             <section className="mobo-control-strip">
