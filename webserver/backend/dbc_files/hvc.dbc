@@ -53,8 +53,10 @@ BO_ 2151678449 BMS_State: 5 HVC
  SG_ Err_RefOverTemp : 8|1@1+ (1,0) [0|1] "" Vector__XXX
  SG_ Err_ModuleTimeout : 9|1@1+ (1,0) [0|1] "" Vector__XXX
  SG_ Err_BattFloating : 10|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ Err_CurrSenseFloating : 12|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ Err_BmbError : 16|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Err_CurrSenseFloating : 11|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Err_BmbError : 12|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Err_BmsCanError : 13|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Err_LvCanError : 14|1@1+ (1,0) [0|1] "" Vector__XXX
 
 BO_ 2151678450 Errored_Panic: 0 HVC
 
@@ -73,9 +75,15 @@ BO_ 2151678456 Current_Limit: 8 HVC
  SG_ Negative_Current_Limit_mA : 0|32@1+ (1,0) [0|4294967295] "mA" Vector__XXX
  SG_ Positive_Current_Limit_mA : 32|32@1+ (1,0) [0|4294967295] "mA" Vector__XXX
 
+BO_ 2151678458 PL_Signal: 1 HVC
+ SG_ PL_Signal_Reason : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+
 VAL_ 2151678449 BMS_State 0 "PRE_INIT" 1 "RUNNING" 2 "CHARGING" 3 "BALANCING" 4 "ERRORED" ;
+VAL_ 2151678458 PL_Signal_Reason 0 "NORMAL_OPEN" 1 "NORMAL_CLOSED" 2 "BMS_ERRORED" 3 "BATT_FLOATING" 4 "CHARGING" ;
 VAL_ 2151678449 Err_RefOverTemp 0 "Inactive" 1 "Active" ;
 VAL_ 2151678449 Err_ModuleTimeout 0 "Inactive" 1 "Active" ;
 VAL_ 2151678449 Err_BattFloating 0 "Inactive" 1 "Active" ;
 VAL_ 2151678449 Err_CurrSenseFloating 0 "Inactive" 1 "Active" ;
 VAL_ 2151678449 Err_BmbError 0 "Inactive" 1 "Active" ;
+VAL_ 2151678449 Err_BmsCanError 0 "Inactive" 1 "Active" ;
+VAL_ 2151678449 Err_LvCanError 0 "Inactive" 1 "Active" ;

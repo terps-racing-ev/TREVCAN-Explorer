@@ -1,6 +1,10 @@
 {
   "files": [
     {
+      "filename": "hvc.dbc",
+      "enabled": true
+    },
+    {
       "filename": "Baby_MOBO.dbc",
       "enabled": true
     },
@@ -10,10 +14,6 @@
     },
     {
       "filename": "BMS-Inverter-Only.dbc",
-      "enabled": true
-    },
-    {
-      "filename": "hvc.dbc",
       "enabled": true
     }
   ]
