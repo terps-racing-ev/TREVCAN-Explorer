@@ -925,6 +925,27 @@ function CANExplorer({
                 Module Config
               </button>
             </div>
+            <div className="sidebar-menu-group">
+              <div className="sidebar-menu-header">HVC</div>
+              <button
+                className={`sidebar-tab submenu ${activeTab === 'hvc-dashboard' ? 'active' : ''}`}
+                onClick={() => onTabChange('hvc-dashboard')}
+              >
+                HVC Dashboard
+              </button>
+            </div>
+            <button
+              className={`sidebar-tab ${activeTab === 'inverter-dashboard' ? 'active' : ''}`}
+              onClick={() => onTabChange('inverter-dashboard')}
+            >
+              Inverter (CM200DZ)
+            </button>
+            <button
+              className={`sidebar-tab ${activeTab === 'mobo' ? 'active' : ''}`}
+              onClick={() => onTabChange('mobo')}
+            >
+              MOBO
+            </button>
           </div>
         </div>
 

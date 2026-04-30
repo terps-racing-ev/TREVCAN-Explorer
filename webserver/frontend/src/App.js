@@ -7,6 +7,9 @@ import ModuleConfig from './components/ModuleConfig';
 import BMSOverview from './components/BMSOverview';
 import BalanceManager from './components/BalanceManager';
 import BMSStatus from './components/BMSStatus';
+import HVCDashboard from './components/HVCDashboard';
+import MoboDashboard from './components/MoboDashboard';
+import InverterDashboard from './components/InverterDashboard';
 import StatusBar from './components/StatusBar';
 import { apiService } from './services/api';
 import { websocketService } from './services/websocket';
@@ -719,6 +722,114 @@ function App() {
               onSendMessage={handleSendMessage}
               connected={connected}
               onRegisterRawCallback={registerRawMessageCallback}
+              staleTimeoutMs={staleTimeoutMs}
+            />
+          </CANExplorer>
+        )}
+        {activeTab === 'hvc-dashboard' && (
+          <CANExplorer
+            connected={connected}
+            messages={messages}
+            onClearMessages={handleClearMessages}
+            onSendMessage={handleSendMessage}
+            onLoadDBC={handleLoadDBC}
+            onUpdateDBCConfig={handleUpdateDBCConfig}
+            onDeleteDBC={handleDeleteDBC}
+            dbcLoaded={dbcLoaded}
+            dbcFile={dbcFile}
+            dbcFiles={dbcFiles}
+            dbcContext={dbcContext}
+            devices={devices}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onRefreshDevices={fetchDevices}
+            connectionStatus={connectionStatus}
+            stats={stats}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onRegisterRawCallback={registerRawMessageCallback}
+            simulationActive={simulationActive}
+            onStartSimulation={handleStartSimulation}
+            onStopSimulation={handleStopSimulation}
+            staleTimeoutMs={staleTimeoutMs}
+            onStaleTimeoutChange={setStaleTimeoutMs}
+          >
+            <HVCDashboard
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              staleTimeoutMs={staleTimeoutMs}
+            />
+          </CANExplorer>
+        )}
+        {activeTab === 'mobo' && (
+          <CANExplorer
+            connected={connected}
+            messages={messages}
+            onClearMessages={handleClearMessages}
+            onSendMessage={handleSendMessage}
+            onLoadDBC={handleLoadDBC}
+            onUpdateDBCConfig={handleUpdateDBCConfig}
+            onDeleteDBC={handleDeleteDBC}
+            dbcLoaded={dbcLoaded}
+            dbcFile={dbcFile}
+            dbcFiles={dbcFiles}
+            dbcContext={dbcContext}
+            devices={devices}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onRefreshDevices={fetchDevices}
+            connectionStatus={connectionStatus}
+            stats={stats}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onRegisterRawCallback={registerRawMessageCallback}
+            simulationActive={simulationActive}
+            onStartSimulation={handleStartSimulation}
+            onStopSimulation={handleStopSimulation}
+            staleTimeoutMs={staleTimeoutMs}
+            onStaleTimeoutChange={setStaleTimeoutMs}
+          >
+            <MoboDashboard
+              messages={messages}
+              dbcFiles={dbcFiles}
+              onSendMessage={handleSendMessage}
+              onRegisterRawCallback={registerRawMessageCallback}
+              staleTimeoutMs={staleTimeoutMs}
+            />
+          </CANExplorer>
+        )}
+        {activeTab === 'inverter-dashboard' && (
+          <CANExplorer
+            connected={connected}
+            messages={messages}
+            onClearMessages={handleClearMessages}
+            onSendMessage={handleSendMessage}
+            onLoadDBC={handleLoadDBC}
+            onUpdateDBCConfig={handleUpdateDBCConfig}
+            onDeleteDBC={handleDeleteDBC}
+            dbcLoaded={dbcLoaded}
+            dbcFile={dbcFile}
+            dbcFiles={dbcFiles}
+            dbcContext={dbcContext}
+            devices={devices}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onRefreshDevices={fetchDevices}
+            connectionStatus={connectionStatus}
+            stats={stats}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onRegisterRawCallback={registerRawMessageCallback}
+            simulationActive={simulationActive}
+            onStartSimulation={handleStartSimulation}
+            onStopSimulation={handleStopSimulation}
+            staleTimeoutMs={staleTimeoutMs}
+            onStaleTimeoutChange={setStaleTimeoutMs}
+          >
+            <InverterDashboard
+              messages={messages}
+              dbcFiles={dbcFiles}
+              onSendMessage={handleSendMessage}
               staleTimeoutMs={staleTimeoutMs}
             />
           </CANExplorer>
