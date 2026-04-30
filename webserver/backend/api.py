@@ -1485,6 +1485,19 @@ class CANBackend:
                         if signal.choices:
                             choices_dict = {int(k): str(v) for k, v in signal.choices.items()}
 
+                        multiplexer_signal = getattr(signal, 'multiplexer_signal', None)
+                        if hasattr(multiplexer_signal, 'name'):
+                            multiplexer_signal = multiplexer_signal.name
+
+                        multiplexer_ids = getattr(signal, 'multiplexer_ids', None)
+                        if multiplexer_ids is None:
+                            multiplexer_id = getattr(signal, 'multiplexer_id', None)
+                            if multiplexer_id is not None:
+                                multiplexer_ids = [multiplexer_id]
+
+                        if multiplexer_ids is not None:
+                            multiplexer_ids = [int(v) for v in sorted(multiplexer_ids)]
+
                         signals.append({
                             'name': signal.name,
                             'start_bit': signal.start,
@@ -1495,7 +1508,10 @@ class CANBackend:
                             'minimum': signal.minimum,
                             'maximum': signal.maximum,
                             'unit': signal.unit or '',
-                            'choices': choices_dict
+                            'choices': choices_dict,
+                            'is_multiplexer': bool(getattr(signal, 'is_multiplexer', False)),
+                            'multiplexer_signal': multiplexer_signal,
+                            'multiplexer_ids': multiplexer_ids
                         })
 
                     msg_length = msg.length if msg.length is not None else 8

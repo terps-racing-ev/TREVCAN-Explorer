@@ -1,11 +1,11 @@
 {
   "files": [
     {
-      "filename": "BMS-Firmware-RTOS-Complete.dbc",
+      "filename": "DAQBus.dbc",
       "enabled": true
     },
     {
-      "filename": "STM32L432_Bootloader.dbc",
+      "filename": "ControlsBus.dbc",
       "enabled": true
     }
   ]

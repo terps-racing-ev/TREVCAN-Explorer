@@ -1,0 +1,48 @@
+{
+  "dbc_file": "dbcset-bd14b9db4cfa",
+  "items": [
+    {
+      "id": "1777094147922-0.22524469147691728",
+      "can_id": 219152591,
+      "data": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "is_extended": true,
+      "message_name": "VCU_Config",
+      "signals": null,
+      "description": "DBC: VCU_Config",
+      "cycle_time": null
+    },
+    {
+      "id": "1777095971568-0.5526400282930273",
+      "can_id": 4194800,
+      "data": [
+        7,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "is_extended": true,
+      "message_name": "HVC_IO_Summary",
+      "signals": {
+        "HVC_SDC_OK": 1,
+        "HVC_IMD_OK": 1,
+        "HVC_BMS_OK": 1,
+        "HVC_Ref_Temp": 0
+      },
+      "description": "DBC: HVC_IO_Summary",
+      "cycle_time": 3
+    }
+  ]
+}
