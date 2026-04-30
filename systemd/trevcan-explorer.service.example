@@ -1,7 +1,8 @@
 [Unit]
 Description=TREVCAN Explorer
-After=network-online.target
-Wants=network-online.target
+After=network-online.target trevcan-socketcan.service
+Wants=network-online.target trevcan-socketcan.service
+Requires=trevcan-socketcan.service
 
 [Service]
 Type=simple

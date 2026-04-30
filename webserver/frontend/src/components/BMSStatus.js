@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Activity, AlertTriangle, Thermometer, Zap, TrendingUp, TrendingDown, Info, Send, CheckCircle, XCircle } from 'lucide-react';
+import { Activity, AlertTriangle, Thermometer, Zap, TrendingUp, TrendingDown, Info, Send, CheckCircle, XCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { apiService } from '../services/api';
 import FirmwareFlasher from './FirmwareFlasher';
 import { useNowTick, isTimestampStale } from '../hooks/useStaleness';
+import { useIsMobile } from '../hooks/useIsMobile';
+import ErrorBoundary from './ErrorBoundary';
 import './BMSStatus.css';
 
 // Helper function to extract numeric signal value - handles both local DBC decoding (object with .value/.raw)
@@ -47,7 +49,44 @@ function BMSStatus({ messages, onSendMessage, dbcFile, staleTimeoutMs = 30000 })
   const [selectedModule, setSelectedModule] = useState('all'); // 'all' or 0-5
   const [commandStatus, setCommandStatus] = useState({}); // Track command responses
   const [faultHistory, setFaultHistory] = useState({}); // Track all faults with timestamps
+  const [expandedModules, setExpandedModules] = useState({}); // Mobile accordion state (map: id -> true)
   const nowMs = useNowTick(1000);
+  const isMobile = useIsMobile(768);
+
+  // One-time global error logger so cross-origin "Script error." messages
+  // still print useful info to the console for debugging.
+  useEffect(() => {
+    const onErr = (e) => {
+      // eslint-disable-next-line no-console
+      console.error('[GlobalError]', e?.message, e?.filename, e?.lineno, e?.colno, e?.error);
+    };
+    const onRej = (e) => {
+      // eslint-disable-next-line no-console
+      console.error('[UnhandledRejection]', e?.reason);
+    };
+    window.addEventListener('error', onErr);
+    window.addEventListener('unhandledrejection', onRej);
+    return () => {
+      window.removeEventListener('error', onErr);
+      window.removeEventListener('unhandledrejection', onRej);
+    };
+  }, []);
+
+  const toggleExpanded = (moduleId) => {
+    try {
+      setExpandedModules(prev => {
+        const next = { ...prev };
+        if (next[moduleId]) delete next[moduleId];
+        else next[moduleId] = true;
+        return next;
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[BMSStatus] toggleExpanded failed', err);
+    }
+  };
+
+  const isExpanded = (moduleId) => Boolean(expandedModules[moduleId]);
 
   // Per-module freshest CAN timestamp (in seconds). Used to gray out modules
   // whose telemetry has gone silent for longer than the user-configured timeout.
@@ -887,6 +926,7 @@ function BMSStatus({ messages, onSendMessage, dbcFile, staleTimeoutMs = 30000 })
 
           {/* Individual Module Status Cards - Only for all modules view */}
           {isAllModulesView && (
+            <ErrorBoundary>
             <div className="modules-grid-section">
               <div className="modules-grid">
                 {[0, 1, 2, 3, 4, 5].map(moduleId => {
@@ -920,10 +960,38 @@ function BMSStatus({ messages, onSendMessage, dbcFile, staleTimeoutMs = 30000 })
                   const canTxErr = getSignalValue(modData?.canStats?.TX_Error_Count, null);
 
                   return (
-                    <div key={moduleId} className={`module-column ${!modData ? 'offline' : hasFault ? 'has-fault' : 'active'} ${moduleStale[moduleId] ? 'stale' : ''}`} title={moduleStale[moduleId] ? `Stale — no data received in the last ${Math.round(staleTimeoutMs / 1000)}s` : undefined}>
-                      <div className="module-header">
-                        <span className="module-title">Module {moduleId}</span>
-                        <span className={`status-badge ${modState.toLowerCase()}`}>{moduleStale[moduleId] ? `${modState} (stale)` : modState}</span>
+                    <div key={moduleId} className={`module-column ${!modData ? 'offline' : hasFault ? 'has-fault' : 'active'} ${moduleStale[moduleId] ? 'stale' : ''} ${isMobile && isExpanded(moduleId) ? 'expanded' : ''} ${isMobile && !isExpanded(moduleId) ? 'collapsed' : ''}`} title={moduleStale[moduleId] ? `Stale — no data received in the last ${Math.round(staleTimeoutMs / 1000)}s` : undefined}>
+                      <div
+                        className="module-header"
+                        onClick={isMobile ? () => toggleExpanded(moduleId) : undefined}
+                        role={isMobile ? 'button' : undefined}
+                        tabIndex={isMobile ? 0 : undefined}
+                        onKeyDown={isMobile ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpanded(moduleId); } } : undefined}
+                      >
+                        <span className="module-title">
+                          {isMobile && (
+                            isExpanded(moduleId)
+                              ? <ChevronDown size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                              : <ChevronRight size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                          )}
+                          Module {moduleId}
+                        </span>
+                        <span className="module-header-meta">
+                          {isMobile && modData && (
+                            <span className="module-summary-mini">
+                              {modMinVolt !== null && modMaxVolt !== null && (
+                                <span title="Cell voltage min/max">
+                                  {(modMinVolt / 1000).toFixed(2)}-{(modMaxVolt / 1000).toFixed(2)}V
+                                </span>
+                              )}
+                              {modMaxTemp !== null && (
+                                <span title="Max temperature">{modMaxTemp.toFixed(0)}°</span>
+                              )}
+                              {hasFault && <span className="module-summary-fault">{modFaultCount}!</span>}
+                            </span>
+                          )}
+                          <span className={`status-badge ${modState.toLowerCase()}`}>{moduleStale[moduleId] ? `${modState} (stale)` : modState}</span>
+                        </span>
                       </div>
                       
                       <div className="module-content">
@@ -1074,6 +1142,7 @@ function BMSStatus({ messages, onSendMessage, dbcFile, staleTimeoutMs = 30000 })
                 })}
               </div>
             </div>
+            </ErrorBoundary>
           )}
 
           {/* CAN Statistics - Only for single module view */}

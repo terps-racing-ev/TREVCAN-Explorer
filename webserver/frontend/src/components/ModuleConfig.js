@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Settings, Send, RefreshCw, Check, X, AlertTriangle } from 'lucide-react';
 import { useNowTick, isTimestampStale } from '../hooks/useStaleness';
+import { useIsMobile } from '../hooks/useIsMobile';
 import './ModuleConfig.css';
 
 // CAN ID calculation for BMS configuration
@@ -56,6 +57,7 @@ const READBACK_PARAM_DEFINITIONS = [
 
 function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallback, staleTimeoutMs = 30000 }) {
   const nowMs = useNowTick(1000);
+  const isMobile = useIsMobile(768);
   // Module configurations (keyed by module ID 0-15)
   const [moduleConfigs, setModuleConfigs] = useState({});
   // Input field values (separate from confirmed values)
@@ -64,6 +66,8 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
   const [ackStatus, setAckStatus] = useState({});
   // All 6 modules are always shown
   const activeModules = [0, 1, 2, 3, 4, 5];
+  // On mobile we view one module at a time
+  const [mobileSelectedModule, setMobileSelectedModule] = useState(0);
   // Track which modules have responded (have any config data)
   const [respondingModules, setRespondingModules] = useState(new Set());
   // Loading state per module
@@ -416,8 +420,28 @@ function ModuleConfig({ messages, onSendMessage, connected, onRegisterRawCallbac
         </div>
       )}
 
+      {isMobile && (
+        <div className="mobile-module-tabs" role="tablist" aria-label="Select module">
+          {activeModules.map(moduleId => {
+            const isResponding = respondingModules.has(moduleId);
+            const isActive = mobileSelectedModule === moduleId;
+            return (
+              <button
+                key={moduleId}
+                role="tab"
+                aria-selected={isActive}
+                className={`mobile-module-tab ${isActive ? 'active' : ''} ${isResponding ? 'responding' : 'not-responding'}`}
+                onClick={() => setMobileSelectedModule(moduleId)}
+              >
+                M{moduleId}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="modules-container">
-        {activeModules.map(moduleId => {
+        {(isMobile ? activeModules.filter(id => id === mobileSelectedModule) : activeModules).map(moduleId => {
           const config = moduleConfigs[moduleId] || {};
           const ack = ackStatus[moduleId];
           const isLoading = loadingModules[moduleId];

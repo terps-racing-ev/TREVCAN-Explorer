@@ -571,3 +571,187 @@
   color: #f5f5f5;
   border-radius: 3px;
 }
+
+/* ===== Mobile / tablet layout ===== */
+.mobile-module-tabs {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .module-config {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .module-config-header {
+    padding: 10px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .module-config-header h2 {
+    font-size: 15px;
+    flex: 1 1 auto;
+  }
+
+  .refresh-all-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    min-height: 36px;
+  }
+
+  .mobile-module-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 8px 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: #050505;
+    border-bottom: 1px solid #1a1a1a;
+    scrollbar-width: thin;
+  }
+
+  .mobile-module-tab {
+    flex: 1 0 auto;
+    min-width: 56px;
+    min-height: 40px;
+    padding: 8px 12px;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    color: #888;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    transition: all 0.15s ease;
+  }
+
+  .mobile-module-tab.responding {
+    border-color: #dc262644;
+    color: #fca5a5;
+  }
+
+  .mobile-module-tab.not-responding {
+    color: #555;
+    opacity: 0.7;
+  }
+
+  .mobile-module-tab.active {
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    border-color: #dc2626;
+    color: white;
+  }
+
+  .modules-container {
+    grid-template-columns: 1fr;
+    padding: 10px;
+    gap: 12px;
+  }
+
+  .module-card {
+    border-radius: 6px;
+  }
+
+  .module-card-header {
+    padding: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .module-card-header h3 {
+    font-size: 15px;
+  }
+
+  .can-id-badge {
+    font-size: 11px;
+  }
+
+  .config-grid {
+    padding: 12px;
+  }
+
+  /* Stack each config row vertically on mobile */
+  .config-row {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 6px;
+    padding: 10px 0;
+  }
+
+  .config-row label {
+    font-size: 13px;
+    color: #ccc;
+  }
+
+  .config-value {
+    text-align: left;
+  }
+
+  .current-value {
+    font-size: 14px;
+  }
+
+  .config-input input {
+    padding: 10px 12px;
+    font-size: 14px;
+    min-height: 40px;
+  }
+
+  .set-btn {
+    width: 44px;
+    height: 40px;
+  }
+
+  .refresh-btn,
+  .remove-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* BQ mode toggle stays as one row but bigger */
+  .bq-mode-row .toggle-btn {
+    padding: 10px 12px;
+    font-size: 12px;
+    min-height: 40px;
+  }
+
+  .bq-mode-row .bq-mode-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .bq-mode-row .bq-mode-toggle {
+    gap: 8px;
+  }
+
+  .chip-mode {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .readback-section {
+    margin-top: 12px;
+    padding-top: 10px;
+  }
+
+  .readback-row .config-input.read-only-input {
+    justify-content: flex-start;
+  }
+
+  .ack-status {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .config-note {
+    padding: 10px 12px;
+  }
+
+  .config-note small {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+}

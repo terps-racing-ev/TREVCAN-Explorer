@@ -17,6 +17,10 @@
       "enabled": true
     },
     {
+      "filename": "io_messages.dbc",
+      "enabled": true
+    },
+    {
       "filename": "BMS-Inverter-Only.dbc",
       "enabled": true
     }
