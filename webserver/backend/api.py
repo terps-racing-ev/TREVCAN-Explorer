@@ -1116,6 +1116,22 @@ class CANBackend:
         'BMS_Heartbeat_0',
     )
 
+    SIM_TEST_OPTIONAL_MESSAGES = (
+        'IO_Summary',
+        'IO_Current',
+        'IO_VSense',
+        'BMS_State',
+        'Errored_Panic',
+        'SOC',
+        'ACC_Summary',
+        'Current_Limit',
+        'PL_Signal',
+        'MOBO_Summary',
+        'MOBO_Power_Info',
+        'MOBO_LC_Summary',
+        'MOBO_HC_Summary',
+    )
+
     def get_hvc_test_mode_status(self) -> Dict[str, Any]:
         """Return current HVC test mode state and global override config."""
         return {
@@ -1413,21 +1429,27 @@ class CANBackend:
 
         return message_data
 
-    async def _emit_simulated_message(self, message_name: str, signals: Dict[str, Union[int, float]]):
+    async def _emit_simulated_message(self, message_name: str, signals: Dict[str, Union[int, float]]) -> bool:
         """Encode and broadcast one simulated CAN message by DBC message name."""
-        if not self.dbc_database:
-            return
+        found = self._find_effective_message_by_name(message_name)
+        if not found:
+            return False
 
         try:
-            message = self.dbc_database.get_message_by_name(message_name)
-            payload = message.encode(signals)
-            is_extended = message.frame_id > 0x7FF
-            can_id = message.frame_id
+            _, message = found
+            message_signal_names = {signal.name for signal in message.signals}
+            filtered_signals = {
+                key: value for key, value in signals.items() if key in message_signal_names
+            }
+            payload = message.encode(filtered_signals)
+            can_id, is_extended = self._message_identity(message)
             message_data = self._build_simulated_message(can_id, payload, is_extended)
             self.message_count += 1
             await self.broadcast_message(message_data)
+            return True
         except Exception as e:
             print(f"[SIM] Failed to emit {message_name}: {e}")
+            return False
 
     def _get_simulation_elapsed(self) -> float:
         """Return elapsed simulation time in seconds using monotonic clock."""
@@ -1456,15 +1478,123 @@ class CANBackend:
 
         return round(lc_current, 1), round(hc_current, 1)
 
+    def _build_optional_sim_test_payloads(
+        self, elapsed: float, lc_current: float, hc_current: float
+    ) -> Dict[str, Dict[str, Union[int, float]]]:
+        """Build synthetic payloads for optional HVC/IO/MOBO test-mode messages."""
+        cycle_seconds = 36.0
+        phase = (elapsed % cycle_seconds) / cycle_seconds
+        wave = 0.5 + (0.5 * math.sin(2.0 * math.pi * phase))
+        heartbeat_toggle = int((elapsed * 2.0) % 2.0)
+
+        ref_temp = round(24.0 + (22.0 * wave) + random.uniform(-0.35, 0.35), 2)
+        current_low_ma = int(round((-12000.0 + (24000.0 * wave)) + random.uniform(-300.0, 300.0)))
+        current_high_ma = int(round(current_low_ma + random.uniform(-900.0, 900.0)))
+
+        batt_voltage_mv = int(round(292000.0 + (98000.0 * wave) + random.uniform(-500.0, 500.0)))
+        inv_voltage_mv = int(round(batt_voltage_mv - (5000.0 + (2400.0 * (1.0 - wave))) + random.uniform(-300.0, 300.0)))
+
+        soc_percent = round(18.0 + (79.0 * wave), 2)
+        soc_capacity_as = int(round(21000.0 + (13000.0 * wave)))
+        soc_delta_as = int(round((wave - 0.5) * 12000.0))
+
+        acc_volt_min_mv = int(round(3110.0 + (260.0 * wave) + random.uniform(-4.0, 4.0)))
+        acc_volt_max_mv = int(round(acc_volt_min_mv + 34.0 + random.uniform(0.0, 10.0)))
+        acc_temp_min_c = round(24.0 + (8.5 * wave) + random.uniform(-0.6, 0.6), 1)
+        acc_temp_max_c = round(acc_temp_min_c + 4.0 + random.uniform(0.0, 2.5), 1)
+
+        negative_current_limit_ma = int(round(150000.0 + (22000.0 * (1.0 - wave))))
+        positive_current_limit_ma = int(round(210000.0 + (28000.0 * wave)))
+
+        bms_state = 1
+        if wave > 0.82:
+            bms_state = 3
+        elif wave < 0.12:
+            bms_state = 2
+
+        pl_signal_reason = 4 if bms_state == 2 else (1 if wave > 0.65 else 0)
+
+        battery_voltage_v = round((12800.0 + (1400.0 * wave) + random.uniform(-50.0, 50.0)) / 1000.0, 3)
+        fivev_sense = round((4950.0 + random.uniform(-35.0, 35.0)) / 1000.0, 3)
+        brake_input = round(0.5 + (4.0 * wave) + random.uniform(-0.15, 0.15), 3)
+
+        lv_current = round((lc_current * 0.12) + random.uniform(-0.8, 0.8), 3)
+        hc_current_mobo = round((hc_current * 0.18) + random.uniform(-0.8, 0.8), 3)
+
+        return {
+            'IO_Summary': {
+                'SDC_Closed': 1,
+                'IMD_Ok': 1,
+                'BMS_Fault_Ok': 1,
+                'Ref_Temp_C': ref_temp,
+            },
+            'IO_Current': {
+                'Current_Low_mA': current_low_ma,
+                'Current_High_mA': current_high_ma,
+            },
+            'IO_VSense': {
+                'Batt_Voltage_mV': batt_voltage_mv,
+                'Inv_Voltage_mV': inv_voltage_mv,
+            },
+            'BMS_State': {
+                'BMS_State': bms_state,
+                'Err_RefOverTemp': 0,
+                'Err_ModuleTimeout': 0,
+                'Err_BattFloating': 0,
+                'Err_CurrSenseFloating': 0,
+                'Err_BmbError': 0,
+                'Err_BmsCanError': 0,
+                'Err_LvCanError': 0,
+            },
+            'Errored_Panic': {},
+            'SOC': {
+                'SOC_Percent': soc_percent,
+                'SOC_Capacity_As': soc_capacity_as,
+                'SOC_Delta_As': soc_delta_as,
+            },
+            'ACC_Summary': {
+                'Acc_Volt_Min_mV': acc_volt_min_mv,
+                'Acc_Volt_Max_mV': acc_volt_max_mv,
+                'Acc_Temp_Min_C': acc_temp_min_c,
+                'Acc_Temp_Max_C': acc_temp_max_c,
+            },
+            'Current_Limit': {
+                'Negative_Current_Limit_mA': negative_current_limit_ma,
+                'Positive_Current_Limit_mA': positive_current_limit_ma,
+            },
+            'PL_Signal': {
+                'PL_Signal_Reason': pl_signal_reason,
+            },
+            'MOBO_Summary': {
+                'Heartbeat_Toggle': heartbeat_toggle,
+                'SDC_1': 1,
+                'SDC_2': 1,
+                'SDC_3': 1,
+                'BMS': 1,
+                'BSPD': 1,
+                'IMD': 1,
+            },
+            'MOBO_Power_Info': {
+                'Battery_Voltage': battery_voltage_v,
+            },
+            'MOBO_LC_Summary': {
+                'FiveV_Sense': fivev_sense,
+                'Brake_Input': brake_input,
+                'LV_Current': lv_current,
+            },
+            'MOBO_HC_Summary': {
+                'HC_Current': hc_current_mobo,
+                'Pump_Cmd': 1 if wave > 0.35 else 0,
+                'DRS_Cmd': 1 if wave > 0.75 else 0,
+                'Fans_Cmd': 1 if wave > 0.5 else 0,
+                'Rad_Cmd': 1 if wave > 0.58 else 0,
+            },
+        }
+
     async def _run_simulated_current_sensor(self):
         """Emit Current_Sensor_Data at a fixed 10 ms cadence while simulation is active."""
         try:
-            if not self.dbc_database:
-                return
-
-            try:
-                self.dbc_database.get_message_by_name("Current_Sensor_Data")
-            except Exception:
+            if not self._find_effective_message_by_name("Current_Sensor_Data"):
                 return
 
             emit_interval_s = 0.01
@@ -1509,6 +1639,10 @@ class CANBackend:
         voltage_max = 4200.0
 
         cycle_seconds = 50.0  # One full rise-and-fall cycle.
+        optional_messages_available = {
+            name: bool(self._find_effective_message_by_name(name))
+            for name in self.SIM_TEST_OPTIONAL_MESSAGES
+        }
 
         def normalized_triangle(phase: float) -> tuple[float, bool]:
             """Return (0..1 value, rising_phase)."""
@@ -1710,6 +1844,15 @@ class CANBackend:
                             "Fault_Count": 0
                         }
                     )
+
+                elapsed_for_optional = self._get_simulation_elapsed()
+                lc_current, hc_current = self._build_simulated_currents(elapsed_for_optional)
+                optional_payloads = self._build_optional_sim_test_payloads(
+                    elapsed_for_optional, lc_current, hc_current
+                )
+                for message_name, payload in optional_payloads.items():
+                    if optional_messages_available.get(message_name):
+                        await self._emit_simulated_message(message_name, payload)
 
                 await asyncio.sleep(0.2)
         except asyncio.CancelledError:
