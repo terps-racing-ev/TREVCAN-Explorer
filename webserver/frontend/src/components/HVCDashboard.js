@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Battery, Activity, Gauge, Thermometer, AlertTriangle, Zap, RotateCcw, Settings,
+  Battery, Activity, Gauge, Thermometer, AlertTriangle, Zap, RotateCcw, Settings, Radio,
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useNowTick, isTimestampStale } from '../hooks/useStaleness';
@@ -9,6 +9,10 @@ import './HVCDashboard.css';
 // HVC firmware reset trigger (extended ID, not currently in hvc.dbc).
 const HVC_RESET_CAN_ID = 0x004001F6;
 const HVC_RESET_DATA = [0, 0, 0, 0, 0, 0, 0, 0];
+
+// BMB CAN passthrough enable/disable command (extended ID, defined in hvc.dbc
+// as BMB_Passthrough_Control). DLC = 1, byte 0 bit 0 carries the request.
+const HVC_BMB_PASSTHROUGH_CAN_ID = 0x004001FB;
 
 const HVC_TEST_VOLTAGE_MIN = 2.5;
 const HVC_TEST_VOLTAGE_MAX = 4.3;
@@ -26,7 +30,17 @@ const HVC_MESSAGE_MAP = {
   ACC_Summary: 'accSummary',
   Current_Limit: 'currentLimit',
   PL_Signal: 'plSignal',
+  EMeter_Therms: 'emeterTherms',
 };
+
+const EMETER_THERM_SIGNALS = [
+  'EMeter_Therm_0_C',
+  'EMeter_Therm_1_C',
+  'EMeter_Therm_2_C',
+  'EMeter_Therm_3_C',
+  'EMeter_Therm_4_C',
+  'EMeter_Therm_5_C',
+];
 
 // Known BMS_State enum names from hvc.dbc.
 const HVC_BMS_STATES = ['PRE_INIT', 'RUNNING', 'CHARGING', 'BALANCING', 'ERRORED'];
@@ -108,6 +122,9 @@ function HVCDashboard({ messages, onSendMessage, staleTimeoutMs = 30000 }) {
   const nowMs = useNowTick(1000);
   const [resetBusy, setResetBusy] = useState(false);
   const [resetStatus, setResetStatus] = useState(null);
+  const [passthroughEnabled, setPassthroughEnabled] = useState(false);
+  const [passthroughBusy, setPassthroughBusy] = useState(false);
+  const [passthroughStatus, setPassthroughStatus] = useState(null);
 
   // ---- HVC test-mode backend controls --------------------------------------
   const [testEnabled, setTestEnabled] = useState(false);
@@ -188,7 +205,7 @@ function HVCDashboard({ messages, onSendMessage, staleTimeoutMs = 30000 }) {
     const acc = {
       ioSummary: null, ioCurrent: null, ioVSense: null,
       bmsState: null, soc: null, accSummary: null,
-      currentLimit: null, plSignal: null,
+      currentLimit: null, plSignal: null, emeterTherms: null,
     };
     if (!messages || messages.length === 0) return acc;
 
@@ -227,6 +244,38 @@ function HVCDashboard({ messages, onSendMessage, staleTimeoutMs = 30000 }) {
       setResetStatus({ type: 'error', text: `Failed to send reset: ${err?.message || err}` });
     } finally {
       setResetBusy(false);
+    }
+  };
+
+  const handleTogglePassthrough = async () => {
+    if (typeof onSendMessage !== 'function') {
+      setPassthroughStatus({ type: 'error', text: 'Send handler unavailable' });
+      return;
+    }
+    const next = !passthroughEnabled;
+    setPassthroughBusy(true);
+    setPassthroughStatus({
+      type: 'pending',
+      text: next ? 'Enabling BMB passthrough...' : 'Disabling BMB passthrough...',
+    });
+    try {
+      const ok = await onSendMessage(HVC_BMB_PASSTHROUGH_CAN_ID, [next ? 1 : 0], true, false);
+      if (ok) {
+        setPassthroughEnabled(next);
+        setPassthroughStatus({
+          type: 'success',
+          text: next ? 'BMB passthrough enabled' : 'BMB passthrough disabled',
+        });
+      } else {
+        setPassthroughStatus({ type: 'error', text: 'Frame rejected by backend' });
+      }
+    } catch (err) {
+      setPassthroughStatus({
+        type: 'error',
+        text: `Failed to toggle passthrough: ${err?.message || err}`,
+      });
+    } finally {
+      setPassthroughBusy(false);
     }
   };
 
@@ -276,6 +325,7 @@ function HVCDashboard({ messages, onSendMessage, staleTimeoutMs = 30000 }) {
   const bmsState = frames.bmsState?.signals || {};
   const currentLimit = frames.currentLimit?.signals || {};
   const plSignal = frames.plSignal?.signals || {};
+  const emeterTherms = frames.emeterTherms?.signals || {};
 
   const stateText = getDisplay(bmsState.BMS_State, '--');
   const normalizedState = normalizeStateName(stateText);
@@ -304,6 +354,21 @@ function HVCDashboard({ messages, onSendMessage, staleTimeoutMs = 30000 }) {
           <p>Real-time high-voltage controller telemetry decoded from hvc.dbc.</p>
         </div>
         <div className="hvc-header-actions">
+          <button
+            type="button"
+            className={`hvc-passthrough-btn ${passthroughEnabled ? 'on' : 'off'}`}
+            onClick={handleTogglePassthrough}
+            disabled={passthroughBusy}
+            title="Toggle BMB CAN passthrough on the LV CAN bus"
+          >
+            <Radio size={15} />
+            {passthroughBusy
+              ? 'Sending...'
+              : `BMB Passthrough: ${passthroughEnabled ? 'ON' : 'OFF'}`}
+          </button>
+          {passthroughStatus && (
+            <span className={`hvc-status-pill ${passthroughStatus.type}`}>{passthroughStatus.text}</span>
+          )}
           <button
             type="button"
             className="hvc-reset-btn"
@@ -441,6 +506,26 @@ function HVCDashboard({ messages, onSendMessage, staleTimeoutMs = 30000 }) {
           <div className="hvc-metric single">
             <span>Reason</span>
             <strong>{getDisplay(plSignal.PL_Signal_Reason)}</strong>
+          </div>
+        </section>
+
+        <section className="hvc-card hvc-emeter-card">
+          <div className="hvc-card-header">
+            <Thermometer size={17} /><h3>E-Meter Thermistors</h3>{renderFreshness(frames.emeterTherms)}
+          </div>
+          <div className="hvc-emeter-grid">
+            {EMETER_THERM_SIGNALS.map((name, idx) => {
+              const raw = getNumeric(emeterTherms[name]);
+              const invalid = raw === null || raw === 0;
+              return (
+                <div key={name} className={`hvc-emeter-cell ${invalid ? 'invalid' : ''}`}>
+                  <span className="hvc-emeter-label">T{idx}</span>
+                  <span className="hvc-emeter-value">
+                    {invalid ? '--' : `${raw} °C`}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </section>
       </div>

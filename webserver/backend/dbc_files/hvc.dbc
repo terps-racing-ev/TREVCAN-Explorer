@@ -81,6 +81,14 @@ BO_ 2151678458 PL_Signal: 1 HVC
 BO_ 2151678459 BMB_Passthrough_Control: 1 Vector__XXX
  SG_ BMB_Passthrough_Enable : 0|1@1+ (1,0) [0|1] "" HVC
 
+BO_ 2151678460 EMeter_Therms: 8 HVC
+ SG_ EMeter_Therm_0_C : 0|8@1- (1,0) [-128|127] "degC" Vector__XXX
+ SG_ EMeter_Therm_1_C : 8|8@1- (1,0) [-128|127] "degC" Vector__XXX
+ SG_ EMeter_Therm_2_C : 16|8@1- (1,0) [-128|127] "degC" Vector__XXX
+ SG_ EMeter_Therm_3_C : 24|8@1- (1,0) [-128|127] "degC" Vector__XXX
+ SG_ EMeter_Therm_4_C : 32|8@1- (1,0) [-128|127] "degC" Vector__XXX
+ SG_ EMeter_Therm_5_C : 40|8@1- (1,0) [-128|127] "degC" Vector__XXX
+
 VAL_ 2151678449 BMS_State 0 "PRE_INIT" 1 "RUNNING" 2 "CHARGING" 3 "BALANCING" 4 "ERRORED" ;
 VAL_ 2151678458 PL_Signal_Reason 0 "NORMAL_OPEN" 1 "NORMAL_CLOSED" 2 "BMS_ERRORED" 3 "BATT_FLOATING" 4 "CHARGING" ;
 VAL_ 2151678459 BMB_Passthrough_Enable 0 "Disable" 1 "Enable" ;
