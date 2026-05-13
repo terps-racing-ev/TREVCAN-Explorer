@@ -15,6 +15,7 @@ import { apiService } from './services/api';
 import { websocketService } from './services/websocket';
 
 const isPageVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
+const getMessageAggregateKey = (msg) => `${msg.is_extended ? 'ext' : 'std'}:${msg.id}`;
 
 function App() {
   const [activeTab, setActiveTab] = useState('explorer');
@@ -93,39 +94,66 @@ function App() {
             // Create a map from existing messages
             const messageMap = new Map();
             prev.forEach(msg => {
-              messageMap.set(msg.id, msg);
+              messageMap.set(getMessageAggregateKey(msg), msg);
             });
             
-            // Update with new messages (aggregating by CAN ID)
+            // Update with new messages (aggregating by CAN ID + frame format)
             bufferedMessages.forEach(msg => {
-              const existing = messageMap.get(msg.id);
+              const aggregateKey = getMessageAggregateKey(msg);
+              const existing = messageMap.get(aggregateKey);
               
               // Update count
-              const currentCount = messageCountsRef.current.get(msg.id) || 0;
-              messageCountsRef.current.set(msg.id, currentCount + 1);
+              const currentCount = messageCountsRef.current.get(aggregateKey) || 0;
+              messageCountsRef.current.set(aggregateKey, currentCount + 1);
+
+              let mergedDecoded = msg.decoded;
+              if (existing?.decoded) {
+                if (msg.decoded?.signals) {
+                  mergedDecoded = {
+                    ...existing.decoded,
+                    ...msg.decoded,
+                    signals: {
+                      ...(existing.decoded.signals || {}),
+                      ...msg.decoded.signals
+                    }
+                  };
+                } else {
+                  mergedDecoded = existing.decoded;
+                }
+              }
+
+              const nextMessage = {
+                ...msg,
+                decoded: mergedDecoded
+              };
               
               if (existing) {
                 // Update existing entry with new data
                 const timeDiff = msg.timestamp - existing.timestamp;
-                messageMap.set(msg.id, {
-                  ...msg,
-                  count: messageCountsRef.current.get(msg.id),
+                messageMap.set(aggregateKey, {
+                  ...nextMessage,
+                  count: messageCountsRef.current.get(aggregateKey),
                   cycleTime: timeDiff > 0 ? timeDiff : existing.cycleTime,
                   lastTimestamp: existing.timestamp
                 });
               } else {
                 // New CAN ID
-                messageMap.set(msg.id, {
-                  ...msg,
-                  count: messageCountsRef.current.get(msg.id),
+                messageMap.set(aggregateKey, {
+                  ...nextMessage,
+                  count: messageCountsRef.current.get(aggregateKey),
                   cycleTime: null,
                   lastTimestamp: null
                 });
               }
             });
             
-            // Convert back to array, sorted by CAN ID
-            return Array.from(messageMap.values()).sort((a, b) => a.id - b.id);
+            // Convert back to array, sorted by CAN ID then frame format
+            return Array.from(messageMap.values()).sort((a, b) => {
+              if (a.id !== b.id) {
+                return a.id - b.id;
+              }
+              return Number(a.is_extended) - Number(b.is_extended);
+            });
           });
         }
       }, 100);
