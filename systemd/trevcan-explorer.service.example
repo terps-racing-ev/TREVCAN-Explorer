@@ -1,13 +1,11 @@
 [Unit]
 Description=TREVCAN Explorer
-After=network-online.target trevcan-socketcan.service
-Wants=network-online.target trevcan-socketcan.service
-Requires=trevcan-socketcan.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=__USER__
-Group=__GROUP__
 WorkingDirectory=__WORKDIR__
 Environment=HOME=__HOME__
 Environment=PATH=__PATH__

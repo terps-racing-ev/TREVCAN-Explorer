@@ -350,6 +350,54 @@ function TransmitList({ dbcContext, onSendMessage }) {
 // Dialog for adding a new transmit message
 function AddTransmitDialog({ dbcMessages, onAdd, onUpdate, onCancel, editingItem }) {
   const isEditing = !!editingItem;
+
+  const normalizeMuxValue = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.trunc(parsed) : 0;
+  };
+
+  const getMultiplexerSignal = (dbcMessage) => {
+    if (!dbcMessage?.signals) {
+      return null;
+    }
+    return dbcMessage.signals.find(signal => signal.is_multiplexer) || null;
+  };
+
+  const isSignalVisibleForMux = (signal, muxSignalName, muxValue) => {
+    if (!signal) {
+      return false;
+    }
+
+    if (signal.is_multiplexer) {
+      return true;
+    }
+
+    if (!signal.multiplexer_signal) {
+      return true;
+    }
+
+    if (!muxSignalName || signal.multiplexer_signal !== muxSignalName) {
+      return false;
+    }
+
+    if (!Array.isArray(signal.multiplexer_ids) || signal.multiplexer_ids.length === 0) {
+      return true;
+    }
+
+    return signal.multiplexer_ids.includes(muxValue);
+  };
+
+  const getVisibleSignals = (dbcMessage, values) => {
+    if (!dbcMessage?.signals) {
+      return [];
+    }
+
+    const muxSignal = getMultiplexerSignal(dbcMessage);
+    const muxSignalName = muxSignal?.name || null;
+    const muxValue = muxSignalName ? normalizeMuxValue(values?.[muxSignalName]) : null;
+
+    return dbcMessage.signals.filter(signal => isSignalVisibleForMux(signal, muxSignalName, muxValue));
+  };
   
   // Determine initial mode based on editing item
   const getInitialMode = () => {
@@ -385,9 +433,12 @@ function AddTransmitDialog({ dbcMessages, onAdd, onUpdate, onCancel, editingItem
   const [cycleTime, setCycleTime] = useState(editingItem?.cycle_time || 0);
 
   const selectedDbcMessage = dbcMessages.find(m => m.name === selectedMessage);
+  const visibleSignals = getVisibleSignals(selectedDbcMessage, signalValues);
 
   // Track if we've already initialized for editing
   const hasInitializedEdit = useRef(false);
+  // Track latest auto-encode request to ignore stale responses
+  const autoEncodeRequestIdRef = useRef(0);
   
   // Sync cycleTime when editingItem changes (e.g., after page refresh)
   useEffect(() => {
@@ -433,12 +484,18 @@ function AddTransmitDialog({ dbcMessages, onAdd, onUpdate, onCancel, editingItem
     }
   }, [selectedDbcMessage, selectedMessage]);
 
-  // Encode signal values to data bytes
+  // Encode signal values to data bytes (for manual preview/save)
   const encodeSignals = async () => {
     if (!selectedDbcMessage) return null;
     
     try {
-      const response = await apiService.encodeMessage(selectedDbcMessage.name, signalValues);
+      const activeSignals = getVisibleSignals(selectedDbcMessage, signalValues);
+      const signalsToEncode = activeSignals.reduce((accumulator, signal) => {
+        accumulator[signal.name] = signalValues[signal.name] ?? 0;
+        return accumulator;
+      }, {});
+
+      const response = await apiService.encodeMessage(selectedDbcMessage.name, signalsToEncode);
       if (response.success) {
         const hexData = response.data.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
         setDbcData(hexData);
@@ -451,11 +508,82 @@ function AddTransmitDialog({ dbcMessages, onAdd, onUpdate, onCancel, editingItem
     return null;
   };
 
+  // Auto-encode on signal changes (silent, with debounce)
+  useEffect(() => {
+    if (editMode !== 'signals' || !selectedDbcMessage) {
+      return;
+    }
+
+    // Increment request ID to track this encode attempt
+    const requestId = ++autoEncodeRequestIdRef.current;
+
+    // Debounce: wait 200ms before encoding
+    const timer = setTimeout(async () => {
+      try {
+        // Ignore if a newer request has been made
+        if (requestId !== autoEncodeRequestIdRef.current) {
+          return;
+        }
+
+        const activeSignals = getVisibleSignals(selectedDbcMessage, signalValues);
+        const signalsToEncode = activeSignals.reduce((accumulator, signal) => {
+          accumulator[signal.name] = signalValues[signal.name] ?? 0;
+          return accumulator;
+        }, {});
+
+        const response = await apiService.encodeMessage(selectedDbcMessage.name, signalsToEncode);
+        
+        // Ignore if a newer request has been made (response was stale)
+        if (requestId !== autoEncodeRequestIdRef.current) {
+          return;
+        }
+
+        if (response.success) {
+          const hexData = response.data.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
+          setDbcData(hexData);
+        }
+      } catch (error) {
+        // Silent fail: just log, don't alert
+        console.error('Auto-encode preview failed:', error);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [signalValues, selectedDbcMessage, editMode]);
+
   const handleSignalChange = (signalName, value) => {
-    setSignalValues(prev => ({
-      ...prev,
-      [signalName]: parseFloat(value) || 0
-    }));
+    if (!selectedDbcMessage?.signals) {
+      return;
+    }
+
+    const changedSignal = selectedDbcMessage.signals.find(signal => signal.name === signalName);
+    const parsedValue = parseFloat(value);
+    const nextValue = Number.isFinite(parsedValue) ? parsedValue : 0;
+
+    setSignalValues(prev => {
+      const updated = {
+        ...prev,
+        [signalName]: nextValue
+      };
+
+      if (changedSignal?.is_multiplexer) {
+        const muxSignalName = changedSignal.name;
+        const muxValue = normalizeMuxValue(nextValue);
+
+        selectedDbcMessage.signals.forEach(signal => {
+          if (!signal.multiplexer_signal || signal.multiplexer_signal !== muxSignalName) {
+            return;
+          }
+
+          const isVisible = isSignalVisibleForMux(signal, muxSignalName, muxValue);
+          if (!isVisible) {
+            updated[signal.name] = 0;
+          }
+        });
+      }
+
+      return updated;
+    });
   };
 
   const handleAdd = async () => {
@@ -469,8 +597,10 @@ function AddTransmitDialog({ dbcMessages, onAdd, onUpdate, onCancel, editingItem
         encodedResponse = await encodeSignals();
       }
       
-      // Create message from DBC with manual data bytes
-      const dataBytes = dbcData.split(/\s+/).map(b => parseInt(b, 16));
+      // Create message from DBC with encoded bytes (signals mode) or manual raw bytes
+      const dataBytes = (editMode === 'signals' && encodedResponse?.data)
+        ? encodedResponse.data
+        : dbcData.split(/\s+/).map(b => parseInt(b, 16));
       
       if (dataBytes.some(b => isNaN(b) || b < 0 || b > 255)) {
         alert('Invalid data bytes. Use hex values (00-FF).');
@@ -597,9 +727,10 @@ function AddTransmitDialog({ dbcMessages, onAdd, onUpdate, onCancel, editingItem
                         <div className="signals-editor">
                           <label style={{ marginBottom: '10px', display: 'block' }}>Signal Values</label>
                           <div className="signals-list">
-                            {selectedDbcMessage.signals.map(signal => {
+                            {visibleSignals.map(signal => {
                               // Check if signal has choices (enumerated values)
                               const hasChoices = signal.choices && Object.keys(signal.choices).length > 0;
+                              const currentValue = signalValues[signal.name] ?? 0;
                               
                               return (
                                 <div key={signal.name} className="signal-input-row">
@@ -611,7 +742,7 @@ function AddTransmitDialog({ dbcMessages, onAdd, onUpdate, onCancel, editingItem
                                   {hasChoices ? (
                                     // Dropdown for enumerated signals
                                     <select
-                                      value={signalValues[signal.name] || 0}
+                                      value={currentValue}
                                       onChange={(e) => handleSignalChange(signal.name, e.target.value)}
                                       className="signal-select"
                                     >
@@ -625,7 +756,7 @@ function AddTransmitDialog({ dbcMessages, onAdd, onUpdate, onCancel, editingItem
                                     // Number input for numeric signals
                                     <input
                                       type="number"
-                                      value={signalValues[signal.name] || 0}
+                                      value={currentValue}
                                       onChange={(e) => handleSignalChange(signal.name, e.target.value)}
                                       step="any"
                                       className="signal-input"
@@ -637,13 +768,11 @@ function AddTransmitDialog({ dbcMessages, onAdd, onUpdate, onCancel, editingItem
                               );
                             })}
                           </div>
-                          <button
-                            className="btn btn-secondary btn-block"
-                            onClick={encodeSignals}
-                            style={{ marginTop: '10px' }}
-                          >
-                            Preview Encoded Bytes
-                          </button>
+                          {visibleSignals.length === 0 && (
+                            <p style={{ color: '#999', fontSize: '12px', textAlign: 'center', marginTop: '8px' }}>
+                              No signals are active for the selected multiplexer value.
+                            </p>
+                          )}
                         </div>
                       ) : (
                         <p style={{ color: '#999', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
@@ -656,7 +785,7 @@ function AddTransmitDialog({ dbcMessages, onAdd, onUpdate, onCancel, editingItem
                   {/* Show raw bytes input (always visible or when in raw mode) */}
                   {(editMode === 'raw' || editMode === 'signals') && (
                     <div className="form-group">
-                      <label>Data Bytes (Hex) {editMode === 'signals' && '(Preview)'}</label>
+                      <label>Data Bytes (Hex) {editMode === 'signals' && '(Auto-updated)'}</label>
                       <input
                         type="text"
                         value={dbcData}

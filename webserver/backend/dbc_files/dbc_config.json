@@ -5,16 +5,16 @@
       "enabled": false
     },
     {
+      "filename": "ControlsBus.dbc",
+      "enabled": true
+    },
+    {
       "filename": "Baby_MOBO.dbc",
       "enabled": true
     },
     {
       "filename": "BMS-Firmware-RTOS-Complete.dbc",
       "enabled": false
-    },
-    {
-      "filename": "STM32L432_Bootloader.dbc",
-      "enabled": true
     },
     {
       "filename": "hvc.dbc",
