@@ -1,8 +1,16 @@
 {
   "files": [
     {
-      "filename": "BMS-Firmware-RTOS-Complete.dbc",
+      "filename": "ControlsBus(2).dbc",
+      "enabled": false
+    },
+    {
+      "filename": "Baby_MOBO.dbc",
       "enabled": true
+    },
+    {
+      "filename": "BMS-Firmware-RTOS-Complete.dbc",
+      "enabled": false
     },
     {
       "filename": "STM32L432_Bootloader.dbc",
@@ -13,15 +21,15 @@
       "enabled": true
     },
     {
-      "filename": "Baby_MOBO.dbc",
-      "enabled": true
-    },
-    {
       "filename": "io_messages.dbc",
-      "enabled": true
+      "enabled": false
     },
     {
       "filename": "BMS-Inverter-Only.dbc",
+      "enabled": true
+    },
+    {
+      "filename": "DAQBus.dbc",
       "enabled": true
     }
   ]

@@ -1126,10 +1126,13 @@ class CANBackend:
         'ACC_Summary',
         'Current_Limit',
         'PL_Signal',
-        'MOBO_Summary',
-        'MOBO_Power_Info',
-        'MOBO_LC_Summary',
-        'MOBO_HC_Summary',
+        'MOBO_Heartbeat',
+        'MOBO_Errors',
+        'MOBO_CAN_Stats',
+        'MOBO_Power_Telemetry',
+        'MOBO_Current_Telemetry',
+        'MOBO_Safety_Status',
+        'MOBO_Relay_Status',
     )
 
     def get_hvc_test_mode_status(self) -> Dict[str, Any]:
@@ -1520,6 +1523,13 @@ class CANBackend:
 
         lv_current = round((lc_current * 0.12) + random.uniform(-0.8, 0.8), 3)
         hc_current_mobo = round((hc_current * 0.18) + random.uniform(-0.8, 0.8), 3)
+        lv_current_raw = int(round(2048 + (lv_current * 18.0)))
+        lv_current_raw = max(0, min(4095, lv_current_raw))
+
+        pump_on = 1 if wave > 0.35 else 0
+        drs_on = 1 if wave > 0.75 else 0
+        fans_on = 1 if wave > 0.5 else 0
+        rad_on = 1 if wave > 0.58 else 0
 
         return {
             'IO_Summary': {
@@ -1565,29 +1575,70 @@ class CANBackend:
             'PL_Signal': {
                 'PL_Signal_Reason': pl_signal_reason,
             },
-            'MOBO_Summary': {
-                'Heartbeat_Toggle': heartbeat_toggle,
-                'SDC_1': 1,
-                'SDC_2': 1,
-                'SDC_3': 1,
-                'BMS': 1,
-                'BSPD': 1,
-                'IMD': 1,
+            'MOBO_Heartbeat': {
+                'System_State': 2,
+                'Heartbeat_Counter': int(elapsed * 10.0) & 0xFF,
+                'Fault_Count': 0,
+                'Error_Summary': 0,
+                'Has_Warnings': 0,
             },
-            'MOBO_Power_Info': {
+            'MOBO_Errors': {
+                'Error_Flags': 0,
+                'Warning_Flags': 0,
+            },
+            'MOBO_CAN_Stats': {
+                'TX_Success': int(elapsed * 12.0) & 0xFFFF,
+                'TX_Failures': 0,
+                'RX_Messages': int(elapsed * 8.0) & 0xFFFF,
+                'RX_Drops': 0,
+            },
+            'MOBO_Power_Telemetry': {
                 'Battery_Voltage': battery_voltage_v,
-            },
-            'MOBO_LC_Summary': {
                 'FiveV_Sense': fivev_sense,
                 'Brake_Input': brake_input,
-                'LV_Current': lv_current,
+                'LV_Current_Raw': lv_current_raw,
             },
-            'MOBO_HC_Summary': {
+            'MOBO_Current_Telemetry': {
+                'LV_Current': lv_current,
                 'HC_Current': hc_current_mobo,
-                'Pump_Cmd': 1 if wave > 0.35 else 0,
-                'DRS_Cmd': 1 if wave > 0.75 else 0,
-                'Fans_Cmd': 1 if wave > 0.5 else 0,
-                'Rad_Cmd': 1 if wave > 0.58 else 0,
+                'LV_Current_Peak': round(lv_current + 1.8, 3),
+                'HC_Current_Peak': round(hc_current_mobo + 2.4, 3),
+            },
+            'MOBO_Safety_Status': {
+                'SDC1_Raw': 0,
+                'SDC2_Raw': 0,
+                'SDC3_Raw': 0,
+                'BMS_Raw': 0,
+                'BSPD_Raw': 0,
+                'IMD_Raw': 0,
+                'SDC1_Debounced': 0,
+                'SDC2_Debounced': 0,
+                'SDC3_Debounced': 0,
+                'BMS_Debounced': 0,
+                'BSPD_Debounced': 0,
+                'IMD_Debounced': 0,
+                'SDC1_Latched': 0,
+                'SDC2_Latched': 0,
+                'SDC3_Latched': 0,
+                'BMS_Latched': 0,
+                'BSPD_Latched': 0,
+                'IMD_Latched': 0,
+            },
+            'MOBO_Relay_Status': {
+                'Pump_Commanded': pump_on,
+                'DRS_Commanded': drs_on,
+                'Fans_Commanded': fans_on,
+                'Rad_Commanded': rad_on,
+                'Pump_Actual': pump_on,
+                'DRS_Actual': drs_on,
+                'Fans_Actual': fans_on,
+                'Rad_Actual': rad_on,
+                'Pump_State': 2 if pump_on else 0,
+                'DRS_State': 2 if drs_on else 0,
+                'Fans_State': 2 if fans_on else 0,
+                'Rad_State': 2 if rad_on else 0,
+                'Reserved_B4': 0,
+                'Ms_Since_Cmd': int((elapsed * 1000.0) % 5000.0),
             },
         }
 

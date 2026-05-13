@@ -292,8 +292,8 @@ function HVCDashboard({ messages, onSendMessage, staleTimeoutMs = 30000 }) {
   const renderFaultBadge = (label, signal) => {
     const num = getNumeric(signal);
     if (num === null) return <span className="hvc-badge unknown">{label}: ?</span>;
-    const ok = num !== 0;
-    return <span className={`hvc-badge ${ok ? 'good' : 'bad'}`}>{label}: {ok ? 'OK' : 'FAULT'}</span>;
+    const faulted = num !== 0;
+    return <span className={`hvc-badge ${faulted ? 'bad' : 'good'}`}>{label}: {faulted ? 'FAULT' : 'OK'}</span>;
   };
 
   return (
