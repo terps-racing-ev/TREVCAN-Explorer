@@ -23,6 +23,10 @@
     {
       "filename": "BMS-Inverter-Only.dbc",
       "enabled": true
+    },
+    {
+      "filename": "DAQBus.dbc",
+      "enabled": true
     }
   ]
 }

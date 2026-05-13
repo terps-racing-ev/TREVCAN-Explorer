@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity, Battery, Power, Cpu, Gauge, ToggleRight, AlertTriangle,
 } from 'lucide-react';
@@ -109,6 +109,11 @@ function MoboDashboard({
   const [commandMask, setCommandMask] = useState(0);
   const [sendBusy, setSendBusy] = useState(false);
   const [sendStatus, setSendStatus] = useState(null);
+  // Once the user issues any command (or we've seeded from the first valid
+  // bus report), we stop auto-syncing commandMask from incoming HC summaries.
+  // Otherwise stale/in-flight reports clobber the user's intent and the
+  // outputs appear to turn back on ~1 s after a disable click.
+  const commandSeededRef = useRef(false);
 
   const moboDbc = dbcFiles.find((f) => f.filename === MOBO_DBC_FILENAME) || null;
   const moboDbcEnabled = Boolean(moboDbc?.enabled);
@@ -158,30 +163,43 @@ function MoboDashboard({
     return () => unregister();
   }, [onRegisterRawCallback]);
 
-  // Sync command mask UI from the most recent reported HC outputs.
+  // Seed command mask from the first valid HC summary so the UI starts in
+  // sync with the bus, then stop tracking — user commands must not be
+  // overwritten by subsequent (possibly stale or in-flight) reports.
   useEffect(() => {
+    if (commandSeededRef.current) return;
+    // Wait until at least one HC output signal has actually been reported.
+    const anyReported = HC_OUTPUTS.some(
+      (item) => isBinaryActive(getSignal(item.signal)) !== null
+    );
+    if (!anyReported) return;
     const next = HC_OUTPUTS.reduce((mask, item) => {
       const active = isBinaryActive(getSignal(item.signal));
       return active === true ? mask | (1 << item.bit) : mask;
     }, 0);
-    setCommandMask((prev) => (prev === next ? prev : next));
+    setCommandMask(next & 0x0F);
+    commandSeededRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestSignals]);
 
   const sendCommandMask = async (mask) => {
     if (typeof onSendMessage !== 'function') return;
+    const masked = mask & 0x0F;
+    // Reflect intent in the UI immediately and lock out the auto-sync seed
+    // so an in-flight (stale) HC summary cannot reverse the user's command.
+    setCommandMask(masked);
+    commandSeededRef.current = true;
     setSendBusy(true);
     setSendStatus({ type: 'pending', text: 'Sending...' });
     try {
       const ok = await onSendMessage(
         VCU_MOBO_COMMAND_ID,
-        [1, mask & 0x0F, 0, 0, 0, 0, 0, 0],
+        [1, masked, 0, 0, 0, 0, 0, 0],
         true,
         false,
       );
       if (ok) {
-        setCommandMask(mask & 0x0F);
-        setSendStatus({ type: 'success', text: `Sent mask 0x${(mask & 0x0F).toString(16).toUpperCase()}` });
+        setSendStatus({ type: 'success', text: `Sent mask 0x${masked.toString(16).toUpperCase()}` });
       } else {
         setSendStatus({ type: 'error', text: 'Failed to send command' });
       }

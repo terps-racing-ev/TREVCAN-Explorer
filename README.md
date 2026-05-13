@@ -25,46 +25,44 @@ Quick start
 
 Run on boot with systemd (Linux)
 ---------------------------------
-The repository includes a systemd installer that creates two services for the
-current checkout and enables them at boot:
+The repository includes a systemd installer that creates a service for the
+current checkout and enables it at boot:
 
-- `trevcan-socketcan.service` normalizes CAN interface names before the app starts.
-- `trevcan-explorer.service` starts the TREVCAN backend/frontend stack after SocketCAN is ready.
+- `trevcan-explorer.service` starts the TREVCAN backend/frontend stack.
 
-On a Raspberry Pi with a 2-channel CAN HAT, the installer reserves `can0` and
-`can1` for the onboard SPI controllers, then assigns removable USB adapters in
-priority order starting at `can2`:
+CAN interface setup is not managed by this service. Configure and bring up CAN
+interfaces separately before connecting from the app.
 
-- PCAN-USB -> `can2`
-- CANable/gs_usb -> `can3`
-
-If only one USB adapter is attached, it is assigned to `can2`.
-
-1. Install the service:
+1. Install Python dependencies. A repo-local virtual environment is recommended
+   on Raspberry Pi OS and will be used automatically by the service installer:
+	```
+	python3 -m venv .venv
+	. .venv/bin/activate
+	pip install -r requirements.txt
+	```
+2. Install the service:
 	```
 	bash systemd/install_service.sh
 	```
-   To use a different default USB CAN bitrate during boot bring-up:
+3. Check status:
 	```
-	TREVCAN_SOCKETCAN_BITRATE=250000 bash systemd/install_service.sh
-	```
-2. Check status:
-	```
-	sudo systemctl status trevcan-socketcan.service
 	sudo systemctl status trevcan-explorer.service
 	```
-3. View logs:
+4. View logs:
 	```
-	sudo journalctl -u trevcan-socketcan.service -f
 	sudo journalctl -u trevcan-explorer.service -f
 	```
 
-The service runs `python3 start.py --service`, which keeps the backend and
-frontend running without trying to open a browser during boot.
+If you need a different Python interpreter, run the installer with
+`PYTHON_BIN=/path/to/python bash systemd/install_service.sh`.
 
-On Linux, removable USB CAN adapters brought up by `trevcan-socketcan.service`
-will appear to the app as SocketCAN devices. Use the SocketCAN/CANable path in
-the UI and select the interface mapped to `can2` or `can3`.
+The service runs the selected Python interpreter with `start.py --service`,
+which keeps the backend and frontend running without trying to open a browser
+during boot.
+
+On Linux, CAN interfaces already brought up by the system will appear to the app
+as SocketCAN devices. Use the SocketCAN/CANable path in the UI and select the
+interface you want to use.
 
 Open:
 - Frontend: http://localhost:3001
