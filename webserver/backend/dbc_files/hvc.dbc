@@ -78,8 +78,12 @@ BO_ 2151678456 Current_Limit: 8 HVC
 BO_ 2151678458 PL_Signal: 1 HVC
  SG_ PL_Signal_Reason : 0|8@1+ (1,0) [0|255] "" Vector__XXX
 
+BO_ 2151678459 BMB_Passthrough_Control: 1 Vector__XXX
+ SG_ BMB_Passthrough_Enable : 0|1@1+ (1,0) [0|1] "" HVC
+
 VAL_ 2151678449 BMS_State 0 "PRE_INIT" 1 "RUNNING" 2 "CHARGING" 3 "BALANCING" 4 "ERRORED" ;
 VAL_ 2151678458 PL_Signal_Reason 0 "NORMAL_OPEN" 1 "NORMAL_CLOSED" 2 "BMS_ERRORED" 3 "BATT_FLOATING" 4 "CHARGING" ;
+VAL_ 2151678459 BMB_Passthrough_Enable 0 "Disable" 1 "Enable" ;
 VAL_ 2151678449 Err_RefOverTemp 0 "Inactive" 1 "Active" ;
 VAL_ 2151678449 Err_ModuleTimeout 0 "Inactive" 1 "Active" ;
 VAL_ 2151678449 Err_BattFloating 0 "Inactive" 1 "Active" ;
