@@ -935,6 +935,12 @@ function CANExplorer({
               </button>
             </div>
             <button
+              className={`sidebar-tab ${activeTab === 'vcu-dashboard' ? 'active' : ''}`}
+              onClick={() => onTabChange('vcu-dashboard')}
+            >
+              VCU
+            </button>
+            <button
               className={`sidebar-tab ${activeTab === 'inverter-dashboard' ? 'active' : ''}`}
               onClick={() => onTabChange('inverter-dashboard')}
             >

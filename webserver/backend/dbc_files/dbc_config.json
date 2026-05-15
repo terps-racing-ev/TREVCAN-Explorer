@@ -25,11 +25,7 @@
       "enabled": true
     },
     {
-      "filename": "DAQBus.dbc",
-      "enabled": true
-    },
-    {
-      "filename": "STM32L432_Bootloader.dbc",
+      "filename": "master.dbc",
       "enabled": true
     }
   ]

@@ -10,6 +10,7 @@ import BMSStatus from './components/BMSStatus';
 import HVCDashboard from './components/HVCDashboard';
 import MoboDashboard from './components/MoboDashboard';
 import InverterDashboard from './components/InverterDashboard';
+import VCUDashboard from './components/VCUDashboard';
 import StatusBar from './components/StatusBar';
 import { apiService } from './services/api';
 import { websocketService } from './services/websocket';
@@ -784,6 +785,42 @@ function App() {
           >
             <HVCDashboard
               messages={messages}
+              onSendMessage={handleSendMessage}
+              staleTimeoutMs={staleTimeoutMs}
+            />
+          </CANExplorer>
+        )}
+        {activeTab === 'vcu-dashboard' && (
+          <CANExplorer
+            connected={connected}
+            messages={messages}
+            onClearMessages={handleClearMessages}
+            onSendMessage={handleSendMessage}
+            onLoadDBC={handleLoadDBC}
+            onUpdateDBCConfig={handleUpdateDBCConfig}
+            onDeleteDBC={handleDeleteDBC}
+            dbcLoaded={dbcLoaded}
+            dbcFile={dbcFile}
+            dbcFiles={dbcFiles}
+            dbcContext={dbcContext}
+            devices={devices}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onRefreshDevices={fetchDevices}
+            connectionStatus={connectionStatus}
+            stats={stats}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onRegisterRawCallback={registerRawMessageCallback}
+            simulationActive={simulationActive}
+            onStartSimulation={handleStartSimulation}
+            onStopSimulation={handleStopSimulation}
+            staleTimeoutMs={staleTimeoutMs}
+            onStaleTimeoutChange={setStaleTimeoutMs}
+          >
+            <VCUDashboard
+              messages={messages}
+              dbcFiles={dbcFiles}
               onSendMessage={handleSendMessage}
               staleTimeoutMs={staleTimeoutMs}
             />
