@@ -8,6 +8,7 @@ import BMSStatus from './components/BMSStatus';
 import HVCDashboard from './components/HVCDashboard';
 import MoboDashboard from './components/MoboDashboard';
 import InverterDashboard from './components/InverterDashboard';
+import InverterTesting from './components/InverterTesting';
 import VCUDashboard from './components/VCUDashboard';
 import VCULaunchControlDashboard from './components/VCULaunchControlDashboard';
 import DAQDashboard from './components/DAQDashboard';
@@ -1137,7 +1138,7 @@ function App() {
             />
           </CANExplorer>
         )}
-        {activeTab === 'inverter-dashboard' && (
+        {(activeTab === 'inverter-dashboard' || activeTab === 'inverter-testing') && (
           <CANExplorer
             connected={connected}
             messages={explorerMessages}
@@ -1167,12 +1168,19 @@ function App() {
             onStaleMessagesEnabledChange={setStaleMessagesEnabled}
             onStaleTimeoutChange={setStaleTimeoutMs}
           >
-            <InverterDashboard
+            {activeTab === 'inverter-testing' ? <InverterTesting
+              messages={explorerMessages}
+              connectionStatus={connectionStatus}
+              simulationActive={simulationActive}
+              onSendMessage={handleSendMessage}
+              onRegisterRawCallback={registerRawMessageCallback}
+              staleTimeoutMs={effectiveStaleTimeoutMs}
+            /> : <InverterDashboard
               messages={messages}
               dbcFiles={dbcFiles}
               onSendMessage={handleSendMessage}
               staleTimeoutMs={effectiveStaleTimeoutMs}
-            />
+            />}
           </CANExplorer>
         )}
         {activeTab === 'driving-dashboard' && (

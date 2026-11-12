@@ -1460,6 +1460,12 @@ function CANExplorer({
               >
                 CM200DZ Dashboard
               </button>
+              <button
+                className={`sidebar-tab submenu ${activeTab === 'inverter-testing' ? 'active' : ''}`}
+                onClick={() => onTabChange('inverter-testing')}
+              >
+                Inverter Testing
+              </button>
             </div>
             <div className="sidebar-menu-group">
               <div className="sidebar-menu-header">MOBO</div>

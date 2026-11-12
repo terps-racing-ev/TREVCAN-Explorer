@@ -68,6 +68,15 @@ Open:
 - Frontend: http://localhost:3001
 - Backend API: http://localhost:8000
 
+Inverter testing
+----------------
+Open **Inverter → Inverter Testing** and connect the desired transmit bus in the
+sidebar. This ports the desktop inverter-testing torque controls, direction
+toggle, fault/lockout clearing, −5 Nm emergency braking, EEPROM reads, and raw
+status/temperature feedback. No DBC is required. Torque commands repeat at 10 Hz;
+**Stop Testing** sends zero torque with enable cleared. Leaving the tab or
+changing buses stops transmission and attempts a final disable on the old bus.
+
 Supported CAN hardware / servers
 --------------------------------
 - PCAN-USB
